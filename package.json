@@ -19,12 +19,13 @@
     "concurrently": "^8.2.2",
     "esbuild": "^0.23.1",
     "nodemon": "^3.1.4",
+    "prisma": "^5.19.0",
     "ts-node-dev": "^2.0.0",
     "tsc-watch": "^6.2.0",
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@prisma/client": "^5.18.0",
+    "@prisma/client": "^5.19.0",
     "axios": "^1.7.4",
     "connect-redis": "^7.1.1",
     "cors": "^2.8.5",
@@ -34,7 +35,6 @@
     "express-session": "^1.18.0",
     "google-auth-library": "^9.13.0",
     "openai": "^4.56.0",
-    "prisma": "^5.18.0",
     "redis": "^4.7.0",
     "sync_it": "file:",
     "zod": "^3.23.8"

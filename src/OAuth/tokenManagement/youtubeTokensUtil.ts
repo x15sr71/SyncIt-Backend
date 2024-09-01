@@ -64,11 +64,14 @@ export async function refreshYoutubeAccessToken() {
         refresh_token: newRefreshToken || refresh_token
       }
     });
+    
+    return true
 
   }
   catch(error)
   {
     console.log("Error in refreshing tokens", error)
+    return false
   }
   
 }

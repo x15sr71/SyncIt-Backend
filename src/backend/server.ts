@@ -8,6 +8,10 @@ import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
 // import { handleGoogleCallback } from '../OAuth/google';
 import { searchSpotifyTracks } from './extractTracks/spotifyExt';
 import { searchYoutubeTracks } from './extractTracks/youtubeExt';
+import { modify_YotutubeLikePlaylist } from './modify/youtube/modify_YtLikePlaylist'
+import { addToSptLikePlaylist } from './modify/spotify/addToSptLikePlaylist'
+import { removeFromSptLikePlaylist } from './modify/spotify/removeFromLikePlaylist'
+import { test } from './openAI/api_test'
 // import get_AccessToken from '../api_test';
 //import { openai_Call } from '../api_test';
 
@@ -33,7 +37,12 @@ app.get('/youtube/callback', handleYouTubeCallback);
 app.get('/spotifyTracks', searchSpotifyTracks)
 app.get('/youtubeTrack', searchYoutubeTracks)
 
-//app.get('/api', openai_Call)
+app.get('/modifyYoutubeLikePlaylist', modify_YotutubeLikePlaylist)
+
+app.get('/addtoSpt', addToSptLikePlaylist)
+app.get('/removefromSpt', removeFromSptLikePlaylist)
+
+app.get('/test', test)
 
 app.post('/sync-playlists', async (req, res) => {
     const { spotifyToken, youtubeToken } = req.body;

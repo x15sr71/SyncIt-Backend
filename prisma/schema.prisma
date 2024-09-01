@@ -14,9 +14,9 @@ model User {
   id            Int            @id @default(autoincrement())
   email         String         @unique
   username      String         @unique
-  profilePicture String
-  access_token  String
-  refresh_token String
+  profilePicture String?
+  access_token  String?
+  refresh_token String?
   // spotifyTokens SpotifyData[] @relation(name: "UserSpotifyTokens")
   // youtubeTokens YouTubeData[] @relation(name: "UserYouTubeTokens")
   createdAt     DateTime       @default(now())
@@ -28,6 +28,7 @@ model SpotifyData {
   username  String
   access_token  String
   refresh_token String
+  last_SyncedAt DateTime?
   createdAt DateTime @default(now())
   // user      User     @relation(name: "UserSpotifyTokens", fields: [userId], references: [id])
   // userId    Int
@@ -39,6 +40,7 @@ model YouTubeData {
   username  String
   access_token  String
   refresh_token String
+  last_SyncedAt DateTime?
   createdAt DateTime @default(now())
   // user      User     @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
   // userId    Int

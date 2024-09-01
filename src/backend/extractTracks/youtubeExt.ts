@@ -16,6 +16,7 @@ export const searchYoutubeTracks = async (req, res) => {
     try {
       let accessToken = await get_AccessToken();
       await fetchYoutubeTracks(accessToken);
+      //console.log(accessToken)
 
       res.json({ done: youtubeTrackArray });
       return; // Exit function after successful fetch
@@ -92,15 +93,15 @@ const fetchYoutubeTracks = async (accessToken) => {
       };
     });
 
-    console.log('--------------------------------------------');
-    youtubeTrackArray.forEach(video => {
-      console.log(`TrackNumber: ${video.trackNumber}`);
-      console.log(`Title: ${video.title}`);
-      console.log(`Video Channel Title: ${video.videoChannelTitle}`);
-      console.log(`Description: ${video.description}`);
-      console.log(`Duration: ${video.duration} seconds`);
-      console.log('-------------------------------------');
-    });
+    // console.log('--------------------------------------------');
+    // youtubeTrackArray.forEach(video => {
+    //   console.log(`TrackNumber: ${video.trackNumber}`);
+    //   console.log(`Title: ${video.title}`);
+    //   console.log(`Video Channel Title: ${video.videoChannelTitle}`);
+    //   console.log(`Description: ${video.description}`);
+    //   console.log(`Duration: ${video.duration} seconds`);
+    //   console.log('-------------------------------------');
+    // });
 
     console.log("Request sent");
 

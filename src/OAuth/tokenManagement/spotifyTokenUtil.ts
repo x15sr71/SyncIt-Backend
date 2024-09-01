@@ -15,7 +15,7 @@ export async function get_SpotifyAccessToken() {
           access_token: true
         }
       })
-
+      //console.log(access_token)
       return access_token[0].access_token;
   
     }
