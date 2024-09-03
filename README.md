@@ -4,8 +4,6 @@
 The Sync_It backend is a powerful and scalable Express.js application designed to manage the heavy lifting required for syncing liked songs across multiple music platforms, such as Spotify and YouTube. This backend serves as the core engine for the Sync_It ecosystem, handling user authentication, API requests, data processing, and synchronization tasks efficiently.
 
 This repository is the foundation of the Sync_It project, providing the essential backend services that power the entire application. It’s designed to be flexible and extendable, allowing easy integration of additional music platforms and future enhancements.
-## Contributing
-
 
 ## Tech Stack
 
@@ -18,7 +16,7 @@ Axios
 Youtube API
 Spotify API
 
-
+## Contributing
 
 Contributions are always welcome!
 
