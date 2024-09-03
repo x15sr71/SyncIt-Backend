@@ -6,6 +6,20 @@ The Sync_It backend is a powerful and scalable Express.js application designed t
 This repository is the foundation of the Sync_It project, providing the essential backend services that power the entire application. It’s designed to be flexible and extendable, allowing easy integration of additional music platforms and future enhancements.
 ## Contributing
 
+
+## Tech Stack
+
+**Client:** Nextjs, TailwindCSS, Shadcn
+
+**Server:** Node.js
+TypeScript
+Express.js
+Axios
+Youtube API
+Spotify API
+
+
+
 Contributions are always welcome!
 
 See `contributing.md` for ways to get started.
