@@ -36,7 +36,7 @@ Clone the project
 Go to the project directory
 
 ```bash
-  cd sync_it_backend
+  cd SyncIt-Backend
 ```
 
 Install dependencies
