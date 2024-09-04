@@ -1,5 +1,5 @@
 
-# Sync_It Backend
+# SyncIt Backend
 
 The Sync_It backend is a powerful and scalable Express.js application designed to manage the heavy lifting required for syncing liked songs across multiple music platforms, such as Spotify and YouTube. This backend serves as the core engine for the Sync_It ecosystem, handling user authentication, API requests, data processing, and synchronization tasks efficiently.
 
@@ -30,7 +30,7 @@ Please adhere to this project's `code of conduct`.
 Clone the project
 
 ```bash
-  git clone https://github.com/your-username/sync_it_backend.git
+  git clone https://github.com/x15sr71/SyncIt-Backend.git
 ```
 
 Go to the project directory
