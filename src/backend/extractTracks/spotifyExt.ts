@@ -14,7 +14,7 @@ export const searchSpotifyTracks = async (req, res) => {
     try {
       let accessToken = await get_SpotifyAccessToken();
       await fetchSpotifyTracks(accessToken);
-
+      console.log(accessToken)
       res.json({ done: "done" });
       return; // Exit function after successful fetch
 

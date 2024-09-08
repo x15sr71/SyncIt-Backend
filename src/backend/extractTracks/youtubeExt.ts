@@ -16,7 +16,7 @@ export const searchYoutubeTracks = async (req, res) => {
     try {
       let accessToken = await get_AccessToken();
       await fetchYoutubeTracks(accessToken);
-      //console.log(accessToken)
+      console.log(accessToken)
 
       res.json({ done: youtubeTrackArray });
       return; // Exit function after successful fetch

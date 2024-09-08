@@ -10,7 +10,7 @@ const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirect_uri = process.env.SPOTIFY_REDIRECT_URI;
 
 export const handleSpotifyLogin = (req, res) => {
-    const scope = 'user-library-modify user-library-read playlist-read-private playlist-read-collaborative user-top-read user-read-recently-played';
+    const scope = 'user-library-modify user-library-read playlist-read-private playlist-modify-private playlist-modify-public playlist-read-collaborative user-top-read user-read-recently-played';
     const authUrl = `https://accounts.spotify.com/authorize?${querystring.stringify({
         response_type: 'code',
         client_id,
@@ -41,8 +41,9 @@ export const handleSpotifyCallback = async (req, res) => {
 
         // Log the full response data
         console.log('Spotify API Response:', response.data);
-
+        
         const { access_token, refresh_token } = response.data;
+        console.log(access_token)
 
         await prisma.spotifyData.create({
             data: {
