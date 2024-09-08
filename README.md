@@ -7,8 +7,6 @@ This repository is the foundation of the Sync_It project, providing the essentia
 
 ## Tech Stack
 
-**Client:** Nextjs, TailwindCSS, Shadcn
-
 **Server:** Node.js
 TypeScript
 Express.js
