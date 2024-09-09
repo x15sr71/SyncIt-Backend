@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { AxiosError } from 'axios';
-import { get_AccessToken } from '../../../OAuth/tokenManagement/youtubeTokensUtil';
+import { get_YoutubeAccessToken } from '../../../OAuth/tokenManagement/youtubeTokensUtil';
 import { refreshYoutubeAccessToken } from '../../../OAuth/tokenManagement/youtubeTokensUtil';
 
 const MAX_RETRIES = 5;
@@ -36,7 +36,7 @@ export const modify_YotutubeLikePlaylist = async function (req, res) {
 
 const likeOrDislikeVideo = async () => {
   try {
-    const access_Token = await get_AccessToken()
+    const access_Token = await get_YoutubeAccessToken()
     const response = await axios.post(
       'https://www.googleapis.com/youtube/v3/videos/rate',
       null,

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { AxiosError } from 'axios';
-import { get_AccessToken } from '../../OAuth/tokenManagement/youtubeTokensUtil'; // Ensure this exports a function
+import { get_YoutubeAccessToken } from '../../OAuth/tokenManagement/youtubeTokensUtil'; // Ensure this exports a function
 import { refreshYoutubeAccessToken } from '../../OAuth/tokenManagement/youtubeTokensUtil'; // Ensure this exports a function
 
 const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
@@ -14,7 +14,7 @@ export const searchYoutubeTracks = async (req, res) => {
 
   while (retryCount < MAX_RETRIES) {
     try {
-      let accessToken = await get_AccessToken();
+      let accessToken = await get_YoutubeAccessToken();
       await fetchYoutubeTracks(accessToken);
       console.log(accessToken)
 

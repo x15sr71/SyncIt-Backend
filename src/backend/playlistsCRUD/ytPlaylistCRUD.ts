@@ -1,5 +1,5 @@
 import axios from "axios";
-import { get_AccessToken } from "../../OAuth/tokenManagement/youtubeTokensUtil";
+import { get_YoutubeAccessToken } from "../../OAuth/tokenManagement/youtubeTokensUtil";
 
 let MAX_RETRIES = 5;
 
@@ -7,7 +7,7 @@ let MAX_RETRIES = 5;
 
 async function create_YoutubePlaylist(title, description) {
     
-    const access_Token = get_AccessToken()
+    const access_Token = get_YoutubeAccessToken()
 
     try{
         const response = await axios.post('https://www.googleapis.com/youtube/v3/playlists',
@@ -40,7 +40,7 @@ async function create_YoutubePlaylist(title, description) {
 
 async function get_YoutubePlaylists() {
 
-    const access_Token = await get_AccessToken()
+    const access_Token = await get_YoutubeAccessToken()
     
     try{
         const response = await axios.get('https://www.googleapis.com/youtube/v3/playlists', {
@@ -64,7 +64,7 @@ async function get_YoutubePlaylists() {
 async function get_YoutubePlaylistItems(playlistId) {
 
     const youtubeAPI_KEY = process.env.YOUTUBE_API_KEY
-    const access_Token = await get_AccessToken()
+    const access_Token = await get_YoutubeAccessToken()
 
     try{
         const response = axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {

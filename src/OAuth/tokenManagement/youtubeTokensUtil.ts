@@ -5,7 +5,7 @@ import querystring from 'querystring';
 const client_id = process.env.YOUTUBE_CLIENT_ID;
 const client_secret = process.env.YOUTUBE_CLIENT_SECRET;
 
-export async function get_AccessToken() {
+export async function get_YoutubeAccessToken() {
     try {
       const access_token = await prisma.youTubeData.findMany({
         where: {
