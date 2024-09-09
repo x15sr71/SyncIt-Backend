@@ -9,7 +9,7 @@ export async function get_SpotifyAccessToken() {
     try {
       const access_token = await prisma.spotifyData.findMany({
         where: {
-          username: "Moli"
+          username: "Chandragupt Singh"
         },
         select: {
           access_token: true
@@ -30,7 +30,7 @@ export async function get_SpotifyAccessToken() {
 
     const {id, refresh_token} = await prisma.spotifyData.findFirst({
         where: {
-          username: "Moli"
+          username: "Chandragupt Singh"
         },
         select: {
           id: true,

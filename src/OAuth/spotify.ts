@@ -1,16 +1,13 @@
 import prisma from './prismaClient';
 import axios from 'axios';
 import querystring from 'querystring';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirect_uri = process.env.SPOTIFY_REDIRECT_URI;
 
 export const handleSpotifyLogin = (req, res) => {
-    const scope = 'user-library-modify user-library-read playlist-read-private playlist-modify-private playlist-modify-public playlist-read-collaborative user-top-read user-read-recently-played';
+    const scope = 'user-library-modify user-read-email user-read-private user-library-read playlist-read-private playlist-modify-private playlist-modify-public playlist-read-collaborative user-top-read user-read-recently-played';
     const authUrl = `https://accounts.spotify.com/authorize?${querystring.stringify({
         response_type: 'code',
         client_id,
@@ -40,16 +37,28 @@ export const handleSpotifyCallback = async (req, res) => {
         });
 
         // Log the full response data
-        console.log('Spotify API Response:', response.data);
         
         const { access_token, refresh_token } = response.data;
-        console.log(access_token)
+
+        // Fetch user's Spotify profile information using the access token
+        const profileResponse = await axios.get('https://api.spotify.com/v1/me', {
+            headers: {
+                'Authorization': `Bearer ${access_token}`
+            }
+        });
+
+        const { display_name, images } = profileResponse.data;
+
+        // Extract profile picture URL (if available if not empty string will be updated)
+        const profile_picture = images[0]?.url || '';
 
         await prisma.spotifyData.create({
             data: {
-                username: 'Moli',
+                username: display_name,
+                picture: profile_picture,
                 access_token: access_token,
-                refresh_token: refresh_token
+                refresh_token: refresh_token,
+                userId: 1
             }
         })
         console.log("added to db")

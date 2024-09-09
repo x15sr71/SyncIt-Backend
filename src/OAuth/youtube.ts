@@ -9,6 +9,7 @@ const redirect_uri = process.env.YOUTUBE_REDIRECT_URI;
 export const handleYouTubeLogin = (req, res) => {
     // Scopes needed for managing liked videos, searching, and interacting with YouTube data
     const scope = [
+        'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/youtube',
         'https://www.googleapis.com/auth/youtube.force-ssl',
         'https://www.googleapis.com/auth/youtube.readonly'
@@ -42,11 +43,21 @@ export const handleYouTubeCallback = async (req, res) => {
 
         const { access_token, refresh_token } = response.data;
 
+        const profileResponse = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+            headers: {
+                Authorization: `Bearer ${access_token}`
+            }
+        });
+
+        const { name, picture } = profileResponse.data;
+
         await prisma.youTubeData.create({
             data: {
-                username: 'Moli',
+                username: name,
+                picture: picture,
                 access_token: access_token,
-                refresh_token: refresh_token
+                refresh_token: refresh_token,
+                userId: 1
             }
         })
         console.log("added to db")
