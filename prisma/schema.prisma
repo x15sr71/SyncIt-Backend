@@ -17,6 +17,7 @@ model User {
   profilePicture String?
   access_token  String?
   refresh_token String?
+  correspondingTrackIds String?
   spotifyTokens SpotifyData[] @relation(name: "UserSpotifyTokens")
   youtubeTokens YouTubeData[] @relation(name: "UserYouTubeTokens")
   createdAt     DateTime       @default(now())
@@ -30,7 +31,8 @@ model SpotifyData {
   access_token  String
   refresh_token String
   last_SyncedAt DateTime?
-  last_playlist_hash String?
+  last_playlistTrackIds_hash String?
+  last_TrackIds String?
   createdAt DateTime @default(now())
   user      User     @relation(name: "UserSpotifyTokens", fields: [userId], references: [id])
   userId    Int
@@ -44,7 +46,8 @@ model YouTubeData {
   access_token  String
   refresh_token String
   last_SyncedAt DateTime?
-  last_playlist_hash String?
+  last_playlistTrackIds_hash String?
+  last_TracksIds String?
   createdAt DateTime @default(now())
   user      User     @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
   userId    Int

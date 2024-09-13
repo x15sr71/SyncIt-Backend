@@ -11,7 +11,8 @@ import { searchYoutubeTracks } from './extractTracks/youtubeExt';
 import { modify_YotutubeLikePlaylist } from './modify/youtube/modify_YtLikePlaylist'
 import { addToSptLikePlaylist } from './modify/spotify/addToSptLikePlaylist'
 import { removeFromSptLikePlaylist } from './modify/spotify/removeFromLikePlaylist'
-import { test } from './openAI/api_test'
+import { test } from '../OAuth/utility/test'
+import { test2 } from '../OAuth/utility/test2'
 
 dotenv.config();
 
@@ -38,7 +39,7 @@ app.get('/modifyYoutubeLikePlaylist', modify_YotutubeLikePlaylist)
 app.get('/addtoSpt', addToSptLikePlaylist)
 app.get('/removefromSpt', removeFromSptLikePlaylist)
 
-app.get('/test', test)
+app.get('/test2', test2)
 
 app.post('/sync-playlists', async (req, res) => {
     const { spotifyToken, youtubeToken } = req.body;

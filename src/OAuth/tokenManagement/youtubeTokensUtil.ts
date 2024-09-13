@@ -7,71 +7,70 @@ const client_secret = process.env.YOUTUBE_CLIENT_SECRET;
 
 export async function get_YoutubeAccessToken() {
     try {
-      const access_token = await prisma.youTubeData.findMany({
-        where: {
-          username: "Chandragupt Singh"
-        },
-        select: {
-          access_token: true
-        }
-      })
+        const accessTokenData = await prisma.youTubeData.findFirst({
+            where: {
+                username: "Chandragupt Singh"
+            },
+            select: {
+                access_token: true
+            }
+        });
 
-      return access_token[0].access_token;
-  
-      
+        if (!accessTokenData || !accessTokenData.access_token) {
+            throw new Error('Access token not found');
+        }
+
+        return accessTokenData.access_token;
+    } catch (error) {
+        console.log("Error in fetching access_token", error);
+        throw error;
     }
-    catch(error) {
-      console.log("Error in fetching access_token", error)
-    }
-  }
+}
 
 export async function refreshYoutubeAccessToken() {
-
-  const {id, refresh_token} = await prisma.youTubeData.findFirst({
-    where: {
-      username: "Chandragupt Singh"
-    },
-    select: {
-      id: true,
-      refresh_token: true
-    }
-  })
-
     try {
-      const requestBody = querystring.stringify({
-        refresh_token: refresh_token,
-        client_id,
-        client_secret,
-        grant_type: 'refresh_token'
-    });
+        const tokenData = await prisma.youTubeData.findFirst({
+            where: {
+                username: "Chandragupt Singh"
+            },
+            select: {
+                id: true,
+                refresh_token: true
+            }
+        });
 
-    // Make the POST request to the token endpoint
-    const response = await axios.post("https://oauth2.googleapis.com/token", requestBody, {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+        if (!tokenData || !tokenData.refresh_token) {
+            throw new Error('Refresh token not found');
         }
-    });
 
-    const { access_token, refresh_token: newRefreshToken } = response.data;
+        const requestBody = querystring.stringify({
+            refresh_token: tokenData.refresh_token,
+            client_id,
+            client_secret,
+            grant_type: 'refresh_token'
+        });
 
-    await prisma.youTubeData.update({
-      where: { 
-        id: id
-      },
-      data: {
-        access_token: access_token,
-        // Update the refresh token only if a new one is returned
-        refresh_token: newRefreshToken || refresh_token
-      }
-    });
-    
-    return true
+        const response = await axios.post("https://oauth2.googleapis.com/token", requestBody, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
 
-  }
-  catch(error)
-  {
-    console.log("Error in refreshing tokens", error)
-    return false
-  }
-  
+        const { access_token, refresh_token: newRefreshToken } = response.data;
+
+        await prisma.youTubeData.update({
+            where: { 
+                id: tokenData.id
+            },
+            data: {
+                access_token: access_token,
+                refresh_token: newRefreshToken || tokenData.refresh_token
+            }
+        });
+
+        return true;
+    } catch (error) {
+        console.log("Error in refreshing tokens", error);
+        return false;
+    }
 }

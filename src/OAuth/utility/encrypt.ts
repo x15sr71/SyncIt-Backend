@@ -11,3 +11,10 @@ export const  hashId = function (response) {
 
     return { hash };
 }
+
+export const compareHash = function (previoushash, currenthash) {
+    if (previoushash != currenthash) {
+        return false
+    }
+    return true
+}
