@@ -6,6 +6,7 @@ import prisma from '../../db';
 
 let spotifyTrackArray = [];
 const MAX_RETRIES = 3; // Maximum number of retries
+const MAX_TRACKS = 100; // Maximum number of tracks to fetch
 
 export const searchSpotifyTracks = async (req, res) => {
   let retryCount = 0;
@@ -64,23 +65,24 @@ export const searchSpotifyTracks = async (req, res) => {
 const fetchSpotifyTracks = async (accessToken) => {
   let url = 'https://api.spotify.com/v1/me/tracks';
   let allTracks = [];
+  let totalFetchedTracks = 0;
 
   try {
     console.log("Fetching tracks...");
     
-    while (url) {
+    while (url && totalFetchedTracks < MAX_TRACKS) {
       const response = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         },
         params: {
-          limit: 50,  // Max number of tracks per request
-          offset: 0   // Pagination offset
+          limit: Math.min(50, MAX_TRACKS - totalFetchedTracks), // Ensure we don't fetch more than needed
+          offset: totalFetchedTracks // Pagination offset
         }
       });
 
       // Add the current page of tracks to the allTracks array
-      allTracks = allTracks.concat(response.data.items.map(item => ({
+      const fetchedTracks = response.data.items.map(item => ({
         trackId: item.track.id,
         track: item.track,
         trackName: item.track.name,
@@ -89,37 +91,32 @@ const fetchSpotifyTracks = async (accessToken) => {
         albumType: item.track.album.album_type,
         releaseDate: item.track.album.release_date,
         durationMs: item.track.duration_ms,
-      })));
+      }));
+
+      allTracks = allTracks.concat(fetchedTracks);
+      totalFetchedTracks += fetchedTracks.length;
 
       let trackIDs = response.data.items.map(item => item.track.id);
-
-      const seriealizedTracks = JSON.stringify(trackIDs);
-
+      const serializedTracks = JSON.stringify(trackIDs);
       const { hash } = hashId(response);
 
+      // Update the database with the latest track hash and sync time
       await prisma.spotifyData.updateMany({
         where: {
           username: "Chandragupt Singh"
         },
         data: { 
           last_playlistTrackIds_hash: hash,
-          last_SyncedAt: new Date()
+          last_SyncedAt: new Date(),
+          last_TrackIds: serializedTracks
         }
       });
 
-      await prisma.spotifyData.updateMany({
-        where: {
-          username: "Chandragupt Singh"
-        },
-        data: {
-          last_TrackIds: seriealizedTracks
-        }
-      });      
+      //console.log(hash);
 
-      console.log(hash);
-
+      //Log track details for the current page
       console.log('--------------------------------------------');
-      let trackNumber = 1;
+      let trackNumber = totalFetchedTracks - fetchedTracks.length + 1;
       response.data.items.forEach(item => {
         console.log(`  TrackNumber: ${trackNumber}`);
         console.log(`  TrackID: ${item.track.id}`);
@@ -130,7 +127,6 @@ const fetchSpotifyTracks = async (accessToken) => {
         console.log(`  Release Date: ${item.track.album.release_date}`);
         console.log(`  Duration (ms): ${item.track.duration_ms}`);
         console.log('-------------------------------------');
-
         trackNumber++;
       });
 
@@ -139,7 +135,7 @@ const fetchSpotifyTracks = async (accessToken) => {
     }
 
     spotifyTrackArray = allTracks;
-    console.log("All tracks fetched.");
+    console.log(`Total tracks fetched: ${allTracks.length} tracks.`);
     return allTracks; // Return all the tracks fetched
 
   } catch (error) {

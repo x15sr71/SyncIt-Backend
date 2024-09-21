@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { application } from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -8,11 +8,13 @@ import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
 // import { handleGoogleCallback } from '../OAuth/google';
 import { searchSpotifyTracks } from './extractTracks/spotifyExt';
 import { searchYoutubeTracks } from './extractTracks/youtubeExt';
-import { modify_YotutubeLikePlaylist } from './modify/youtube/modify_YtLikePlaylist'
+import { modify_YoutubePlaylist } from './modify/youtube/modify_YtLikePlaylist'
 import { addToSptLikePlaylist } from './modify/spotify/addToSptLikePlaylist'
 import { removeFromSptLikePlaylist } from './modify/spotify/removeFromLikePlaylist'
 import { test } from '../OAuth/utility/test'
-import { test2 } from '../OAuth/utility/test2'
+// import { test2 } from '../OAuth/utility/test2'
+import { searchTracksOnYoutube } from './modify/searchYoutube/searchYoutube'
+import { queryDataForYoutube } from '../OAuth/utility/preProcessOpenAi'
 
 dotenv.config();
 
@@ -34,12 +36,14 @@ app.get('/youtube/callback', handleYouTubeCallback);
 app.get('/spotifyTracks', searchSpotifyTracks)
 app.get('/youtubeTrack', searchYoutubeTracks)
 
-app.get('/modifyYoutubeLikePlaylist', modify_YotutubeLikePlaylist)
+app.get('/modifyYoutubeLikePlaylist', modify_YoutubePlaylist)
 
 app.get('/addtoSpt', addToSptLikePlaylist)
 app.get('/removefromSpt', removeFromSptLikePlaylist)
+app.get('/searchTracksOnYoutube', queryDataForYoutube)
 
-app.get('/test2', test2)
+// app.get('/getSpotifyChanges',test2)
+//app.get('/test1', test2)
 
 app.post('/sync-playlists', async (req, res) => {
     const { spotifyToken, youtubeToken } = req.body;

@@ -1,13 +1,13 @@
 import axios from 'axios';
 import { AxiosError } from 'axios';
-import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../../OAuth/tokenManagement/youtubeTokensUtil'; // Ensure these functions are defined
+import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../../OAuth/tokenManagement/youtubeTokensUtil'; 
 
 const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 
 let youtubeTrackArray = [];
 
-const MAX_RETRIES = 10; // Maximum number of retries
-const MAX_TRACKS = 200; // Limit to fetch a maximum of 200 tracks
+const MAX_RETRIES = 10; 
+const MAX_TRACKS = 200; 
 
 export const searchYoutubeTracks = async (req, res) => {
     let retryCount = 0;
@@ -82,7 +82,7 @@ const fetchYoutubeTracks = async (accessToken) => {
 
             // Extract video IDs from the playlist
             const videoIds = response.data.items.map(item => item.snippet.resourceId.videoId);
-            console.log(videoIds);
+            //console.log(videoIds);
 
             // Fetch video details including duration
             const videoDetailsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {

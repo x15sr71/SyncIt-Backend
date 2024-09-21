@@ -27,7 +27,7 @@ const getUserPlaylists = async () => {
         title: item.snippet.title
       }));
 
-      console.log('User Playlists:', playlists);
+      //console.log('User Playlists:', playlists);
       return playlists;
 
     } catch (error) {
