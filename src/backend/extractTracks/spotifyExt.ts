@@ -8,7 +8,7 @@ let spotifyTrackArray = [];
 const MAX_RETRIES = 3; // Maximum number of retries
 const MAX_TRACKS = 100; // Maximum number of tracks to fetch
 
-export const searchSpotifyTracks = async (req, res) => {
+export const searchSpotifyTracks = async () => {
   let retryCount = 0;
   let accessToken = null;
 
@@ -19,13 +19,11 @@ export const searchSpotifyTracks = async (req, res) => {
       // Exit if access token is not found or is invalid
       if (!accessToken) {
         console.error("Access token not found or invalid.");
-        res.status(500).json({ error: 'Access token not found' });
-        return;
+        return { error: 'Access token not found' };
       }
 
-      await fetchSpotifyTracks(accessToken);
-      res.json({ done: "done" });
-      return; // Exit function after successful fetch
+      const tracks = await fetchSpotifyTracks(accessToken);
+      return { status: "success", data: tracks };
 
     } catch (error) {
       if (error instanceof AxiosError && error.response && error.response.status === 401) {
@@ -46,20 +44,18 @@ export const searchSpotifyTracks = async (req, res) => {
           }
         } catch (refreshError) {
           console.error('Error refreshing token:', refreshError.message);
-          res.status(500).json({ error: 'Failed to refresh access token' });
-          return;
+          return { error: 'Failed to refresh access token' };
         }
       } else {
         console.error('Error fetching tracks:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Failed to fetch tracks' });
-        return;
+        return { error: 'Failed to fetch tracks' };
       }
     }
   }
 
   // If maximum retries reached
   console.error('Max retries reached. Unable to fetch tracks.');
-  res.status(500).json({ error: 'Failed to fetch tracks after multiple attempts' });
+  return { error: 'Failed to fetch tracks after multiple attempts' };
 };
 
 const fetchSpotifyTracks = async (accessToken) => {
@@ -112,23 +108,21 @@ const fetchSpotifyTracks = async (accessToken) => {
         }
       });
 
-      //console.log(hash);
-
-      //Log track details for the current page
-      console.log('--------------------------------------------');
-      let trackNumber = totalFetchedTracks - fetchedTracks.length + 1;
-      response.data.items.forEach(item => {
-        console.log(`  TrackNumber: ${trackNumber}`);
-        console.log(`  TrackID: ${item.track.id}`);
-        console.log(`  Track Name: ${item.track.name}`);
-        console.log(`  Artists: ${item.track.artists.map(artist => artist.name).join(', ')}`);
-        console.log(`  Album Name: ${item.track.album.name}`);
-        console.log(`  Album Type: ${item.track.album.album_type}`);
-        console.log(`  Release Date: ${item.track.album.release_date}`);
-        console.log(`  Duration (ms): ${item.track.duration_ms}`);
-        console.log('-------------------------------------');
-        trackNumber++;
-      });
+      // Log track details for the current page
+      // console.log('--------------------------------------------');
+      // let trackNumber = totalFetchedTracks - fetchedTracks.length + 1;
+      // response.data.items.forEach(item => {
+      //   console.log(`  TrackNumber: ${trackNumber}`);
+      //   console.log(`  TrackID: ${item.track.id}`);
+      //   console.log(`  Track Name: ${item.track.name}`);
+      //   console.log(`  Artists: ${item.track.artists.map(artist => artist.name).join(', ')}`);
+      //   console.log(`  Album Name: ${item.track.album.name}`);
+      //   console.log(`  Album Type: ${item.track.album.album_type}`);
+      //   console.log(`  Release Date: ${item.track.album.release_date}`);
+      //   console.log(`  Duration (ms): ${item.track.duration_ms}`);
+      //   console.log('-------------------------------------');
+      //   trackNumber++;
+      // });
 
       // Check for the next page of results
       url = response.data.next;  // The URL for the next page of results, or null if no more pages
