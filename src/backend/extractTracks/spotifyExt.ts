@@ -137,5 +137,3 @@ const fetchSpotifyTracks = async (accessToken) => {
     throw error; // Propagate the error to be handled in `searchSpotifyTracks`
   }
 };
-
-export { spotifyTrackArray };

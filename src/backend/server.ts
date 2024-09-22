@@ -15,7 +15,7 @@ import { test } from '../OAuth/utility/test'
 // import { test2 } from '../OAuth/utility/test2'
 import { searchTracksOnYoutube } from './modify/searchYoutube/searchYoutube'
 import { queryDataForYoutube } from '../OAuth/utility/preProcessOpenAi'
-import { migrateWholeSpotifyPlaylistToYoutubeplaylist } from '../backend/modify/playlistMigrations'
+import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations'
 
 dotenv.config();
 
@@ -44,7 +44,7 @@ app.get('/removefromSpt', removeFromSptLikePlaylist)
 app.get('/searchTracksOnYoutube', queryDataForYoutube)
 
 
-app.get('/test', migrateWholeSpotifyPlaylistToYoutubeplaylist)
+app.get('/test', migrateWholeYoutubePlaylistToSpotifyplaylist)
 
 app.post('/sync-playlists', async (req, res) => {
     const { spotifyToken, youtubeToken } = req.body;

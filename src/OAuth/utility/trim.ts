@@ -1,5 +1,3 @@
-import { youtubeTrackArray } from "../../backend/extractTracks/youtubeExt";
-
 // Function to trim the description from the middle and ensure no more than one space between words
 function trimDescription(description, maxLength) {
     if (description.length <= maxLength) {
@@ -16,7 +14,7 @@ function trimDescription(description, maxLength) {
 }
 
 // Function to process and trim descriptions in an array of track objects
-function trimTrackDescriptions(tracks, maxLength) {
+export function trimTrackDescriptions(tracks, maxLength) {
     return tracks.map(track => {
         const trimmedDescription = trimDescription(track.description, maxLength);
         return {
@@ -28,10 +26,3 @@ function trimTrackDescriptions(tracks, maxLength) {
     });
 }
 
-// Trim descriptions in the youtubeTrackArray
-const maxLength = 750;
-
-const trimmedTrackArray = trimTrackDescriptions(youtubeTrackArray, maxLength);
-console.log(trimmedTrackArray);
-
-export default trimmedTrackArray

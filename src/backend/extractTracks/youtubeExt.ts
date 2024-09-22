@@ -7,25 +7,34 @@ const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 let youtubeTrackArray = [];
 
 const MAX_RETRIES = 10; 
-const MAX_TRACKS = 200; 
+const MAX_TRACKS = 9; 
 
-export const searchYoutubeTracks = async (req, res) => {
+// Function to convert ISO 8601 duration to seconds
+const convertDurationToMinutesAndSeconds = (duration) => {
+    const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+    const hours = parseInt(match[1]) || 0;
+    const minutes = parseInt(match[2]) || 0;
+    const seconds = parseInt(match[3]) || 0;
+
+    // Total minutes
+    const totalMinutes = hours * 60 + minutes;
+    return `${totalMinutes}:${String(seconds).padStart(2, '0')}`; // Format as "MM:SS"
+};
+
+export const searchYoutubeTracks = async () => {
     let retryCount = 0;
 
     while (retryCount < MAX_RETRIES) {
         try {
             let accessToken = await get_YoutubeAccessToken();
-            await fetchYoutubeTracks(accessToken);
-            console.log(accessToken);
+            const fetchedTracks = await fetchYoutubeTracks(accessToken);
 
-            res.json({ done: youtubeTrackArray });
-            return; // Exit function after successful fetch
+            return { success: true, data: fetchedTracks }; 
 
         } catch (error) {
             if (error.message === 'Access token not found') {
                 console.error("Access token not found, cannot proceed.");
-                res.status(500).json({ error: 'Access token not found' });
-                return;
+                return { success: false, error: 'Access token not found' };
             }
 
             if (error instanceof AxiosError && error.response && error.response.status === 401) {
@@ -35,25 +44,20 @@ export const searchYoutubeTracks = async (req, res) => {
                     retryCount += 1;
                     console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
                     
-                    // Continue to retry the fetchYoutubeTracks with the new token
                     if (retryCount < MAX_RETRIES) {
                         console.log("Retrying fetchYoutubeTracks...");
-                        continue; // This will restart the while loop with a new access token
+                        continue; 
+                    } else {
+                        console.error('Max retries reached. Unable to fetch tracks.');
+                        return { success: false, error: 'Max retries reached' };
                     }
-                    
-                    // If maximum retries reached
-                    console.error('Max retries reached. Unable to fetch tracks.');
-                    res.status(500).json({ error: 'Failed to fetch tracks after multiple attempts' });
-                    return;
                 } else {
                     console.error('Error refreshing token');
-                    res.status(500).json({ error: 'Failed to refresh YouTube access token' });
-                    return;
+                    return { success: false, error: 'Failed to refresh YouTube access token' };
                 }
             } else {
                 console.error('Error fetching tracks:', error.response ? error.response.data : error.message);
-                res.status(500).json({ error: 'Failed to fetch tracks' });
-                return;
+                return { success: false, error: 'Failed to fetch tracks' };
             }
         }
     }
@@ -62,9 +66,9 @@ export const searchYoutubeTracks = async (req, res) => {
 const fetchYoutubeTracks = async (accessToken) => {
     let url = 'https://www.googleapis.com/youtube/v3/playlistItems';
     let allTracks = [];
-    let pageToken = ''; // Initialize with empty string for the first request
-    let trackCounter = 1; // Global track counter starting at 1
-    let totalTracksFetched = 0; // Counter to track the total number of tracks fetched
+    let pageToken = '';  
+    let trackCounter = 1;  
+    let totalTracksFetched = 0;  
 
     try {
         while (url && totalTracksFetched < MAX_TRACKS) {
@@ -74,17 +78,14 @@ const fetchYoutubeTracks = async (accessToken) => {
                 },
                 params: {
                     part: 'snippet',
-                    playlistId: 'LL', // Replace 'LL' with actual playlist ID
-                    maxResults: 50,  // Max number of tracks per request
+                    playlistId: 'LL',  
+                    maxResults: 50,  
                     pageToken: pageToken
                 }
             });
 
-            // Extract video IDs from the playlist
             const videoIds = response.data.items.map(item => item.snippet.resourceId.videoId);
-            //console.log(videoIds);
 
-            // Fetch video details including duration
             const videoDetailsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
                 headers: {
                     Authorization: `Bearer ${accessToken}`
@@ -96,53 +97,40 @@ const fetchYoutubeTracks = async (accessToken) => {
                 }
             });
 
-            // Calculate the number of tracks left to fetch
             const remainingTracks = MAX_TRACKS - totalTracksFetched;
 
-            // Map the video details to the youtubeTrackArray
             const newTracks = response.data.items.slice(0, remainingTracks).map((item) => {
-                const description = item.snippet.description.split('\n').join(' '); // Join hashtags with a space
-
-                // Find duration for the current video
+                const description = item.snippet.description.split('\n').join(' '); 
                 const videoDetail = videoDetailsResponse.data.items.find(video => video.id === item.snippet.resourceId.videoId);
-                // const duration = videoDetail ? convertDurationToSeconds(videoDetail.contentDetails.duration) : null;
+                const duration = videoDetail ? convertDurationToMinutesAndSeconds(videoDetail.contentDetails.duration) : null;
 
-                // Return the track with the global track counter
+                // Get the published date in the specified format
+                const publishedDate = new Date(item.snippet.publishedAt).toISOString().split('T')[0];
+
                 return {
-                    trackNumber: trackCounter++, // Increment trackCounter for each track
+                    trackNumber: trackCounter++,  
                     title: item.snippet.title,
                     description: description,
                     videoChannelTitle: item.snippet.videoOwnerChannelTitle,
-                    // duration: duration
+                    duration: duration,  // Add duration here
+                    publishedDate: publishedDate // Add published date here
                 };
             });
 
             allTracks = allTracks.concat(newTracks);
-            totalTracksFetched += newTracks.length; // Update total tracks fetched so far
+            totalTracksFetched += newTracks.length;  
 
-            // Check if there is a next page and if we still need more tracks
             pageToken = response.data.nextPageToken || null;
             url = pageToken && totalTracksFetched < MAX_TRACKS ? `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=LL&maxResults=50&pageToken=${pageToken}` : null;
         }
 
         youtubeTrackArray = allTracks;
-
         console.log("Request sent, total tracks fetched:", totalTracksFetched);
 
-        return youtubeTrackArray;
+        return youtubeTrackArray;  
 
     } catch (error) {
-        throw error; // Propagate the error to be handled in searchYoutubeTracks
+        throw error;
     }
 };
 
-// Convert ISO 8601 duration to seconds
-const convertDurationToSeconds = (duration) => {
-    const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-    const hours = parseInt(match[1]) || 0;
-    const minutes = parseInt(match[2]) || 0;
-    const seconds = parseInt(match[3]) || 0;
-    return (hours * 3600) + (minutes * 60) + seconds;
-};
-
-export { youtubeTrackArray };
