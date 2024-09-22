@@ -15,6 +15,7 @@ export const searchSpotifyTracks = async () => {
   while (retryCount < MAX_RETRIES) {
     try {
       accessToken = await get_SpotifyAccessToken();
+      console.log(accessToken)
 
       // Exit if access token is not found or is invalid
       if (!accessToken) {
