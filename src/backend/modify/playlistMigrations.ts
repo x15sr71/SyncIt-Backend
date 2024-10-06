@@ -6,6 +6,7 @@ import { searchTracksOnSpotify } from "./searchSpotify/searchSpotify";
 import { chunkArray } from "../../OAuth/utility/chunkArray";
 import { callOpenAIModel } from "../openAI/getBestMatch";
 import { addToSptLikePlaylist } from './spotify/addToSptLikePlaylist'; // Adjust the import path accordingly
+import prisma from "../../db";
 
 export const migrateWholeSpotifyPlaylistToYoutubeplaylist = async (req, res) => {
     const allSpotifyTracks = await searchSpotifyTracks();
@@ -54,6 +55,7 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
         let spotifySearchResults = [];
         let globalTrackNumber = 1; // Start the global track number at 1
         let bestMatches = {}; // Object to store best matching results
+        let failedTrackDetails = []; // Array to store details of tracks that couldn't be matched
 
         // Process each chunk of 20 tracks sequentially
         for (let i = 0; i < chunks.length; i++) {
@@ -94,17 +96,19 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
             const messages = [
                 {
                     role: 'user',
-                    content: `For each track, identify the best matching Spotify search result based on the following criteria: title, YouTube channel name, YouTube video duration, artist relevance, and release date. 
-                    Please return the results strictly in this JSON format: {
+                    content: `Please identify the best matching Spotify search result for each track in the following list based solely on the current input. 
+                    Do not consider any previous interactions or suggestions. 
+                    Use these criteria: title, YouTube channel name, YouTube video duration, artist relevance, and release date. 
+                    Return the results in this format: {
                         "1": <resultNumber>,
                         "2": <resultNumber>,
                         ...
-                    }
-                    Ensure the output is valid JSON and does not include any additional text or formatting. If you cannot determine the best match for a track, return { "error": "Unable to find best match for track <trackNumber>" } instead.
-                    \n\n${sendToLLM}`
+                    } 
+                    If a track does not have a match, respond with { "error": "Unable to find best match for track <trackNumber>" }.
+                    \n\n${sendToLLM}` // Send the current chunk of tracks
                 }
             ];
-
+            
             // Call the OpenAI API for this chunk
             try {
                 const bestResultsForChunk = await callOpenAIModel(messages);
@@ -120,6 +124,15 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
                         bestMatches[trackNumber] = {
                             error: `Unable to find best match for track ${trackNumber}`
                         };
+
+                        // Store the details of the track for which no match was found
+                        const youtubeTrack = allYoutubeTracks.data[Number(trackNumber) - 1]; // Get the corresponding YouTube track details
+                        const trackDetails = `Title: ${youtubeTrack.title}\n` +
+                                             `YouTube Channel Name: ${youtubeTrack.channelName}\n` +
+                                             `YouTube Video Duration: ${youtubeTrack.duration}\n` +
+                                             `YouTube Video Published Date: ${youtubeTrack.publishedDate}\n`;
+
+                        failedTrackDetails.push(trackDetails); // Store track details
                     } else {
                         bestMatches[trackNumber] = parsedBestResults[trackNumber];
                     }
@@ -162,8 +175,22 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
             }
         }
 
-        // Now `trackIdsToAdd` contains the IDs of the tracks to be added to the playlist
-        console.log('Track IDs to add to the playlist:', trackIdsToAdd);
+        // Log the number of tracks that were added
+        console.log(`Number of tracks added: ${trackIdsToAdd.length}`);
+
+        // Log the failed track details
+        console.log('Tracks that were not matched by the LLM:');
+        failedTrackDetails.forEach(detail => console.log(detail)); // Log each track detail
+        const failedTrackDetailsString = JSON.stringify(failedTrackDetails);
+
+        await prisma.youTubeData.update({
+            where: {
+                id: 1
+            },
+            data: {
+                retryToFindTracks: failedTrackDetailsString
+            }
+        })
 
         // Call the function to add tracks to the Spotify liked playlist
         try {
@@ -176,19 +203,12 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
         res.json({
             bestMatches,
             trackIdsToAdd, // Return the IDs of the tracks to add
-            done: 'done'
+            done: 'done',
+            numberOfTracksAdded: trackIdsToAdd.length, // Add the number of tracks added in the response
+            failedTrackDetails // Return the details of tracks that were not matched
         });
     } catch (error) {
         console.error('Error in migrateWholeYoutubePlaylistToSpotifyplaylist:', error);
         return res.status(500).json({ error: 'An unexpected error occurred' });
     }
 };
-
-
-
-
-
-
-
-
-
