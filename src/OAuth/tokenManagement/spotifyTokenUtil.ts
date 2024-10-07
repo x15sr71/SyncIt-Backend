@@ -74,7 +74,7 @@ export const refreshSpotifyToken = async () => {
             }
         });
 
-        return { access_token };
+        return access_token;
 
     } catch (error) {
         console.error('Error refreshing token:', error.message);

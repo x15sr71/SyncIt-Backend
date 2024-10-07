@@ -16,6 +16,7 @@ import { test } from '../OAuth/utility/test'
 import { searchTracksOnYoutube } from './modify/searchYoutube/searchYoutube'
 import { queryDataForYoutube } from '../OAuth/utility/preProcessOpenAi'
 import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations'
+import { handleCreatePlaylist } from './routeHandlers/handleSpotifyPlaylistceation'
 
 dotenv.config();
 
@@ -42,6 +43,8 @@ app.get('/modifyYoutubeLikePlaylist', modify_YoutubePlaylist)
 app.get('/addtoSpt', addToSptLikePlaylist)
 app.get('/removefromSpt', removeFromSptLikePlaylist)
 app.get('/searchTracksOnYoutube', queryDataForYoutube)
+
+app.post('/handleCreatePlaylist', handleCreatePlaylist)
 
 
 app.get('/test', migrateWholeYoutubePlaylistToSpotifyplaylist)
