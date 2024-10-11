@@ -24,7 +24,7 @@ export async function get_SpotifyAccessToken() {
 
     } catch (error) {
         console.error("Error in Spotify fetching access_token:", error.message);
-        return null; // Return null if there's an error instead of letting the app crash
+        return null; 
     }
 }
 
@@ -78,6 +78,6 @@ export const refreshSpotifyToken = async () => {
 
     } catch (error) {
         console.error('Error refreshing token:', error.message);
-        return null; // Return null if there's an error to avoid crashes
+        return null; 
     }
 };
