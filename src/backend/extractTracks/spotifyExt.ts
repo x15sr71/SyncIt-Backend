@@ -1,52 +1,21 @@
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
+import { AxiosError } from 'axios';  // Import AxiosError
 import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../OAuth/tokenManagement/spotifyTokenUtil';
 import { hashId } from '../../OAuth/utility/encrypt';
 import prisma from '../../db';
 
-// Define types for the Spotify API response and tracks
-interface SpotifyArtist {
-  name: string;
-}
-
-interface SpotifyAlbum {
-  name: string;
-  album_type: string;
-  release_date: string;
-}
-
-interface SpotifyTrack {
-  id: string;
-  name: string;
-  artists: SpotifyArtist[];
-  album: SpotifyAlbum;
-  duration_ms: number;
-}
-
-interface SpotifyTrackItem {
-  track: SpotifyTrack;
-}
-
-interface SpotifyTrackResponse {
-  items: SpotifyTrackItem[];
-  next: string | null;
-}
-
-interface RefreshedTokenData {
-  access_token: string;
-}
-
-let spotifyTrackArray: SpotifyTrack[] = [];
+let spotifyTrackArray = [];
 const MAX_RETRIES = 3; // Maximum number of retries
 const MAX_TRACKS = 100; // Maximum number of tracks to fetch
 
-export const searchSpotifyTracks = async (): Promise<{ status?: string; data?: SpotifyTrack[]; error?: string }> => {
+export const searchSpotifyTracks = async () => {
   let retryCount = 0;
-  let accessToken: string | null = null;
+  let accessToken = null;
 
   while (retryCount < MAX_RETRIES) {
     try {
       accessToken = await get_SpotifyAccessToken();
-      console.log(accessToken);
+      console.log(accessToken)
 
       // Exit if access token is not found or is invalid
       if (!accessToken) {
@@ -58,15 +27,14 @@ export const searchSpotifyTracks = async (): Promise<{ status?: string; data?: S
       return { status: "success", data: tracks };
 
     } catch (error) {
-      if (error instanceof AxiosError && error.response?.status === 401) {
+      if (error instanceof AxiosError && error.response && error.response.status === 401) {
         console.log("Access token expired, refreshing token...");
         try {
-          const refreshedTokenData = await refreshSpotifyToken() as RefreshedTokenData;
+          const refreshedTokenData = await refreshSpotifyToken();
           if (refreshedTokenData && refreshedTokenData.access_token) {
             accessToken = refreshedTokenData.access_token; // Update the access token
             retryCount += 1;
             console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
-
             // Continue to retry the fetchSpotifyTracks with the new token
             if (retryCount < MAX_RETRIES) {
               console.log("Retrying fetchSpotifyTracks...");
@@ -76,11 +44,11 @@ export const searchSpotifyTracks = async (): Promise<{ status?: string; data?: S
             throw new Error("Failed to refresh access token.");
           }
         } catch (refreshError) {
-          console.error('Error refreshing token:', (refreshError as Error).message);
+          console.error('Error refreshing token:', refreshError.message);
           return { error: 'Failed to refresh access token' };
         }
       } else {
-        console.error('Error fetching tracks:', error.response?.data || (error as Error).message);
+        console.error('Error fetching tracks:', error.response ? error.response.data : error.message);
         return { error: 'Failed to fetch tracks' };
       }
     }
@@ -91,59 +59,74 @@ export const searchSpotifyTracks = async (): Promise<{ status?: string; data?: S
   return { error: 'Failed to fetch tracks after multiple attempts' };
 };
 
-const fetchSpotifyTracks = async (accessToken: string): Promise<SpotifyTrack[]> => {
-  let url: string | null = 'https://api.spotify.com/v1/me/tracks';
-  let allTracks: SpotifyTrack[] = [];
+const fetchSpotifyTracks = async (accessToken) => {
+  let url = 'https://api.spotify.com/v1/me/tracks';
+  let allTracks = [];
   let totalFetchedTracks = 0;
 
   try {
     console.log("Fetching tracks...");
-
+    
     while (url && totalFetchedTracks < MAX_TRACKS) {
-      const response = await axios.get<SpotifyTrackResponse>(url, {
+      const response = await axios.get(url, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`
         },
         params: {
           limit: Math.min(50, MAX_TRACKS - totalFetchedTracks), // Ensure we don't fetch more than needed
-          offset: totalFetchedTracks, // Pagination offset
-        },
+          offset: totalFetchedTracks // Pagination offset
+        }
       });
 
       // Add the current page of tracks to the allTracks array
-      const fetchedTracks: SpotifyTrack[] = response.data.items.map(item => ({
-        id: item.track.id,
-        name: item.track.name,
-        artists: item.track.artists.map(artist => ({ name: artist.name })),
-        album: {
-          name: item.track.album.name,
-          album_type: item.track.album.album_type,
-          release_date: item.track.album.release_date,
-        },
-        duration_ms: item.track.duration_ms,
+      const fetchedTracks = response.data.items.map(item => ({
+        trackId: item.track.id,
+        track: item.track,
+        trackName: item.track.name,
+        artists: item.track.artists.map(artist => artist.name).join(', '),
+        albumName: item.track.album.name,
+        albumType: item.track.album.album_type,
+        releaseDate: item.track.album.release_date,
+        durationMs: item.track.duration_ms,
       }));
 
       allTracks = allTracks.concat(fetchedTracks);
       totalFetchedTracks += fetchedTracks.length;
 
-      const trackIDs: string[] = response.data.items.map(item => item.track.id);
+      let trackIDs = response.data.items.map(item => item.track.id);
       const serializedTracks = JSON.stringify(trackIDs);
       const { hash } = hashId(response);
 
       // Update the database with the latest track hash and sync time
       await prisma.spotifyData.updateMany({
         where: {
-          username: "Chandragupt Singh",
+          username: "Chandragupt Singh"
         },
-        data: {
+        data: { 
           last_playlistTrackIds_hash: hash,
           last_SyncedAt: new Date(),
-          last_TrackIds: serializedTracks,
-        },
+          last_TrackIds: serializedTracks
+        }
       });
 
+      // Log track details for the current page
+      // console.log('--------------------------------------------');
+      // let trackNumber = totalFetchedTracks - fetchedTracks.length + 1;
+      // response.data.items.forEach(item => {
+      //   console.log(`  TrackNumber: ${trackNumber}`);
+      //   console.log(`  TrackID: ${item.track.id}`);
+      //   console.log(`  Track Name: ${item.track.name}`);
+      //   console.log(`  Artists: ${item.track.artists.map(artist => artist.name).join(', ')}`);
+      //   console.log(`  Album Name: ${item.track.album.name}`);
+      //   console.log(`  Album Type: ${item.track.album.album_type}`);
+      //   console.log(`  Release Date: ${item.track.album.release_date}`);
+      //   console.log(`  Duration (ms): ${item.track.duration_ms}`);
+      //   console.log('-------------------------------------');
+      //   trackNumber++;
+      // });
+
       // Check for the next page of results
-      url = response.data.next; // The URL for the next page of results, or null if no more pages
+      url = response.data.next;  // The URL for the next page of results, or null if no more pages
     }
 
     spotifyTrackArray = allTracks;
@@ -151,7 +134,7 @@ const fetchSpotifyTracks = async (accessToken: string): Promise<SpotifyTrack[]> 
     return allTracks; // Return all the tracks fetched
 
   } catch (error) {
-    console.error('Error fetching tracks:', (error as Error).message);
+    console.error('Error fetching tracks:', error.message);
     throw error; // Propagate the error to be handled in `searchSpotifyTracks`
   }
 };

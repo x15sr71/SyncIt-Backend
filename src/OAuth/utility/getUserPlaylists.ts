@@ -1,17 +1,40 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../tokenManagement/youtubeTokensUtil';
 
+// Type for a single playlist item
+interface Playlist {
+  playlistId: string;
+  title: string;
+}
+
+// Type for the YouTube API response structure
+interface YoutubePlaylistResponse {
+  items: {
+    id: string;
+    snippet: {
+      title: string;
+    };
+  }[];
+}
+
+// Define a function to get user playlists with proper type annotations
 const MAX_RETRIES = 3; // Set the maximum number of retries
 
-const getUserPlaylists = async () => {
+const getUserPlaylists = async (): Promise<Playlist[]> => {
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {
     try {
-      let accessToken = await get_YoutubeAccessToken(); // Get the initial access token
+      let accessToken: string | null = await get_YoutubeAccessToken(); // Get the initial access token
+
+      if (!accessToken) {
+        throw new Error('Access token not available');
+      }
+
       const url = 'https://www.googleapis.com/youtube/v3/playlists';
 
-      const response = await axios.get(url, {
+      // Axios response type should be defined based on the YouTube API structure
+      const response = await axios.get<YoutubePlaylistResponse>(url, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         },
@@ -22,16 +45,15 @@ const getUserPlaylists = async () => {
         }
       });
 
-      const playlists = response.data.items.map(item => ({
+      const playlists: Playlist[] = response.data.items.map(item => ({
         playlistId: item.id,
         title: item.snippet.title
       }));
 
-      //console.log('User Playlists:', playlists);
       return playlists;
 
     } catch (error) {
-      if (error.response && error.response.status === 401) {
+      if (error instanceof AxiosError && error.response && error.response.status === 401) {
         // Access token expired, refresh it and retry
         console.log('Access token expired, refreshing token...');
         await refreshYoutubeAccessToken();
@@ -42,7 +64,7 @@ const getUserPlaylists = async () => {
         continue;
       } else {
         // Other errors, log and throw
-        console.error('Error fetching playlists:', error.response ? error.response.data : error.message);
+        console.error('Error fetching playlists:', error instanceof AxiosError ? error.response?.data : error.message);
         throw error;
       }
     }
@@ -52,4 +74,4 @@ const getUserPlaylists = async () => {
   throw new Error('Failed to fetch playlists after multiple attempts');
 };
 
-export default getUserPlaylists
+export default getUserPlaylists;
