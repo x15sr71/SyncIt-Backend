@@ -1,50 +1,76 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../tokenManagement/youtubeTokensUtil';
+
+// Define type for YouTube playlist item
+interface YouTubePlaylistItem {
+  id: string;
+  snippet: {
+    title: string;
+  };
+}
+
+// Define type for the API response
+interface YouTubePlaylistsResponse {
+  items: YouTubePlaylistItem[];
+}
+
+// Define type for the playlist returned by the function
+interface Playlist {
+  playlistId: string;
+  title: string;
+}
 
 const MAX_RETRIES = 3; // Set the maximum number of retries
 
-const getUserPlaylists = async () => {
+const getUserPlaylists = async (): Promise<Playlist[]> => {
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {
     try {
-      let accessToken = await get_YoutubeAccessToken(); // Get the initial access token
+      let accessToken: string = await get_YoutubeAccessToken(); // Get the initial access token
       const url = 'https://www.googleapis.com/youtube/v3/playlists';
 
-      const response = await axios.get(url, {
+      const response = await axios.get<YouTubePlaylistsResponse>(url, {
         headers: {
-          Authorization: `Bearer ${accessToken}`
+          Authorization: `Bearer ${accessToken}`,
         },
         params: {
           part: 'snippet',
           mine: true, // Retrieve playlists of the authenticated user
-          maxResults: 50 // Limit the number of playlists
-        }
+          maxResults: 50, // Limit the number of playlists
+        },
       });
 
-      const playlists = response.data.items.map(item => ({
+      const playlists: Playlist[] = response.data.items.map(item => ({
         playlistId: item.id,
-        title: item.snippet.title
+        title: item.snippet.title,
       }));
 
-      //console.log('User Playlists:', playlists);
       return playlists;
 
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        // Access token expired, refresh it and retry
-        console.log('Access token expired, refreshing token...');
-        await refreshYoutubeAccessToken();
-        retryCount += 1;
-        console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+
+        if (axiosError.response && axiosError.response.status === 401) {
+          // Access token expired, refresh it and retry
+          console.log('Access token expired, refreshing token...');
+          await refreshYoutubeAccessToken();
+          retryCount += 1;
+          console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
+          
+          // Retry with the new token
+          continue;
+        }
         
-        // Retry with the new token
-        continue;
+        // Other Axios errors
+        console.error('Error fetching playlists:', axiosError.response?.data || axiosError.message);
       } else {
-        // Other errors, log and throw
-        console.error('Error fetching playlists:', error.response ? error.response.data : error.message);
-        throw error;
+        // Non-Axios errors
+        console.error('Unknown error occurred:', error);
       }
+
+      throw error;
     }
   }
 
@@ -52,4 +78,4 @@ const getUserPlaylists = async () => {
   throw new Error('Failed to fetch playlists after multiple attempts');
 };
 
-export default getUserPlaylists
+export default getUserPlaylists;
