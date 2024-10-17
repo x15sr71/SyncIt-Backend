@@ -1,17 +1,31 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../tokenManagement/youtubeTokensUtil';
+
+interface PlaylistItem {
+  playlistId: string;
+  title: string;
+}
+
+interface YoutubePlaylistsResponse {
+  items: Array<{
+    id: string;
+    snippet: {
+      title: string;
+    };
+  }>;
+}
 
 const MAX_RETRIES = 3; // Set the maximum number of retries
 
-const getUserPlaylists = async () => {
+const getUserPlaylists = async (): Promise<PlaylistItem[]> => {
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {
     try {
-      let accessToken = await get_YoutubeAccessToken(); // Get the initial access token
-      const url = 'https://www.googleapis.com/youtube/v3/playlists';
+      let accessToken: string = await get_YoutubeAccessToken(); // Get the initial access token
+      const url: string = 'https://www.googleapis.com/youtube/v3/playlists';
 
-      const response = await axios.get(url, {
+      const response: AxiosResponse<YoutubePlaylistsResponse> = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         },
@@ -22,22 +36,22 @@ const getUserPlaylists = async () => {
         }
       });
 
-      const playlists = response.data.items.map(item => ({
+      const playlists: PlaylistItem[] = response.data.items.map(item => ({
         playlistId: item.id,
         title: item.snippet.title
       }));
 
-      //console.log('User Playlists:', playlists);
+      // console.log('User Playlists:', playlists);
       return playlists;
 
-    } catch (error) {
+    } catch (error: any) { // Use `any` to handle all possible error types
       if (error.response && error.response.status === 401) {
         // Access token expired, refresh it and retry
         console.log('Access token expired, refreshing token...');
         await refreshYoutubeAccessToken();
         retryCount += 1;
         console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
-        
+
         // Retry with the new token
         continue;
       } else {
@@ -52,4 +66,4 @@ const getUserPlaylists = async () => {
   throw new Error('Failed to fetch playlists after multiple attempts');
 };
 
-export default getUserPlaylists
+export default getUserPlaylists;
