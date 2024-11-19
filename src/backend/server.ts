@@ -1,3 +1,5 @@
+dotenv.config();
+
 import express, { application } from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
@@ -17,8 +19,7 @@ import { searchTracksOnYoutube } from './modify/searchYoutube/searchYoutube'
 import { queryDataForYoutube } from '../OAuth/utility/preProcessOpenAi'
 import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations'
 import { handleCreatePlaylist } from './routeHandlers/handleSpotifyPlaylistceation'
-
-dotenv.config();
+import emptyPlaylist from './modify/emptySpotify/emptySpotifyPlaylist';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,6 +47,7 @@ app.get('/searchTracksOnYoutube', queryDataForYoutube)
 
 app.post('/handleCreatePlaylist', handleCreatePlaylist)
 
+app.get('/emptySpotify',emptyPlaylist)
 
 app.get('/test', migrateWholeYoutubePlaylistToSpotifyplaylist)
 

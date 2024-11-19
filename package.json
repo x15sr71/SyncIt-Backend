@@ -19,7 +19,7 @@
     "concurrently": "^8.2.2",
     "esbuild": "^0.23.1",
     "nodemon": "^3.1.4",
-    "prisma": "^5.19.0",
+    "prisma": "^5.22.0",
     "ts-node-dev": "^2.0.0",
     "tsc-watch": "^6.2.0",
     "typescript": "^5.5.4"
