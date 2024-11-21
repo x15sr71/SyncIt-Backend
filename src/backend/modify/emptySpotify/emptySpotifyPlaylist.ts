@@ -94,7 +94,7 @@ const removeTracksFromLiked = async (tracks, accessToken, retryCount = 0) => {
 };
 
 // Main function to empty the liked tracks
-export const emptyLikedTracks = async () => {
+export const emptySpotifyPlaylist = async () => {
     let accessToken = await get_SpotifyAccessToken(); // Fetch initial access token
 
     try {
@@ -115,4 +115,4 @@ export const emptyLikedTracks = async () => {
     }
 };
 
-export default emptyLikedTracks;
+export default emptySpotifyPlaylist
