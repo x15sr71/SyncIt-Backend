@@ -10,6 +10,11 @@
     "serve": "nodemon dist/backend/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+
+  "prisma": {
+  "seed": "ts-node prisma/seed.ts"
+  },
+
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -25,7 +30,7 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@prisma/client": "^5.19.0",
+    "@prisma/client": "^5.22.0",
     "axios": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
