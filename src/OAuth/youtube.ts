@@ -21,7 +21,8 @@ export const handleYouTubeLogin = (req, res) => {
         client_id,
         scope,
         redirect_uri,
-        access_type: 'offline'
+        access_type: 'offline',
+        prompt: 'consent'
     })}`;
 
     // Redirect user to the Google OAuth2 login page
@@ -42,6 +43,8 @@ export const handleYouTubeCallback = async (req, res) => {
         }));
 
         const { access_token, refresh_token } = response.data;
+        console.log("*******************")
+        console.log(refresh_token)
 
         const profileResponse = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
             headers: {
@@ -56,7 +59,7 @@ export const handleYouTubeCallback = async (req, res) => {
                 username: name,
                 picture: picture,
                 access_token: access_token,
-                refresh_token: refresh_token,
+                refresh_token: refresh_token || "",
                 userId: 1
             }
         })
@@ -66,6 +69,7 @@ export const handleYouTubeCallback = async (req, res) => {
         // For simplicity, we're just returning them in the response here
         res.json({ access_token, refresh_token });
     } catch (error) {
+        console.log(error.message)
         res.status(400).json({ error: 'YouTube authentication failed.' });
     }
 };
