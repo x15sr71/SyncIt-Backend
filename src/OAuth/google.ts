@@ -1,78 +1,83 @@
-// import prisma from './prismaClient';
-// import axios from 'axios';
-// import dotenv from 'dotenv';
-// import { OAuth2Client } from 'google-auth-library';
+import prisma from './prismaClient';
+import axios from 'axios';
+import querystring from 'querystring';
+import dotenv from 'dotenv';
 
-// dotenv.config();
+dotenv.config();
 
-// const client_id = process.env.GOOGLE_CLIENT_ID;
-// const client_secret = process.env.GOOGLE_CLIENT_SECRET;
-// const redirect_uri = process.env.GOOGLE_REDIRECT_URI;
+const client_id = process.env.GOOGLE_CLIENT_ID;
+const client_secret = process.env.GOOGLE_CLIENT_SECRET;
+const redirect_uri = process.env.GOOGLE_REDIRECT_URI;
 
-// const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uri);
+export const handleGoogleLogin = (req, res) => {
+  const scope = ['profile', 'email'].join(' ');
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${querystring.stringify({
+    client_id,
+    redirect_uri,
+    response_type: 'code',
+    scope,
+    access_type: 'offline',
+    prompt: 'consent'
+  })}`;
+  return res.redirect(authUrl);
+};
 
-// // Route to initiate Google OAuth2.0 login
+export const handleGoogleCallback = async (req, res) => {
+  const code = req.query.code || null;
 
-// export const handleGoogleLogin = async (req, res) => {
-//     const authUrl = oAuth2Client.generateAuthUrl({
-//         access_type: 'offline',
-//         scope: ['profile', 'email'],
-//     });
-//     res.redirect(authUrl);
-// }
+  if (!code) {
+    return res.status(400).json({ error: 'Authorization code missing.' });
+  }
 
-// // Google OAuth2.0 callback route
+  try {
+    const tokenResponse = await axios.post(
+      'https://oauth2.googleapis.com/token',
+      querystring.stringify({
+        code,
+        client_id,
+        client_secret,
+        redirect_uri,
+        grant_type: 'authorization_code'
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
 
-// export const handleGoogleCallback = async (req, res) => {
-//     console.log(req.body)
-//     const code = req.query.code;
+    const { access_token, refresh_token } = tokenResponse.data;
 
-//     try {
-//         // Get the token using the authorization code
-//         const { tokens } = await oAuth2Client.getToken(code);
-//         oAuth2Client.setCredentials(tokens);
+    const profileResponse = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
 
-//         // Get user info from Google
-//         const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
-//             headers: {
-//                 Authorization: `Bearer ${tokens.access_token}`,
-//             },
-//         });
+    const { name, picture, email } = profileResponse.data;
 
-//         const googleEmail = response.data.email;
-//         const googleUsername = response.data.name;
-//         const googleProfilePicture = response.data.picture;
+    let user = await prisma.user.findUnique({ where: { email } });
 
-//         // console.log(`Username: ${googleUsername}
-//         //     , gmailId: ${googleEmail}, Image: ${googleProfilePicture}`)
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email,
+          username: name,
+          profilePicture: picture,
+          access_token,
+          refresh_token: refresh_token || null,
+          keepInSync: true,
+          primaryService: null,
+          lastSyncTime: null,
+          lastSyncTracks: null,
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { email },
+        data: { access_token }
+      });
+    }
 
-//         //Find or create the user in your database
-//         let user = await prisma.user.findUnique({
-//             where: { email: googleEmail },
-//         });
-
-//         if (!user) {
-//             user = await prisma.user.create({
-//                 data: {
-//                     email: googleEmail,
-//                     username: googleUsername,
-//                     profilePicture: googleProfilePicture, // or some default image URL
-//                     //token: tokens.access_token, // or some default token
-//                 },
-//             });
-
-//             // spotify = await prisma.spotifyToken.create({
-//             //     data: {
-//             //     }
-//             // })
-            
-//             console.log("User Created")
-//         }
-
-//         res.json({ message: 'Google OAuth successful!' });
-        
-//     } catch (error) {
-//         console.error('Error during Google OAuth:', error.message);
-//         res.status(400).json({ error: 'Google authentication failed.' });
-//     }
-// }
+    return res.json({ message: 'Google login successful', userId: user.id, access_token, refresh_token });
+  } catch (error) {
+    return res.status(400).json({
+      error: 'Google authentication failed.',
+      details: error.response?.data || error.message
+    });
+  }
+};

@@ -55,6 +55,7 @@ export const searchSpotifyTracks = async (): Promise<{ status?: string; data?: S
       }
 
       const tracks = await fetchSpotifyTracks(accessToken);
+      console.log(tracks);
       return { status: "success", data: tracks };
 
     } catch (error) {

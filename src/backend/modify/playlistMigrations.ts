@@ -1,5 +1,3 @@
-import { searchSpotifyTracks } from "../extractTracks/spotifyExt";
-import { searchTracksOnYoutube } from "./searchYoutube/searchYoutube";
 import { searchYoutubeTracks } from "../extractTracks/youtubeExt";
 import { trimTrackDescriptions } from "../../OAuth/utility/trim";
 import { searchTracksOnSpotify } from "./searchSpotify/searchSpotify";
@@ -7,42 +5,6 @@ import { chunkArray } from "../../OAuth/utility/chunkArray";
 import { callOpenAIModel } from "../openAI/getBestMatch";
 import { addToSptLikePlaylist } from './spotify/addToSptLikePlaylist'; // Adjust the import path accordingly
 import prisma from "../../db";
-
-export const migrateWholeSpotifyPlaylistToYoutubeplaylist = async (req, res) => {
-    const allSpotifyTracks = await searchSpotifyTracks();
-    console.log(allSpotifyTracks);
-
-    const youtubeSearchResult = await searchTracksOnYoutube(allSpotifyTracks.data);
-
-    const formattedResults = youtubeSearchResult.map((trackResult, index) => {
-        const resultsArray = trackResult.results.map(result => ({
-            title: result.snippet.title,
-            channelTitle: result.snippet.channelTitle,
-            publishedAt: result.snippet.publishedAt,
-        }));
-
-        return {
-            trackName: trackResult.trackName,
-            query: trackResult.query,
-            results: resultsArray,
-        };
-    });
-
-    const sendToLLM = `Please select the best result for each track based on the information provided below:\n\n` +
-        formattedResults.map(track => {
-            const resultsStr = track.results.map((result, index) => 
-                `Result: ${index + 1}\n- Video Title: ${result.title}\n  Channel: ${result.channelTitle}\n  Published At: ${result.publishedAt}\n`
-            ).join('\n\n');
-
-            return `Track Name: ${track.trackName}\nResults:\n${resultsStr}`;
-        }).join('\n\n');
-
-    console.log(sendToLLM);
-
-    res.json({
-        done: "done"
-    });
-};
 
 export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => {
     try {
@@ -115,8 +77,8 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
                 const parsedBestResults = JSON.parse(bestResultsForChunk.content); // Parse the content
 
                 // Log the tokens used
-                console.log('Tokens used in OpenAI response:', bestResultsForChunk.usage.total_tokens);
-                console.log('OpenAI Response JSON:', parsedBestResults); // Log the full JSON response
+                //console.log('Tokens used in OpenAI response:', bestResultsForChunk.usage.total_tokens);
+                //console.log('OpenAI Response JSON:', parsedBestResults); // Log the full JSON response
 
                 // Ensure that parsedBestResults only contains valid data
                 for (const trackNumber in parsedBestResults) {
@@ -154,7 +116,7 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
 
             // Check if the match is an error or a valid result
             if (match.error) {
-                console.log(`Error for track ${trackNumber}: ${match.error}`);
+                //console.log(`Error for track ${trackNumber}: ${match.error}`);
             } else {
                 // Get the track result for the current trackNumber
                 const resultIndex = match; // Get the result number from OpenAI's response
@@ -185,7 +147,7 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
 
         await prisma.youTubeData.update({
             where: {
-                id: 1
+                id: 'adf'
             },
             data: {
                 retryToFindTracks: failedTrackDetailsString
@@ -194,7 +156,34 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
 
         // Call the function to add tracks to the Spotify liked playlist
         try {
-            await addToSptLikePlaylist(trackIdsToAdd);
+            
+           async function chunkArray(arr: any[], firstChunkSize: number, subsequentChunkSize: number) {
+                const chunks: any[][] = [];
+              
+                // Check if array length exceeds 90
+                if (arr.length > 90) {
+                  let startIndex = 0;
+                  
+                  // First chunk with 'firstChunkSize' items
+                  chunks.push(arr.slice(startIndex, startIndex + firstChunkSize));
+                  startIndex += firstChunkSize;
+              
+                  // Create subsequent chunks with 'subsequentChunkSize' items
+                  while (startIndex < arr.length) {
+                    const chunk = arr.slice(startIndex, startIndex + subsequentChunkSize);
+                    chunks.push(chunk);
+                    startIndex += subsequentChunkSize;
+                  }
+                }
+              console.log(chunks);
+              
+                await addToSptLikePlaylist(chunks);
+              }
+              
+              const chunks = chunkArray(trackIdsToAdd, 80, 10);
+              
+
+            
         } catch (error) {
             console.error('Error adding tracks to Spotify liked playlist:', error);
             return res.status(500).json({ error: 'Failed to add tracks to liked playlist' });

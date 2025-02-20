@@ -3,26 +3,97 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Seed the User model with a single record
-  await prisma.user.create({
+  console.log('Seeding database...');
+
+  // Create users with associated Spotify and YouTube data
+  const user1 = await prisma.user.create({
     data: {
-      id: 1,
-      email: "",
-      username: "",
-      profilePicture: "",
-      access_token: "",
-      refresh_token: "",
-      createdAt: new Date(), // Current date and time
-      correspondingTrackIds: "",
-    },
+      email: 'user1@example.com',
+      username: 'user1',
+      profilePicture: 'https://via.placeholder.com/150',
+      access_token: 'This is an access token',
+      keepInSync: true,
+      primaryService: 'SPOTIFY',
+      lastSyncTime: new Date(),
+      lastSyncTracks: {
+        tracks: ['track1', 'track2', 'track3']
+      },
+      spotifyTokens: {
+        create: {
+          username: 'spotify_user1',
+          picture: 'https://via.placeholder.com/150',
+          access_token: 'spotify_access_token_1',
+          refresh_token: 'spotify_refresh_token_1',
+          last_SyncedAt: new Date(),
+          last_playlistTrackIds_hash: 'hash_123',
+          last_TrackIds: 'track1,track2',
+          notFoundTracks: 'trackX,trackY',
+          retryToFindTracks: 'trackZ'
+        }
+      },
+      youtubeTokens: {
+        create: {
+          username: 'youtube_user1',
+          picture: 'https://via.placeholder.com/150',
+          access_token: 'youtube_access_token_1',
+          refresh_token: 'youtube_refresh_token_1',
+          last_SyncedAt: new Date(),
+          last_playlistTrackIds_hash: 'hash_abc',
+          last_TracksIds: 'yt_track1,yt_track2',
+          notFoundTracks: 'yt_trackX',
+          retryToFindTracks: 'yt_trackY'
+        }
+      }
+    }
   });
 
-  console.log("Seeding completed!");
+  const user2 = await prisma.user.create({
+    data: {
+      email: 'user2@example.com',
+      username: 'user2',
+      profilePicture: 'https://via.placeholder.com/150',
+      access_token: 'This is an access token',
+      keepInSync: false,
+      primaryService: 'YOUTUBE',
+      lastSyncTime: new Date(),
+      lastSyncTracks: {
+        tracks: ['yt_trackA', 'yt_trackB']
+      },
+      spotifyTokens: {
+        create: {
+          username: 'spotify_user2',
+          picture: 'https://via.placeholder.com/150',
+          access_token: 'spotify_access_token_2',
+          refresh_token: 'spotify_refresh_token_2',
+          last_SyncedAt: new Date(),
+          last_playlistTrackIds_hash: 'hash_456',
+          last_TrackIds: 'trackA,trackB',
+          notFoundTracks: 'trackC',
+          retryToFindTracks: 'trackD'
+        }
+      },
+      youtubeTokens: {
+        create: {
+          username: 'youtube_user2',
+          picture: 'https://via.placeholder.com/150',
+          access_token: 'youtube_access_token_2',
+          refresh_token: 'youtube_refresh_token_2',
+          last_SyncedAt: new Date(),
+          last_playlistTrackIds_hash: 'hash_def',
+          last_TracksIds: 'yt_trackC,yt_trackD',
+          notFoundTracks: 'yt_trackE',
+          retryToFindTracks: 'yt_trackF'
+        }
+      }
+    }
+  });
+
+  console.log('Seeding complete! Users created:', { user1, user2 });
 }
 
 main()
   .catch((e) => {
-    console.error("Error seeding the database:", e);
+    console.error('Error seeding database:', e);
     process.exit(1);
   })
   .finally(async () => {

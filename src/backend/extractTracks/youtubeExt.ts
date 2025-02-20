@@ -28,7 +28,7 @@ export const searchYoutubeTracks = async () => {
         try {
             let accessToken = await get_YoutubeAccessToken();
             const fetchedTracks = await fetchYoutubeTracks(accessToken);
-
+            console.log(fetchedTracks)
             return { success: true, data: fetchedTracks }; 
 
         } catch (error) {

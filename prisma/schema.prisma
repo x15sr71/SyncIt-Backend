@@ -1,7 +1,7 @@
 // prisma/schema.prisma
 
 datasource db {
-  provider = "postgresql" // Adjust this according to your database
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -9,50 +9,69 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Enum to define primary sync service
+enum PrimaryService {
+  SPOTIFY
+  YOUTUBE
+}
+
 // Model for storing user details
 model User {
-  id            Int            @id @default(autoincrement())
-  email         String         @unique
-  username      String         @unique
+  id            String        @id @default(uuid())
+  email         String        @unique
+  username      String        @unique
   profilePicture String?
-  access_token  String?
+  access_token String
   refresh_token String?
-  correspondingTrackIds String?
+  createdAt     DateTime      @default(now())
+
+  // Sync settings
+  keepInSync    Boolean       @default(true)
+  primaryService PrimaryService? 
+
+  // Last sync details
+  lastSyncTime  DateTime?
+  lastSyncTracks Json?
+
+  // Relations
   spotifyTokens SpotifyData[] @relation(name: "UserSpotifyTokens")
   youtubeTokens YouTubeData[] @relation(name: "UserYouTubeTokens")
-  createdAt     DateTime       @default(now())
 }
 
 // Model for storing Spotify access tokens
 model SpotifyData {
-  id        Int      @id @default(autoincrement())
-  username  String
-  picture   String
-  access_token  String
-  refresh_token String
-  last_SyncedAt DateTime?
+  id                         String     @id @default(uuid())
+  username                   String
+  picture                    String
+  access_token               String
+  refresh_token              String
+  last_SyncedAt              DateTime?
   last_playlistTrackIds_hash String?
-  last_TrackIds String?
-  notFoundTracks String?
-  retryToFindTracks String?
-  createdAt DateTime @default(now())
-  user      User     @relation(name: "UserSpotifyTokens", fields: [userId], references: [id])
-  userId    Int
+  last_TrackIds              String?
+  notFoundTracks             String?
+  retryToFindTracks          String?
+  createdAt                  DateTime @default(now())
+
+  // Relation to User
+  user   User @relation(name: "UserSpotifyTokens", fields: [userId], references: [id])
+  userId String
 }
 
 // Model for storing YouTube access tokens
 model YouTubeData {
-  id        Int      @id @default(autoincrement())
-  username  String
-  picture   String
-  access_token  String
-  refresh_token String
-  last_SyncedAt DateTime?
+  id                         String      @id @default(uuid())
+  username                   String
+  picture                    String
+  access_token               String
+  refresh_token              String
+  last_SyncedAt              DateTime?
   last_playlistTrackIds_hash String?
-  last_TracksIds String?
-  notFoundTracks String?
-  retryToFindTracks String?
-  createdAt DateTime @default(now())
-  user      User     @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
-  userId    Int
+  last_TracksIds             String?
+  notFoundTracks             String?
+  retryToFindTracks          String?
+  createdAt                  DateTime @default(now())
+
+  // Relation to User
+  user   User @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
+  userId String
 }

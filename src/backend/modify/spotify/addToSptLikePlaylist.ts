@@ -7,6 +7,7 @@ export const addToSptLikePlaylist = async function (trackIdsToAdd) {
 
   while (retryCount < MAX_RETRIES) {
     try {
+      console.log(trackIdsToAdd)
       await addToLikePlaylist(trackIdsToAdd);
       return;
     } catch (error) {

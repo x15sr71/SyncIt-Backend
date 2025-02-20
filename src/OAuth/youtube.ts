@@ -11,6 +11,7 @@ export const handleYouTubeLogin = (req, res) => {
     const scope = [
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/youtube',
+        "https://www.googleapis.com/auth/userinfo.email",
         'https://www.googleapis.com/auth/youtube.force-ssl',
         'https://www.googleapis.com/auth/youtube.readonly'
     ].join(' ');
@@ -22,7 +23,7 @@ export const handleYouTubeLogin = (req, res) => {
         scope,
         redirect_uri,
         access_type: 'offline',
-        prompt: 'consent'
+        prompt: 'consent' // 🔹 Ensures Google always returns a refresh token
     })}`;
 
     // Redirect user to the Google OAuth2 login page
@@ -32,44 +33,93 @@ export const handleYouTubeLogin = (req, res) => {
 export const handleYouTubeCallback = async (req, res) => {
     const code = req.query.code || null;
 
+    if (!code) {
+        return res.status(400).json({ error: 'Authorization code missing.' });
+    }
+
     try {
-        // Exchange the authorization code for an access token
-        const response = await axios.post('https://oauth2.googleapis.com/token', querystring.stringify({
-            code,
-            client_id,
-            client_secret,
-            redirect_uri,
-            grant_type: 'authorization_code'
-        }));
+        console.log("Received Auth Code:", code);
+        console.log("Using Redirect URI:", redirect_uri);
+
+        // Exchange authorization code for access token
+        const response = await axios.post(
+            'https://oauth2.googleapis.com/token',
+            querystring.stringify({
+                code,
+                client_id,
+                client_secret,
+                redirect_uri,
+                grant_type: 'authorization_code'
+            }),
+            {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            }
+        );
 
         const { access_token, refresh_token } = response.data;
         console.log("*******************")
         console.log(refresh_token)
 
+        if (!refresh_token) {
+            console.log("⚠️ No refresh_token received. This may be due to prior authorization.");
+        }
+
+        // Fetch user profile data from Google
         const profileResponse = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
-            headers: {
-                Authorization: `Bearer ${access_token}`
-            }
+            headers: { Authorization: `Bearer ${access_token}` }
         });
 
-        const { name, picture } = profileResponse.data;
+        const { name, picture, email } = profileResponse.data;
 
-        await prisma.youTubeData.create({
-            data: {
-                username: name,
-                picture: picture,
-                access_token: access_token,
-                refresh_token: refresh_token || "",
-                userId: 1
-            }
-        })
-        console.log("added to db")
+        // 🔍 Check if user already exists in the database
+        let user = await prisma.user.findUnique({ where: { email } });
 
-        // Store tokens in your session, database, or wherever you plan to keep them
-        // For simplicity, we're just returning them in the response here
-        res.json({ access_token, refresh_token });
+        if (!user) {
+           console.log("User not found, redirecting to login page");
+           res.redirect('/');
+           return;
+        } else {
+            console.log("✅ Existing user:", user.id, user.email);
+        }
+
+        // 🔍 Check if the user already has YouTube data stored
+        const existingYouTubeData = await prisma.youTubeData.findFirst({
+            where: { userId: user.id }
+        });
+
+        if (existingYouTubeData) {
+            console.log("🔄 Updating existing YouTube tokens...");
+            await prisma.youTubeData.update({
+                where: { id: existingYouTubeData.id },
+                data: {
+                    access_token: access_token,
+                    refresh_token: refresh_token || existingYouTubeData.refresh_token, // Preserve existing refresh token if missing
+                    last_SyncedAt: new Date(),
+                }
+            });
+        } else {
+            console.log("🆕 No existing YouTube data, creating new entry...");
+            await prisma.youTubeData.create({
+                data: {
+                    userId: user.id,
+                    username: name,
+                    picture: picture,
+                    access_token: access_token,
+                    refresh_token: refresh_token || null,
+                    createdAt: new Date()
+                }
+            });
+        }
+
+        console.log("✅ YouTube data stored for:", user.id);
+
+        res.json({ message: 'YouTube login successful', userId: user.id, access_token, refresh_token });
+
     } catch (error) {
-        console.log(error.message)
-        res.status(400).json({ error: 'YouTube authentication failed.' });
+        console.error("YouTube OAuth Error:", error.response?.data || error.message);
+        res.status(400).json({
+            error: 'YouTube authentication failed.',
+            details: error.response?.data || error.message
+        });
     }
 };

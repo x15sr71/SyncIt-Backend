@@ -6,13 +6,14 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { handleSpotifyLogin, handleSpotifyCallback } from '../OAuth/spotify';
 import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
-// import { handleGoogleLogin } from '../OAuth/google';
-// import { handleGoogleCallback } from '../OAuth/google';
+ import { handleGoogleLogin } from '../OAuth/google';
+ import { handleGoogleCallback } from '../OAuth/google';
 import { searchSpotifyTracks } from './extractTracks/spotifyExt';
 import { searchYoutubeTracks } from './extractTracks/youtubeExt';
 import { modify_YoutubePlaylist } from './modify/youtube/modify_YtLikePlaylist'
 import { addToSptLikePlaylist } from './modify/spotify/addToSptLikePlaylist'
-import { removeFromSptLikePlaylist } from './modify/spotify/removeFromLikePlaylist'
+// import { removeFromSptLikePlaylist } from './modify/spotify/removeFromLikePlaylist'
+import { emptyLikedTracks } from '../backend/modify/spotify/removeFromSpotifyPlaylist'
 import { test } from '../OAuth/utility/test'
 // import { test2 } from '../OAuth/utility/test2'
 import { searchTracksOnYoutube } from './modify/searchYoutube/searchYoutube'
@@ -27,8 +28,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// app.get('/google/login', handleGoogleLogin);
-// app.get('/google/callback', handleGoogleCallback);
+ app.get('/google/login', handleGoogleLogin);
+ app.get('/google/callback', handleGoogleCallback);
 
 app.get('/spotify/login', handleSpotifyLogin);
 app.get('/spotify/callback', handleSpotifyCallback);
@@ -42,7 +43,7 @@ app.get('/youtubeTrack', searchYoutubeTracks)
 app.get('/modifyYoutubeLikePlaylist', modify_YoutubePlaylist)
 
 app.get('/addtoSpt', addToSptLikePlaylist)
-app.get('/removefromSpt', removeFromSptLikePlaylist)
+app.get('/removefromSpt', emptyLikedTracks)
 app.get('/searchTracksOnYoutube', queryDataForYoutube)
 
 app.post('/handleCreatePlaylist', handleCreatePlaylist)
