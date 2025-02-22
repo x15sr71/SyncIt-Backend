@@ -21,6 +21,7 @@ import { queryDataForYoutube } from '../OAuth/utility/preProcessOpenAi'
 import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations'
 import { handleCreatePlaylist } from './routeHandlers/handleSpotifyPlaylistceation'
 import emptyPlaylist from './modify/emptySpotify/emptySpotifyPlaylist';
+import redies from '../config/redis';
 
 const app = express();
 const PORT = process.env.PORT || 3000;

@@ -17,25 +17,39 @@ enum PrimaryService {
 
 // Model for storing user details
 model User {
-  id            String        @id @default(uuid())
-  email         String        @unique
-  username      String        @unique
-  profilePicture String?
-  access_token String
-  refresh_token String?
-  createdAt     DateTime      @default(now())
+  id              String       @id @default(uuid())
+  email           String       @unique
+  username        String       @unique
+  profilePicture  String?
+  access_token    String
+  refresh_token   String?
+  createdAt       DateTime     @default(now())
 
   // Sync settings
-  keepInSync    Boolean       @default(true)
-  primaryService PrimaryService? 
+  keepInSync      Boolean      @default(true)
+  primaryService  PrimaryService? 
 
   // Last sync details
-  lastSyncTime  DateTime?
-  lastSyncTracks Json?
+  lastSyncTime    DateTime?
+  lastSyncTracks  Json?
 
   // Relations
-  spotifyTokens SpotifyData[] @relation(name: "UserSpotifyTokens")
-  youtubeTokens YouTubeData[] @relation(name: "UserYouTubeTokens")
+  spotifyTokens   SpotifyData[] @relation(name: "UserSpotifyTokens")
+  youtubeTokens   YouTubeData[] @relation(name: "UserYouTubeTokens")
+
+  sessions        Session[] // ✅ Corrected to be plural
+}
+
+model Session {
+  session_id String  @id @default(uuid()) @map("session_id")
+  user_id    String  @map("user_id")
+
+  user       User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  expires_at DateTime @default(dbgenerated("NOW() + INTERVAL '1 day'")) @map("expires_at")
+
+  @@map("sessions")
+  @@unique([user_id, session_id])
 }
 
 // Model for storing Spotify access tokens
