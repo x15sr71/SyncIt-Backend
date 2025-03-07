@@ -147,7 +147,7 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
 
         await prisma.youTubeData.update({
             where: {
-                id: 'adf'
+                id: ''
             },
             data: {
                 retryToFindTracks: failedTrackDetailsString
