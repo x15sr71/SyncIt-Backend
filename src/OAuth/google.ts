@@ -1,4 +1,4 @@
-import prisma from "./prismaClient";
+import prisma from "../db/index";
 import axios from "axios";
 import querystring from "querystring";
 import dotenv from "dotenv";

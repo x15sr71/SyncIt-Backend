@@ -1,4 +1,4 @@
-import prisma from './prismaClient';
+import prisma from '../db/index';
 import axios from 'axios';
 import querystring from 'querystring';
 
@@ -64,6 +64,7 @@ export const handleSpotifyCallback = async (req, res) => {
     const existingSpotifyData = await prisma.spotifyData.findFirst({
       where: { userId: user.id },
     });
+    console.log("existing user log:", existingSpotifyData)
 
     if (existingSpotifyData) {
       await prisma.spotifyData.update({
