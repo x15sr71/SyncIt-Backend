@@ -143,11 +143,11 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (req, res) => 
         // Log the failed track details
         console.log('Tracks that were not matched by the LLM:');
         failedTrackDetails.forEach(detail => console.log(detail)); // Log each track detail
-        const failedTrackDetailsString = JSON.stringify(failedTrackDetails);
+        const failedTrackDetailsString = JSON.stringify(failedTrackDetails) || {};
 
         await prisma.youTubeData.update({
             where: {
-                id: ''
+                id: req.session.id
             },
             data: {
                 retryToFindTracks: failedTrackDetailsString

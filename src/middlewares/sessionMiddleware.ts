@@ -1,44 +1,69 @@
-// import redis from '../config/redis';
-// /**
-//  * Session Middleware: Manages user authentication using Redis and PostgreSQL.
-//  */
-// const sessionMiddleware = async (req, res, next) => {
-//     try {
-//         let sessionId = req.cookies.sessionId || req.headers.authorization;
+import redis from '../config/redis';
+import prisma from '../db';
 
-//         if (!sessionId) {
-//             // No session found, redirect to login
-//             return res.redirect('/login');
-//         }
+type SessionData = { id: string; email: string } | null;
 
-//         // 1️⃣ Check Redis for session
-//         let userId = await redis.get(`session:${sessionId}`);
+const sessionMiddleware = async (req, res, next) => {
+    try {
+        let sessionId = req.cookies?.sessionId || req.headers?.authorization;
+        console.log("Session ID:", sessionId);
 
-//         if (!userId) {
-//             console.log('Session not found in Redis, checking PostgreSQL...');
+        if (!sessionId) {
+            return res.redirect('/login');
+        }
 
-//             // 2️⃣ Check PostgreSQL if Redis doesn’t have it
-//             const { rows } = await pool.query('SELECT user_id FROM sessions WHERE session_id = $1', [sessionId]);
+        let sessionData: SessionData = null; 
 
-//             if (rows.length > 0) {
-//                 userId = rows[0].user_id;
+        // Check Redis for session
+        let redisSession = await redis.get(`session:${sessionId}`);
 
-//                 // 3️⃣ Restore session in Redis
-//                 await redis.setex(`session:${sessionId}`, process.env.SESSION_TTL, userId);
-//             } else {
-//                 // No valid session found, reject request
-//                 return res.status(401).json({ message: 'Unauthorized' });
-//             }
-//         }
+        if (redisSession) {
+            try {
+                sessionData = JSON.parse(redisSession);
+            } catch (err) {
+                console.error("Invalid session data in Redis, removing...");
+                await redis.del(`session:${sessionId}`);
+                sessionData = null;
+            }
+        }
 
-//         req.sessionId = sessionId;
-//         req.userId = userId;
+        // If session is not found in Redis, check PostgreSQL
+        if (!sessionData) {
+            console.log("Session not found in Redis, checking PostgreSQL...");
 
-//         next();
-//     } catch (error) {
-//         console.error('Session Middleware Error:', error);
-//         res.status(500).json({ message: 'Internal Server Error' });
-//     }
-// };
+            const dbSession = await prisma.session.findUnique({
+                where: { session_id: sessionId }
+            });
 
-// module.exports = sessionMiddleware;
+            if (dbSession?.user_id) {
+                const userInfo = await prisma.user.findUnique({
+                    where: { id: dbSession.user_id },
+                    select: { email: true }
+                });
+
+                if (userInfo) {
+                    sessionData = { id: dbSession.user_id, email: userInfo.email };
+                    console.log("restored in redis")
+                    // Restore session in Redis
+                    await redis.setex(
+                        `session:${sessionId}`,
+                        parseInt(process.env.SESSION_TTL || "86400"),
+                        JSON.stringify(sessionData)
+                    );
+                }
+            }
+        }
+
+        if (!sessionData) {
+            return res.redirect('/login');
+        }
+
+        req.session = sessionData;
+        next();
+    } catch (error) {
+        console.error('Session Middleware Error:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+export default sessionMiddleware;
