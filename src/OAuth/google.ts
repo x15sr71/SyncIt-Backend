@@ -116,7 +116,7 @@ export const handleGoogleCallback = async (req, res) => {
     res.cookie("sessionId", session.session_id, {
       httpOnly: true, // Prevents JavaScript access (security)
       secure: true, // HTTPS only in production
-      sameSite: "Strict", // Prevents CSRF attacks
+      sameSite: "None", // Prevents CSRF attacks
       maxAge: 86400000, // 1 day expiration
     });
 

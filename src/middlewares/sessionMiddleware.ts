@@ -5,11 +5,12 @@ type SessionData = { id: string; email: string } | null;
 
 const sessionMiddleware = async (req, res, next) => {
     try {
+        console.log(req.cookies);
         let sessionId = req.cookies?.sessionId || req.headers?.authorization;
         console.log("Session ID:", sessionId);
 
         if (!sessionId) {
-            return res.redirect('/login');
+            return res.status(401).json({ message: 'Unauthorized' });
         }
 
         let sessionData: SessionData = null; 
@@ -43,7 +44,8 @@ const sessionMiddleware = async (req, res, next) => {
 
                 if (userInfo) {
                     sessionData = { id: dbSession.user_id, email: userInfo.email };
-                    console.log("restored in redis")
+                    console.log("Restored session in Redis");
+
                     // Restore session in Redis
                     await redis.setex(
                         `session:${sessionId}`,
@@ -55,7 +57,7 @@ const sessionMiddleware = async (req, res, next) => {
         }
 
         if (!sessionData) {
-            return res.redirect('/login');
+            return res.status(401).json({ message: 'Unauthorized' });
         }
 
         req.session = sessionData;
