@@ -5,9 +5,9 @@ type SessionData = { id: string; email: string } | null;
 
 const sessionMiddleware = async (req, res, next) => {
     try {
-        console.log(req.cookies);
+        //console.log(req.cookies);
         let sessionId = req.cookies?.sessionId || req.headers?.authorization;
-        console.log("Session ID:", sessionId);
+        //console.log("Session ID:", sessionId);
 
         if (!sessionId) {
             return res.status(401).json({ message: 'Unauthorized' });
@@ -22,7 +22,7 @@ const sessionMiddleware = async (req, res, next) => {
             try {
                 sessionData = JSON.parse(redisSession);
             } catch (err) {
-                console.error("Invalid session data in Redis, removing...");
+                //console.error("Invalid session data in Redis, removing...");
                 await redis.del(`session:${sessionId}`);
                 sessionData = null;
             }
@@ -30,7 +30,7 @@ const sessionMiddleware = async (req, res, next) => {
 
         // If session is not found in Redis, check PostgreSQL
         if (!sessionData) {
-            console.log("Session not found in Redis, checking PostgreSQL...");
+            //console.log("Session not found in Redis, checking PostgreSQL...");
 
             const dbSession = await prisma.session.findUnique({
                 where: { session_id: sessionId }
@@ -44,7 +44,7 @@ const sessionMiddleware = async (req, res, next) => {
 
                 if (userInfo) {
                     sessionData = { id: dbSession.user_id, email: userInfo.email };
-                    console.log("Restored session in Redis");
+                    //console.log("Restored session in Redis");
 
                     // Restore session in Redis
                     await redis.setex(
@@ -63,7 +63,7 @@ const sessionMiddleware = async (req, res, next) => {
         req.session = sessionData;
         next();
     } catch (error) {
-        console.error('Session Middleware Error:', error);
+        //console.error('Session Middleware Error:', error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 };

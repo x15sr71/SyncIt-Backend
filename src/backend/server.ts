@@ -24,9 +24,10 @@ import { addToSptLikePlaylist } from './modify/spotify/addToSptLikePlaylist';
 import { emptyLikedTracks } from '../backend/modify/spotify/removeFromSpotifyPlaylist';
 import { queryDataForYoutube } from '../OAuth/utility/preProcessOpenAi';
 import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations';
-import { handleCreatePlaylist } from './routeHandlers/handleSpotifyPlaylistceation';
+//import { handleCreatePlaylist } from './routeHandlers/handleSpotifyPlaylistceation';
 import emptyPlaylist from './modify/emptySpotify/emptySpotifyPlaylist';
 import sessionMiddleware from '../middlewares/sessionMiddleware';
+import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist';
 
 app.get('/google/login', handleGoogleLogin);
 app.get('/google/callback', handleGoogleCallback);
@@ -43,10 +44,11 @@ app.get('/modifyYoutubeLikePlaylist', modify_YoutubePlaylist);
 app.get('/addtoSpt', addToSptLikePlaylist);
 app.get('/removefromSpt', emptyLikedTracks);
 app.get('/searchTracksOnYoutube', queryDataForYoutube);
-app.post('/handleCreatePlaylist', handleCreatePlaylist);
+//app.post('/handleCreatePlaylist', handleCreatePlaylist);
 app.get('/emptySpotify', emptyPlaylist);
 app.get('/test', sessionMiddleware, migrateWholeYoutubePlaylistToSpotifyplaylist);
 app.get('/sessionmid', sessionMiddleware)
+app.get('/createsptpl', sessionMiddleware, createSpotifyPlaylistHandler)
 
 app.post('/sync-playlists', async (req, res) => {
     const { spotifyToken, youtubeToken } = req.body;

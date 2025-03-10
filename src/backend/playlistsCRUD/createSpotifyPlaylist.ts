@@ -15,7 +15,13 @@ type SpotifyPlaylist = {
     description: string
 }
 
-export async function createSpotifyPlaylist({
+export default async function createSpotifyPlaylistHandler(req, res) {
+    const { playlistName, description, isPublic } = req.headers?.playlistData;
+    const userId = req.sessionData.id;   
+    console.log(userId, playlistName, description, isPublic) 
+}
+
+async function createSpotifyPlaylist({
     playlistName,
     userId,
     description = 'Playlist created via API', 
