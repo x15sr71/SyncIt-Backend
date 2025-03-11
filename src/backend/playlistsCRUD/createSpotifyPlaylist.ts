@@ -1,48 +1,70 @@
+import prisma from "../../db";
 import axios from "axios";
 import { refreshSpotifyToken, get_SpotifyAccessToken } from "../../OAuth/tokenManagement/spotifyTokenUtil";
-
 type CreatePlaylistArgs = {
     playlistName: string;
     userId: string;
     description?: string;  
     isPublic?: boolean;   
 };
-
 type SpotifyPlaylist = {
     id: string,
     name: string,
     href: string,
     description: string
 }
-
 export default async function createSpotifyPlaylistHandler(req, res) {
-    const { playlistName, description, isPublic } = req.headers?.playlistData;
-    const userId = req.sessionData.id;   
-    console.log(userId, playlistName, description, isPublic) 
+    try {
+        console.log(req.headers);
+
+        const playlistDataHeader = req.headers?.playlistdata; // Ensure lowercase
+        if (!playlistDataHeader) {
+            return res.status(400).json({ error: "Missing playlistData header" });
+        }
+
+        const playlistData = JSON.parse(playlistDataHeader); // Parse JSON
+        const { playlistName, description, isPublic } = playlistData;  
+
+        console.log(playlistName, description, isPublic);
+        
+        const userId = req.session.id
+        const spotifyUserId = await prisma.spotifyData.findFirst({
+            where: {
+                userId: userId
+            },
+            select: {
+                id: true
+            }
+        })
+        console.log(spotifyUserId)
+
+        createSpotifyPlaylist({playlistName, userId, description, isPublic})
+
+    } catch (error) {
+        console.error("Error in createSpotifyPlaylistHandler:", error);
+        res.status(400).json({ error: "Invalid playlistData format" });
+    }
 }
 
 async function createSpotifyPlaylist({
     playlistName,
     userId,
-    description = 'Playlist created via API', 
+    description,
     isPublic                          
 }: CreatePlaylistArgs): Promise<SpotifyPlaylist> {
     
-    let accessToken: string = await get_SpotifyAccessToken();
+    let accessToken: string = "BQD0RnO2Cbx5GCRRk4MTfeNOJj_nhyYkweicoxKoiJeE4zkR6-MXghmqWx5ffdNH-vxOH6Bevm2OnaA8KHy8efd15Wy6djFD6-qkpXrXPdKD5S7fC0x_oCikGhRrlTOTR_-HQ7CdZ01NNtGrv52MevePr-0sTK1O_82ob84CBuCBZwjHBzS7da01yVICK8CzZXKbwCtDv5yE8-RWb6-2bfx4pdnfXhxg4NdtzSEAM8NskS7jnbgmoabzi9q6x5nqeqqz8gYWTfn3I8ZjOKpgizLhcOGuHNbeVjmeukPCjD--vNIUm5bimEf2GJ4sZhbrSqV9i9sqc4J_bOW_dYf4jsWZX1A"
     
     const url = `https://api.spotify.com/v1/users/${userId}/playlists`;
-
     const data = {
         name: playlistName,
         public: isPublic,
         description: description
     };
-
     const headers = {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
     };
-
     try {
         const response = await axios.post(url, data, { headers });
         console.log(`Playlist "${playlistName}" created successfully!`);
