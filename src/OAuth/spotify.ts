@@ -9,13 +9,15 @@ const redirect_uri = process.env.SPOTIFY_REDIRECT_URI;
 export const handleSpotifyLogin = (req, res) => {
   const scope =
     'user-library-modify user-read-email user-read-private user-library-read playlist-read-private playlist-modify-private playlist-modify-public playlist-read-collaborative user-top-read user-read-recently-played';
+
   const authUrl = `https://accounts.spotify.com/authorize?${querystring.stringify({
     response_type: 'code',
     client_id,
     scope,
     redirect_uri,
-    prompt: 'consent'
+    prompt: 'consent',
   })}`;
+
   return res.redirect(authUrl);
 };
 
@@ -34,6 +36,7 @@ export const handleSpotifyCallback = async (req, res) => {
         grant_type: 'authorization_code',
         code,
         redirect_uri,
+        scope: 'user-library-modify user-read-email user-read-private user-library-read playlist-read-private playlist-modify-private playlist-modify-public playlist-read-collaborative user-top-read user-read-recently-played', // 🔥 Ensure scope is explicitly passed
       }),
       {
         headers: {
@@ -43,9 +46,12 @@ export const handleSpotifyCallback = async (req, res) => {
       }
     );
 
-    const { access_token, refresh_token } = tokenResponse.data;
+    const { access_token, refresh_token, scope } = tokenResponse.data;
 
-    // Fetch user's Spotify profile information using the access token
+    // Debugging: Check if granted scope is correct
+    console.log("Granted Scopes:", scope);
+
+    // Fetch user's Spotify profile
     const profileResponse = await axios.get('https://api.spotify.com/v1/me', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
@@ -53,18 +59,17 @@ export const handleSpotifyCallback = async (req, res) => {
     const { display_name, email, images } = profileResponse.data;
     const profile_picture = images && images.length ? images[0].url : '';
 
-    // Check if user already exists in the database
+    // Check if user exists in the database
     let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       console.log("User not found, redirecting to signup page");
       return res.redirect('/google/login');
     }
 
-    // Check if the user already has Spotify data stored
+    // Check if Spotify data already exists
     const existingSpotifyData = await prisma.spotifyData.findFirst({
       where: { userId: user.id },
     });
-    console.log("existing user log:", existingSpotifyData)
 
     if (existingSpotifyData) {
       await prisma.spotifyData.update({
@@ -73,9 +78,10 @@ export const handleSpotifyCallback = async (req, res) => {
           username: display_name,
           picture: profile_picture,
           access_token: access_token,
+          refresh_token: refresh_token || existingSpotifyData.refresh_token, // 🔥 Preserve refresh_token if not returned
         },
       });
-      console.log("Spotify data updated for user:");
+      console.log("Spotify data updated for user:", user.id);
     } else {
       await prisma.spotifyData.create({
         data: {
@@ -83,11 +89,11 @@ export const handleSpotifyCallback = async (req, res) => {
           username: display_name,
           picture: profile_picture,
           access_token: access_token,
-          refresh_token: refresh_token,
+          refresh_token: refresh_token,  // Store refresh_token
           createdAt: new Date(),
         },
       });
-      console.log("Spotify data created for user:", user.id, user.email);
+      console.log("Spotify data created for user:", user.id);
     }
 
     return res.json({ message: 'Spotify login successful', userId: user.id, access_token, refresh_token });

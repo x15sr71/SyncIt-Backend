@@ -25,7 +25,7 @@ export default async function createSpotifyPlaylistHandler(req, res) {
         const playlistData = JSON.parse(playlistDataHeader); // Parse JSON
         const { playlistName, description, isPublic } = playlistData;  
 
-        console.log(playlistName, description, isPublic);
+        //console.log(playlistName, description, isPublic);
         
         const userId = req.session.id
         const spotifyUserId = await prisma.spotifyData.findFirst({
@@ -53,7 +53,7 @@ async function createSpotifyPlaylist({
     isPublic                          
 }: CreatePlaylistArgs): Promise<SpotifyPlaylist> {
     
-    let accessToken: string = "BQD0RnO2Cbx5GCRRk4MTfeNOJj_nhyYkweicoxKoiJeE4zkR6-MXghmqWx5ffdNH-vxOH6Bevm2OnaA8KHy8efd15Wy6djFD6-qkpXrXPdKD5S7fC0x_oCikGhRrlTOTR_-HQ7CdZ01NNtGrv52MevePr-0sTK1O_82ob84CBuCBZwjHBzS7da01yVICK8CzZXKbwCtDv5yE8-RWb6-2bfx4pdnfXhxg4NdtzSEAM8NskS7jnbgmoabzi9q6x5nqeqqz8gYWTfn3I8ZjOKpgizLhcOGuHNbeVjmeukPCjD--vNIUm5bimEf2GJ4sZhbrSqV9i9sqc4J_bOW_dYf4jsWZX1A"
+    let accessToken: string = await get_SpotifyAccessToken()
     
     const url = `https://api.spotify.com/v1/users/${userId}/playlists`;
     const data = {
