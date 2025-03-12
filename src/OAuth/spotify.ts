@@ -56,36 +56,33 @@ export const handleSpotifyCallback = async (req, res) => {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
-    const { display_name, email, images } = profileResponse.data;
+    const { id, display_name, email, images } = profileResponse.data;
     const profile_picture = images && images.length ? images[0].url : '';
 
-    // Check if user exists in the database
-    let user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      console.log("User not found, redirecting to signup page");
-      return res.redirect('/google/login');
-    }
+    const userId = req.session.id;
 
     // Check if Spotify data already exists
     const existingSpotifyData = await prisma.spotifyData.findFirst({
-      where: { userId: user.id },
+      where: { userId: userId },
     });
 
     if (existingSpotifyData) {
       await prisma.spotifyData.update({
         where: { id: existingSpotifyData.id },
         data: {
+          spotify_user_id: id,
           username: display_name,
           picture: profile_picture,
           access_token: access_token,
           refresh_token: refresh_token || existingSpotifyData.refresh_token, // 🔥 Preserve refresh_token if not returned
         },
       });
-      console.log("Spotify data updated for user:", user.id);
+      console.log("Spotify data updated for user:", userId);
     } else {
       await prisma.spotifyData.create({
         data: {
-          userId: user.id,
+          userId: userId,
+          spotify_user_id: id,
           username: display_name,
           picture: profile_picture,
           access_token: access_token,
@@ -93,10 +90,10 @@ export const handleSpotifyCallback = async (req, res) => {
           createdAt: new Date(),
         },
       });
-      console.log("Spotify data created for user:", user.id);
+      console.log("Spotify data created for user:", userId);
     }
 
-    return res.json({ message: 'Spotify login successful', userId: user.id, access_token, refresh_token });
+    //return res.json({ message: 'Spotify login successful', userId: user.id, access_token, refresh_token });
   } catch (error) {
     console.error('Spotify OAuth Error:', error.response ? error.response.data : error.message);
     return res.status(400).json({

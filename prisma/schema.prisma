@@ -55,6 +55,7 @@ model Session {
 // Model for storing Spotify access tokens
 model SpotifyData {
   id                         String     @id @default(uuid())
+  spotify_user_id            String     @unique 
   username                   String
   picture                    String
   access_token               String

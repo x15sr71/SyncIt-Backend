@@ -32,8 +32,8 @@ import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist'
 app.get('/google/login', handleGoogleLogin);
 app.get('/google/callback', handleGoogleCallback);
 
-app.get('/spotify/login', handleSpotifyLogin);
-app.get('/spotify/callback', handleSpotifyCallback);
+app.get('/spotify/login', sessionMiddleware, handleSpotifyLogin);
+app.get('/spotify/callback', sessionMiddleware, handleSpotifyCallback);
 
 app.get('/youtube/login', handleYouTubeLogin);
 app.get('/youtube/callback', handleYouTubeCallback);
