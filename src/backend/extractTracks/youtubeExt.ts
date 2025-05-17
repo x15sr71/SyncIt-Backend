@@ -10,7 +10,7 @@ const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 let youtubeTrackArray = [];
 
 const MAX_RETRIES = 5;
-const MAX_TRACKS = 70;
+const MAX_TRACKS = 40;
 
 // Function to convert ISO 8601 duration to seconds
 const convertDurationToMinutesAndSeconds = (duration) => {

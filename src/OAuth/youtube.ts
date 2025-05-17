@@ -1,12 +1,14 @@
 import prisma from '../db/index';
 import axios from 'axios';
 import querystring from 'querystring';
+import redis from '../config/redis';
 
 const client_id = process.env.YOUTUBE_CLIENT_ID;
 const client_secret = process.env.YOUTUBE_CLIENT_SECRET;
 const redirect_uri = process.env.YOUTUBE_REDIRECT_URI;
 
-export const handleYouTubeLogin = (req, res) => {
+export const handleYouTubeLogin = async (req, res) => {
+
     // Scopes needed for managing liked videos, searching, and interacting with YouTube data
     const scope = [
         'https://www.googleapis.com/auth/userinfo.profile',
@@ -32,6 +34,7 @@ export const handleYouTubeLogin = (req, res) => {
 
 export const handleYouTubeCallback = async (req, res) => {
     const code = req.query.code || null;
+    const userId = req.session.id;
 
     if (!code) {
         return res.status(400).json({ error: 'Authorization code missing.' });
@@ -72,7 +75,7 @@ export const handleYouTubeCallback = async (req, res) => {
         const { name, picture, email } = profileResponse.data;
 
         // 🔍 Check if user already exists in the database
-        let user = await prisma.user.findUnique({ where: { email } });
+        let user = await prisma.user.findUnique({ where: { id: userId } });
 
         if (!user) {
            console.log("User not found, redirecting to login page");

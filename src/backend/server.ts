@@ -29,14 +29,15 @@ import emptyPlaylist from './modify/emptySpotify/emptySpotifyPlaylist';
 import sessionMiddleware from '../middlewares/sessionMiddleware';
 import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist';
 
-app.get('/google/login', handleGoogleLogin);
-app.get('/google/callback', handleGoogleCallback);
+
+app.get('/google/login', sessionMiddleware, handleGoogleLogin);
+app.get('/google/callback', sessionMiddleware, handleGoogleCallback);
 
 app.get('/spotify/login', sessionMiddleware, handleSpotifyLogin);
 app.get('/spotify/callback', sessionMiddleware, handleSpotifyCallback);
 
-app.get('/youtube/login', handleYouTubeLogin);
-app.get('/youtube/callback', handleYouTubeCallback);
+app.get('/youtube/login', sessionMiddleware, handleYouTubeLogin);
+app.get('/youtube/callback', sessionMiddleware, handleYouTubeCallback);
 
 app.get('/spotifyTracks', searchSpotifyTracks);
 app.get('/youtubeTrack', searchYoutubeTracks);
@@ -59,25 +60,47 @@ const server = app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-// Graceful shutdown handler
-const cleanup = () => {
+// Graceful shutdown handler - UPDATED
+const cleanup = async () => {
     console.log('Shutting down server...');
 
-    server.close(() => {
-        console.log('Server closed, releasing port.');
-        process.exit(0);
-    });
+    try {
+        // Close Redis connection if applicable
+        if (redies && redies.quit) {
+            await redies.quit();
+            console.log('Redis connection closed.');
+        }
 
-    // Close Redis connection if applicable
-    if (redies && redies.quit) {
-        redies.quit();
-        console.log('Redis connection closed.');
+        // Close the HTTP server and then exit
+        server.close((err) => {
+            if (err) {
+                console.error('Error closing server:', err);
+                process.exit(1);
+            } else {
+                console.log('Server closed, releasing port.');
+                process.exit(0);
+            }
+        });
+
+        // Force exit if server close hangs after 10 seconds
+        setTimeout(() => {
+            console.error('Forcing shutdown due to timeout.');
+            process.exit(1);
+        }, 10000);
+
+    } catch (error) {
+        console.error('Error during cleanup:', error);
+        process.exit(1);
     }
 };
 
 // Handle termination signals
-process.on('SIGINT', cleanup);  // Ctrl+C
-process.on('SIGTERM', cleanup); // Termination signal (e.g., from a process manager)
+process.on('SIGINT', () => {
+    cleanup();
+});
+process.on('SIGTERM', () => {
+    cleanup();
+});
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
     cleanup();

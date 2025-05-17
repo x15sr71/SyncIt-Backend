@@ -78,6 +78,8 @@ export const handleSpotifyCallback = async (req, res) => {
         },
       });
       console.log("Spotify data updated for user:", userId);
+      return res.redirect("http://localhost:5173/sync?spotifyLoginSuccess=true");
+
     } else {
       await prisma.spotifyData.create({
         data: {
@@ -91,6 +93,13 @@ export const handleSpotifyCallback = async (req, res) => {
         },
       });
       console.log("Spotify data created for user:", userId);
+      
+      console.log("******************************")
+      console.log("redirecting to sync page");
+      console.log("******************************")
+  
+      res.redirect("http://localhost:5173/sync?spotifyLoginSuccess=true");
+      
     }
 
     //return res.json({ message: 'Spotify login successful', userId: user.id, access_token, refresh_token });

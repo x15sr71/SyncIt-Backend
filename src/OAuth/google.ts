@@ -10,7 +10,16 @@ const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
 const redirect_uri = process.env.GOOGLE_REDIRECT_URI;
 
-export const handleGoogleLogin = (req, res) => {
+export const handleGoogleLogin = async (req, res) => {
+  const sessionId = req.cookies?.sessionId;
+
+  if (sessionId) {
+    const sessionData = await redis.get(`session:${sessionId}`);
+    if (sessionData) {
+      return res.redirect("/dashboard"); // ✅ Already logged in
+    }
+  }
+
   const scope = ["profile", "email"].join(" ");
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${querystring.stringify({
     client_id,
@@ -31,6 +40,15 @@ export const handleGoogleCallback = async (req, res) => {
   }
 
   try {
+    // ✅ Check for existing valid session
+    const existingSessionId = req.cookies?.sessionId;
+    if (existingSessionId) {
+      const existingSessionData = await redis.get(`session:${existingSessionId}`);
+      if (existingSessionData) {
+        return res.redirect("/dashboard");
+      }
+    }
+
     // 🌟 Exchange code for access & refresh tokens
     const tokenResponse = await axios.post(
       "https://oauth2.googleapis.com/token",
@@ -77,7 +95,7 @@ export const handleGoogleCallback = async (req, res) => {
       });
     }
 
-    console.log("User authenticated:", user.id);
+    console.log("created:", user.id);
 
     // 🌟 Delete previous session & create a new one
     const session = await prisma.$transaction(async (tx) => {

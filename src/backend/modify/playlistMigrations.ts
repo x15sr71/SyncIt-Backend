@@ -153,7 +153,7 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (
     });
 
     try {
-      const spotifyChunks = chunkArray(trackIdsToAdd, 80, 10);
+      const spotifyChunks = chunkArray(trackIdsToAdd, 40, 10);
       console.log(
         "Chunks prepared for adding to Spotify:",
         spotifyChunks.length
