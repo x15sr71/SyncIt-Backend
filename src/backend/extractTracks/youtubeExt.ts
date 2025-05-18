@@ -24,7 +24,8 @@ const convertDurationToMinutesAndSeconds = (duration) => {
   return `${totalMinutes}:${String(seconds).padStart(2, "0")}`; // Format as "MM:SS"
 };
 
-export const searchYoutubeTracks = async () => {
+export const searchYoutubeTracks = async (req, res) => {
+  const userId = req.session.id;
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {

@@ -8,6 +8,7 @@ const sessionMiddleware = async (req, res, next) => {
         //console.log(req.cookies);
         let sessionId = req.cookies?.sessionId || req.headers?.authorization;
         //console.log("Session ID:", sessionId);
+        console.log(req.cookies)
 
         if (!sessionId) {
             return res.status(401).json({ message: 'Unauthorized' });

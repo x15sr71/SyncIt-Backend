@@ -12,6 +12,7 @@ const redirect_uri = process.env.GOOGLE_REDIRECT_URI;
 
 export const handleGoogleLogin = async (req, res) => {
   const sessionId = req.cookies?.sessionId;
+  console.log(req.cookies)
 
   if (sessionId) {
     const sessionData = await redis.get(`session:${sessionId}`);

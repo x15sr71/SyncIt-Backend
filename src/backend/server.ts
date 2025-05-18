@@ -30,8 +30,8 @@ import sessionMiddleware from '../middlewares/sessionMiddleware';
 import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist';
 
 
-app.get('/google/login', sessionMiddleware, handleGoogleLogin);
-app.get('/google/callback', sessionMiddleware, handleGoogleCallback);
+app.get('/google/login', handleGoogleLogin);
+app.get('/google/callback', handleGoogleCallback);
 
 app.get('/spotify/login', sessionMiddleware, handleSpotifyLogin);
 app.get('/spotify/callback', sessionMiddleware, handleSpotifyCallback);
@@ -40,7 +40,7 @@ app.get('/youtube/login', sessionMiddleware, handleYouTubeLogin);
 app.get('/youtube/callback', sessionMiddleware, handleYouTubeCallback);
 
 app.get('/spotifyTracks', searchSpotifyTracks);
-app.get('/youtubeTrack', searchYoutubeTracks);
+app.get('/youtubeTrack', sessionMiddleware, searchYoutubeTracks);
 app.get('/modifyYoutubeLikePlaylist', modify_YoutubePlaylist);
 app.get('/addtoSpt', addToSptLikePlaylist);
 app.get('/removefromSpt', emptyLikedTracks);
