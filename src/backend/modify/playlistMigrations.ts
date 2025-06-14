@@ -29,7 +29,7 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (
         .json({ error: "YouTube user not found in database." });
     }
 
-    const allYoutubeTracks = await searchYoutubeTracks();
+    const allYoutubeTracks = await searchYoutubeTracks(req, res);
     const formattedYoutubeTracks = trimTrackDescriptions(
       allYoutubeTracks.data,
       750

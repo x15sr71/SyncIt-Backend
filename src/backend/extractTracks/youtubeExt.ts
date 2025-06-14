@@ -30,7 +30,7 @@ export const searchYoutubeTracks = async (req, res) => {
 
   while (retryCount < MAX_RETRIES) {
     try {
-      let accessToken = await get_YoutubeAccessToken();
+      let accessToken = await get_YoutubeAccessToken(userId);
       const fetchedTracks = await fetchYoutubeTracks(accessToken);
       //console.log(fetchedTracks)
       return { success: true, data: fetchedTracks };
@@ -46,8 +46,11 @@ export const searchYoutubeTracks = async (req, res) => {
         error.response.status === 401
       ) {
         console.log("Access token expired, refreshing token...");
-        const refreshSuccess = await refreshYoutubeAccessToken();
-        if (refreshSuccess) {
+        const refreshSuccess = await refreshYoutubeAccessToken(userId);
+        console.log("**************************")
+        console.log(refreshSuccess)
+        console.log("**************************")
+        if (refreshSuccess.success) {
           retryCount += 1;
           console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
 
@@ -62,6 +65,7 @@ export const searchYoutubeTracks = async (req, res) => {
           console.error("Error refreshing token");
           return {
             success: false,
+            redirect: "youtube/login",
             error: "Failed to refresh YouTube access token",
           };
         }

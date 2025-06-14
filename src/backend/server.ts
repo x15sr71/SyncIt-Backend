@@ -64,14 +64,20 @@ const server = app.listen(PORT, () => {
 const cleanup = async () => {
     console.log('Shutting down server...');
 
+    // Force shutdown timer
+    const shutdownTimeout = setTimeout(() => {
+        console.error('Forcing shutdown due to timeout.');
+        process.exit(1);
+    }, 10000);
+
+    shutdownTimeout.unref(); // Allow process to exit if cleanup finishes
+
     try {
-        // Close Redis connection if applicable
         if (redies && redies.quit) {
             await redies.quit();
             console.log('Redis connection closed.');
         }
 
-        // Close the HTTP server and then exit
         server.close((err) => {
             if (err) {
                 console.error('Error closing server:', err);
@@ -81,18 +87,12 @@ const cleanup = async () => {
                 process.exit(0);
             }
         });
-
-        // Force exit if server close hangs after 10 seconds
-        setTimeout(() => {
-            console.error('Forcing shutdown due to timeout.');
-            process.exit(1);
-        }, 10000);
-
     } catch (error) {
         console.error('Error during cleanup:', error);
         process.exit(1);
     }
 };
+
 
 // Handle termination signals
 process.on('SIGINT', () => {
