@@ -8,7 +8,8 @@
     "start": "concurrently \"npm run build:watch\" \"npm run serve\"",
     "build:watch": "tsc-watch --onSuccess \"npm run build\"",
     "serve": "nodemon dist/backend/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "it": "npm run build && npm run serve"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
