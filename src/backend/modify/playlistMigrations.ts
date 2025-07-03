@@ -1,6 +1,6 @@
 import { searchYoutubeTracks } from "../extractTracks/youtubeExt";
 import { trimTrackDescriptions } from "../../OAuth/utility/trim";
-import { searchTracksOnSpotify } from "./searchSpotify/searchSpotify";
+import { searchTracksOnSpotify } from "../search/searchSpotify/searchSpotify";
 import { callOpenAIModel } from "../openAI/getBestMatch";
 import { addToSptLikePlaylist } from "./spotify/addToSptLikePlaylist";
 import prisma from "../../db";

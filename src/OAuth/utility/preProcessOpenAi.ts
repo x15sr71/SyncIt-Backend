@@ -1,4 +1,4 @@
-import { searchTracksOnYoutube } from "../../backend/modify/searchYoutube/searchYoutube";
+import { searchTracksOnYoutube } from "../../backend/search/searchYoutube/searchYoutube";
 
 export const organizeTrackSearchResults = (tracks, searchResults) => {
     if (!tracks || !searchResults || tracks.length !== searchResults.length) {
