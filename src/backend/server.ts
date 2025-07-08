@@ -4,6 +4,18 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import redies from '../config/redis';
 import cookieParser from 'cookie-parser'
+import { handleSpotifyLogin, handleSpotifyCallback } from '../OAuth/spotify';
+import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
+import { handleGoogleLogin, handleGoogleCallback } from '../OAuth/google';
+import { searchSpotifyTracks } from './extractTracks/spotifyExt';
+import { searchYoutubeTracks } from './extractTracks/youtubeExt';
+import { modify_YoutubePlaylist } from './modify/youtube/modify_YtLikePlaylist';
+import { addToSptLikePlaylist } from './modify/spotify/addToSptLikePlaylist';
+import { emptyLikedTracks } from '../backend/modify/spotify/removeFromSpotifyPlaylist';
+import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations';
+import emptyPlaylist from './modify/emptySpotify/emptySpotifyPlaylist';
+import sessionMiddleware from '../middlewares/sessionMiddleware';
+import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist';
 
 dotenv.config();
 const app = express();
@@ -13,43 +25,21 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Import and use route handlers
-import { handleSpotifyLogin, handleSpotifyCallback } from '../OAuth/spotify';
-import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
-import { handleGoogleLogin, handleGoogleCallback } from '../OAuth/google';
-import { searchSpotifyTracks } from './extractTracks/spotifyExt';
-import { searchYoutubeTracks } from './extractTracks/youtubeExt';
-import { modify_YoutubePlaylist } from './modify/youtube/modify_YtLikePlaylist';
-import { addToSptLikePlaylist } from './modify/spotify/addToSptLikePlaylist';
-import { emptyLikedTracks } from '../backend/modify/spotify/removeFromSpotifyPlaylist';
-import { queryDataForYoutube } from '../OAuth/utility/preProcessOpenAi';
-import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations';
-//import { handleCreatePlaylist } from './routeHandlers/handleSpotifyPlaylistceation';
-import emptyPlaylist from './modify/emptySpotify/emptySpotifyPlaylist';
-import sessionMiddleware from '../middlewares/sessionMiddleware';
-import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist';
-
 
 app.get('/google/login', handleGoogleLogin);
 app.get('/google/callback', handleGoogleCallback);
-
 app.get('/spotify/login', sessionMiddleware, handleSpotifyLogin);
 app.get('/spotify/callback', sessionMiddleware, handleSpotifyCallback);
-
 app.get('/youtube/login', sessionMiddleware, handleYouTubeLogin);
 app.get('/youtube/callback', sessionMiddleware, handleYouTubeCallback);
-
-app.get('/spotifyTracks', searchSpotifyTracks);
+app.get('/spotifyTracks', sessionMiddleware, searchSpotifyTracks);
 app.get('/youtubeTrack', sessionMiddleware, searchYoutubeTracks);
-app.get('/modifyYoutubeLikePlaylist', modify_YoutubePlaylist);
-app.get('/addtoSpt', addToSptLikePlaylist);
-app.get('/removefromSpt', emptyLikedTracks);
-app.get('/searchTracksOnYoutube', queryDataForYoutube);
-//app.post('/handleCreatePlaylist', handleCreatePlaylist);
-app.get('/emptySpotify', emptyPlaylist);
+app.get('/modifyYoutubeLikePlaylist', sessionMiddleware, modify_YoutubePlaylist);
+app.get('/addtoSpt', sessionMiddleware, addToSptLikePlaylist);
+app.get('/removefromSpt', sessionMiddleware, emptyLikedTracks);
+app.get('/emptySpotify', sessionMiddleware, emptyPlaylist);
 app.get('/test', sessionMiddleware, migrateWholeYoutubePlaylistToSpotifyplaylist);
 app.get('/sessionmid', sessionMiddleware)
-app.get('/createsptpl', sessionMiddleware, createSpotifyPlaylistHandler)
 
 app.post('/sync-playlists', async (req, res) => {
     const { spotifyToken, youtubeToken } = req.body;

@@ -30,14 +30,14 @@ export const searchYoutubeTracks = async (req, res) => {
 
   while (retryCount < MAX_RETRIES) {
     try {
-      let accessToken = await get_YoutubeAccessToken(userId);
+      const accessToken = await get_YoutubeAccessToken(userId);
       const fetchedTracks = await fetchYoutubeTracks(accessToken);
-      //console.log(fetchedTracks)
-      return { success: true, data: fetchedTracks };
+
+      return res.json({ success: true, data: fetchedTracks });
     } catch (error) {
       if (error.message === "Access token not found") {
         console.error("Access token not found, cannot proceed.");
-        return { success: false, error: "Access token not found" };
+        return res.status(401).json({ success: false, error: "Access token not found" });
       }
 
       if (
@@ -50,35 +50,33 @@ export const searchYoutubeTracks = async (req, res) => {
         console.log("**************************")
         console.log(refreshSuccess)
         console.log("**************************")
+
         if (refreshSuccess.success) {
           retryCount += 1;
           console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
-
-          if (retryCount < MAX_RETRIES) {
-            console.log("Retrying fetchYoutubeTracks...");
-            continue;
-          } else {
-            console.error("Max retries reached. Unable to fetch tracks.");
-            return { success: false, error: "Max retries reached" };
-          }
+          continue;
         } else {
           console.error("Error refreshing token");
-          return {
+          return res.status(401).json({
             success: false,
             redirect: "youtube/login",
             error: "Failed to refresh YouTube access token",
-          };
+          });
         }
       } else {
         console.error(
           "Error fetching tracks:",
           error.response ? error.response.data : error.message
         );
-        return { success: false, error: "Failed to fetch tracks" };
+        return res.status(500).json({ success: false, error: "Failed to fetch tracks" });
       }
     }
   }
+
+  // fallback: should not be reached normally
+  return res.status(500).json({ success: false, error: "Unexpected error occurred" });
 };
+
 
 const fetchYoutubeTracks = async (accessToken) => {
   let url = "https://www.googleapis.com/youtube/v3/playlistItems";
