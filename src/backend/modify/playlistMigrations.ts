@@ -1,4 +1,4 @@
-import { searchYoutubeTracks } from "../extractTracks/youtubeExt";
+import { searchYoutubeTracks } from "../utils/searchYoutube";
 import { trimTrackDescriptions } from "../../OAuth/utility/trim";
 import { searchTracksOnSpotify } from "../search/searchSpotify/searchSpotify";
 import { callOpenAIModel } from "../openAI/getBestMatch";
@@ -12,6 +12,13 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (
   req,
   res
 ) => {
+  const userId = req.session?.id;
+  if (!userId) {
+    return res.status(401).json({
+      error: "AUTH_ERROR",
+      message: "User session not found. Please log in again.",
+    });
+  }
   try {
     console.log(
       "Migrating YouTube playlist to Spotify for session:",
@@ -19,12 +26,12 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (
     );
 
     const userId = req.session.id;
-      if (!userId) {
-    return res.status(401).json({
-      error: 'AUTH_ERROR',
-      message: 'User session not found. Please log in again.',
-    });
-  }
+    if (!userId) {
+      return res.status(401).json({
+        error: "AUTH_ERROR",
+        message: "User session not found. Please log in again.",
+      });
+    }
 
     const youtubeUserId = await prisma.youTubeData.findFirst({
       where: { userId: userId },
@@ -37,7 +44,10 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (
         .json({ error: "YouTube user not found in database." });
     }
 
-    const allYoutubeTracks = await searchYoutubeTracks(req, res);
+    const allYoutubeTracks = await searchYoutubeTracks(userId);
+    console.log("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+    console.log(allYoutubeTracks);
+    console.log("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
     const formattedYoutubeTracks = trimTrackDescriptions(
       allYoutubeTracks.data,
       750
@@ -59,7 +69,8 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (
       const chunk = searchChunks[i];
       const chunkResults = await searchTracksOnSpotify(
         chunk,
-        globalTrackNumber
+        globalTrackNumber,
+        userId
       );
       spotifySearchResults = spotifySearchResults.concat(chunkResults);
       globalTrackNumber += chunk.length;

@@ -24,14 +24,14 @@ const convertDurationToMinutesAndSeconds = (duration) => {
   return `${totalMinutes}:${String(seconds).padStart(2, "0")}`; // Format as "MM:SS"
 };
 
-export const searchYoutubeTracks = async (req, res) => {
-  const userId = req.session.id;
-  if (!userId) {
-    return res.status(401).json({
-      error: "AUTH_ERROR",
-      message: "User session not found. Please log in again.",
-    });
-  }
+export const searchYoutubeTracks = async (userId: string) => {
+//   const userId = req.session.id;
+//   if (!userId) {
+//     return res.status(401).json({
+//       error: "AUTH_ERROR",
+//       message: "User session not found. Please log in again.",
+//     });
+//   }
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {
@@ -39,11 +39,11 @@ export const searchYoutubeTracks = async (req, res) => {
       const accessToken = await get_YoutubeAccessToken(userId);
       const fetchedTracks = await fetchYoutubeTracks(accessToken);
 
-      return res.json({ success: true, data: fetchedTracks });
+      return ({ success: true, data: fetchedTracks });
     } catch (error) {
       if (error.message === "Access token not found") {
         console.error("Access token not found, cannot proceed.");
-        return res.status(401).json({
+        return ({
           error: "AUTH_ERROR",
           message: "Access token not found or expired. Please log in again.",
         });
@@ -66,7 +66,7 @@ export const searchYoutubeTracks = async (req, res) => {
           continue;
         } else {
           console.error("Error refreshing token");
-          return res.status(401).json({
+          return ({
             success: false,
             error: "AUTH_REFRESH_FAILED",
             redirect: "/youtube/login",
@@ -80,17 +80,13 @@ export const searchYoutubeTracks = async (req, res) => {
           "Error fetching tracks:",
           error.response ? error.response.data : error.message
         );
-        return res
-          .status(500)
-          .json({ success: false, error: "Failed to fetch tracks" });
+        return ({ success: false, error: "Failed to fetch tracks" });
       }
     }
   }
 
   // fallback: should not be reached normally
-  return res
-    .status(500)
-    .json({ success: false, error: "Unexpected error occurred" });
+  return ({ success: false, error: "Unexpected error occurred" });
 };
 
 const fetchYoutubeTracks = async (accessToken) => {

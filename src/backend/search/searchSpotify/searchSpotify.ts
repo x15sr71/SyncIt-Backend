@@ -16,7 +16,7 @@ const validateTracks = (tracks) => {
 const createSearchQuery = ({ title, videoChannelTitle }) => `${title} ${videoChannelTitle}`.trim();
 
 // Handle errors, refresh token if necessary, and retry if applicable
-const handleSearchError = async (error) => {
+const handleSearchError = async (error, userId) => {
     const { response } = error;
 
     if (!response) {
@@ -28,8 +28,8 @@ const handleSearchError = async (error) => {
     if (status === 401) {
         console.warn('Access token expired. Attempting to refresh...');
         try {
-            await refreshSpotifyToken();
-            return get_SpotifyAccessToken();
+            await refreshSpotifyToken(userId);
+            return get_SpotifyAccessToken(userId);
         } catch (refreshError) {
             console.error('Failed to refresh token:', refreshError.message);
         }
@@ -42,7 +42,7 @@ const handleSearchError = async (error) => {
 };
 
 // Perform the search request to Spotify
-const performSearch = async (track, accessToken, retryCount = 0) => {
+const performSearch = async (track, accessToken, userId, retryCount = 0) => {
     const searchQuery = createSearchQuery(track);
 
     if (!searchQuery) {
@@ -58,7 +58,7 @@ const performSearch = async (track, accessToken, retryCount = 0) => {
         return { title: track.title, youtubeChannelName: track.videoChannelTitle, results: response.data.tracks.items };
     } catch (error) {
         if (retryCount < MAX_RETRIES) {
-            const newToken = await handleSearchError(error);
+            const newToken = await handleSearchError(error, userId);
             if (newToken) {
                 return performSearch(track, newToken, retryCount + 1); // Retry with a new token
             }
@@ -79,12 +79,12 @@ const formatResults = (searchResults, trackNumber) => searchResults.map((track, 
 }));
 
 // Main function to search for tracks on Spotify
-export const searchTracksOnSpotify = async (tracks, globalTrackNumber) => {
+export const searchTracksOnSpotify = async (tracks, globalTrackNumber, userId) => {
     validateTracks(tracks); // Ensure valid tracks array
-    let accessToken = await get_SpotifyAccessToken(); // Fetch initial access token
+    let accessToken = await get_SpotifyAccessToken(userId); // Fetch initial access token
 
     const searchPromises = tracks.map((track, index) =>
-        performSearch(track, accessToken).then(result => {
+        performSearch(track, accessToken, userId).then(result => {
             const trackNumber = globalTrackNumber + index;
             return { 
                 ...result, 
