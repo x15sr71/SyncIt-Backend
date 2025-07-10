@@ -5,11 +5,11 @@ import querystring from 'querystring';
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 
-export async function get_SpotifyAccessToken() {
+export async function get_SpotifyAccessToken(userId: string) {
     try {
         const access_token = await prisma.spotifyData.findMany({
             where: {
-                username: "Chandragupt Singh"
+                userId: userId
             },
             select: {
                 access_token: true
@@ -28,11 +28,11 @@ export async function get_SpotifyAccessToken() {
     }
 }
 
-export const refreshSpotifyToken = async () => {
+export const refreshSpotifyToken = async (userId: string) => {
     try {
         const spotifyData = await prisma.spotifyData.findFirst({
             where: {
-                username: "Chandragupt Singh"
+                userId: userId
             },
             select: {
                 id: true,

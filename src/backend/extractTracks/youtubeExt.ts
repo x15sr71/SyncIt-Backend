@@ -37,7 +37,8 @@ export const searchYoutubeTracks = async (req, res) => {
     } catch (error) {
       if (error.message === "Access token not found") {
         console.error("Access token not found, cannot proceed.");
-        return res.status(401).json({ success: false, error: "Access token not found" });
+        return res.status(401).json({ "error": "AUTH_ERROR", "message": "Access token not found or expired. Please log in again." }
+);
       }
 
       if (

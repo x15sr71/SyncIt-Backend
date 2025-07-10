@@ -39,58 +39,65 @@ let spotifyTrackArray: SpotifyTrack[] = [];
 const MAX_RETRIES = 3; // Maximum number of retries
 const MAX_TRACKS = 100; // Maximum number of tracks to fetch
 
-export const searchSpotifyTracks = async (): Promise<{ status?: string; data?: SpotifyTrack[]; error?: string }> => {
+export const searchSpotifyTracks = async (req, res): Promise<void> => {
   let retryCount = 0;
   let accessToken: string | null = null;
+  const userId = req.session.id;
 
   while (retryCount < MAX_RETRIES) {
     try {
-      accessToken = await get_SpotifyAccessToken();
-      console.log(accessToken);
+      accessToken = await get_SpotifyAccessToken(userId);
+      console.log("Initial access token:", accessToken);
 
       // Exit if access token is not found or is invalid
       if (!accessToken) {
         console.error("Access token not found or invalid.");
-        return { error: 'Access token not found' };
+        res.json({ "error": "AUTH_ERROR", "message": "Access token not found or expired. Please log in again." });
+        return;
       }
 
       const tracks = await fetchSpotifyTracks(accessToken);
-      console.log(tracks);
-      return { status: "success", data: tracks };
+      console.log("Fetched tracks:", tracks);
+      res.json({ status: "success", data: tracks });
+      return;
 
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 401) {
-        console.log("Access token expired, refreshing token...");
-        try {
-          const refreshedTokenData = await refreshSpotifyToken() as RefreshedTokenData;
-          if (refreshedTokenData && refreshedTokenData.access_token) {
-            accessToken = refreshedTokenData.access_token; // Update the access token
-            retryCount += 1;
-            console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
+        console.warn("Access token expired. Attempting to refresh...");
 
-            // Continue to retry the fetchSpotifyTracks with the new token
-            if (retryCount < MAX_RETRIES) {
-              console.log("Retrying fetchSpotifyTracks...");
-              continue; // This will restart the while loop with a new access token
-            }
+        try {
+          const refreshedTokenData = await refreshSpotifyToken(userId) as RefreshedTokenData;
+
+          if (refreshedTokenData && refreshedTokenData.access_token) {
+            accessToken = refreshedTokenData.access_token;
+            retryCount += 1;
+            console.log(`Token refreshed. Retrying fetch... Attempt ${retryCount}/${MAX_RETRIES}`);
+            continue; // retry with new token
           } else {
-            throw new Error("Failed to refresh access token.");
+            console.error("Failed to refresh access token.");
+            res.json({ error: "Failed to refresh access token" });
+            return;
           }
+
         } catch (refreshError) {
           console.error('Error refreshing token:', (refreshError as Error).message);
-          return { error: 'Failed to refresh access token' };
+          res.json({ error: 'Failed to refresh access token' });
+          return;
         }
+
       } else {
-        console.error('Error fetching tracks:', error.response?.data || (error as Error).message);
-        return { error: 'Failed to fetch tracks' };
+        console.error('Error fetching tracks:', error instanceof AxiosError ? error.response?.data : (error as Error).message);
+        res.json({ error: 'Failed to fetch tracks' });
+        return;
       }
     }
   }
 
-  // If maximum retries reached
-  console.error('Max retries reached. Unable to fetch tracks.');
-  return { error: 'Failed to fetch tracks after multiple attempts' };
-};
+  // If retries exhausted
+  console.error("Exceeded max retries while trying to fetch Spotify tracks.");
+  res.json({ error: "Exceeded max retries while trying to fetch Spotify tracks." });
+}
+
 
 const fetchSpotifyTracks = async (accessToken: string): Promise<SpotifyTrack[]> => {
   let url: string | null = 'https://api.spotify.com/v1/me/tracks';
