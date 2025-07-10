@@ -36,7 +36,7 @@ app.use("/", youtubeRoutes);
 app.get('/modifyYoutubeLikePlaylist', sessionMiddleware, modify_YoutubePlaylist);
 app.get('/addtoSpt', sessionMiddleware, addToSptLikePlaylist);
 app.get('/removefromSpt', sessionMiddleware, emptyLikedTracks);
-app.use("/emptySpotify", emptySpotifyPlaylist);
+app.use("/api", emptySpotifyPlaylist);
 app.get('/test', sessionMiddleware, migrateWholeYoutubePlaylistToSpotifyplaylist);
 app.get('/sessionmid', sessionMiddleware)
 

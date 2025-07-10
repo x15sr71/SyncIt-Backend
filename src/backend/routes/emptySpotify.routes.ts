@@ -4,6 +4,6 @@ import { emptySpotifyPlaylist } from "../controllers/emptySpotify.controller";
 
 const router = express.Router();
 
-router.get("/spotifyTracks", sessionMiddleware, emptySpotifyPlaylist);
+router.get("/emptySpotifyTracks", sessionMiddleware, emptySpotifyPlaylist);
 
 export default router;

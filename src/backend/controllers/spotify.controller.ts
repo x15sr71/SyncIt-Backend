@@ -28,7 +28,7 @@ export const searchSpotifyTracks = async (req, res): Promise<void> => {
         });
       }
 
-      const tracks = await fetchSpotifyTracks(accessToken);
+      const tracks = await fetchSpotifyTracks(accessToken, userId);
       return res.json({ success: true, data: tracks });
     } catch (error) {
       const isUnauthorized =
@@ -65,7 +65,7 @@ export const searchSpotifyTracks = async (req, res): Promise<void> => {
   });
 };
 
-const fetchSpotifyTracks = async (accessToken: string) => {
+const fetchSpotifyTracks = async (accessToken: string, userId: string) => {
   let url: string | null = "https://api.spotify.com/v1/me/tracks";
   let allTracks = [];
   let totalFetchedTracks = 0;
@@ -98,7 +98,7 @@ const fetchSpotifyTracks = async (accessToken: string) => {
     const serializedTracks = JSON.stringify(trackIDs);
 
     await prisma.spotifyData.updateMany({
-      where: { username: "Chandragupt Singh" }, // TODO: Replace with userId match
+      where: { userId }, // Match by userId
       data: {
         last_playlistTrackIds_hash: hash,
         last_SyncedAt: new Date(),
