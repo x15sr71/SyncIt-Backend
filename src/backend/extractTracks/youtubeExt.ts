@@ -26,6 +26,12 @@ const convertDurationToMinutesAndSeconds = (duration) => {
 
 export const searchYoutubeTracks = async (req, res) => {
   const userId = req.session.id;
+  if (!userId) {
+    return res.status(401).json({
+      error: "AUTH_ERROR",
+      message: "User session not found. Please log in again.",
+    });
+  }
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {
@@ -37,8 +43,10 @@ export const searchYoutubeTracks = async (req, res) => {
     } catch (error) {
       if (error.message === "Access token not found") {
         console.error("Access token not found, cannot proceed.");
-        return res.status(401).json({ "error": "AUTH_ERROR", "message": "Access token not found or expired. Please log in again." }
-);
+        return res.status(401).json({
+          error: "AUTH_ERROR",
+          message: "Access token not found or expired. Please log in again.",
+        });
       }
 
       if (
@@ -47,12 +55,12 @@ export const searchYoutubeTracks = async (req, res) => {
         error.response.status === 401
       ) {
         console.log("Access token expired, refreshing token...");
-        const refreshSuccess = await refreshYoutubeAccessToken(userId);
-        console.log("**************************")
-        console.log(refreshSuccess)
-        console.log("**************************")
+        const response = await refreshYoutubeAccessToken(userId);
+        console.log("**************************");
+        console.log(response);
+        console.log("**************************");
 
-        if (refreshSuccess.success) {
+        if (response.success) {
           retryCount += 1;
           console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
           continue;
@@ -60,8 +68,11 @@ export const searchYoutubeTracks = async (req, res) => {
           console.error("Error refreshing token");
           return res.status(401).json({
             success: false,
-            redirect: "youtube/login",
-            error: "Failed to refresh YouTube access token",
+            error: "AUTH_REFRESH_FAILED",
+            redirect: "/youtube/login",
+            message:
+              "Failed to refresh YouTube access token. Please log in again.",
+            
           });
         }
       } else {
@@ -69,15 +80,18 @@ export const searchYoutubeTracks = async (req, res) => {
           "Error fetching tracks:",
           error.response ? error.response.data : error.message
         );
-        return res.status(500).json({ success: false, error: "Failed to fetch tracks" });
+        return res
+          .status(500)
+          .json({ success: false, error: "Failed to fetch tracks" });
       }
     }
   }
 
   // fallback: should not be reached normally
-  return res.status(500).json({ success: false, error: "Unexpected error occurred" });
+  return res
+    .status(500)
+    .json({ success: false, error: "Unexpected error occurred" });
 };
-
 
 const fetchYoutubeTracks = async (accessToken) => {
   let url = "https://www.googleapis.com/youtube/v3/playlistItems";

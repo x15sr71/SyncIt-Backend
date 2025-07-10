@@ -15,7 +15,7 @@ import { emptyLikedTracks } from '../backend/modify/spotify/removeFromSpotifyPla
 import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations';
 import emptyPlaylist from './modify/emptySpotify/emptySpotifyPlaylist';
 import sessionMiddleware from '../middlewares/sessionMiddleware';
-import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist';
+// import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist';
 
 dotenv.config();
 const app = express();

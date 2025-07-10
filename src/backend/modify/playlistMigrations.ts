@@ -18,8 +18,16 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (
       req.session.id
     );
 
+    const userId = req.session.id;
+      if (!userId) {
+    return res.status(401).json({
+      error: 'AUTH_ERROR',
+      message: 'User session not found. Please log in again.',
+    });
+  }
+
     const youtubeUserId = await prisma.youTubeData.findFirst({
-      where: { userId: req.session.id },
+      where: { userId: userId },
       select: { id: true },
     });
 
