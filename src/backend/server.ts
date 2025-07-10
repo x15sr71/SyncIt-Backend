@@ -17,6 +17,8 @@ import spotifyRoutes from './routes/spotify.routes';
 import emptySpotifyPlaylist from './routes/emptySpotify.routes';
 import getSpotifyPlaylistsRouter from './routes/spotifyGetPlaylists.route';
 import getYoutubePlaylistsRouter from './routes/youtubeGetPlaylist.route';
+import getSpotifyPlaylistContentHandler from './routes/spotifyContent.route';
+import getYoutubePlaylistContentHandler from './routes/youtubeContent.route';
 
 dotenv.config();
 const app = express();
@@ -41,6 +43,8 @@ app.get('/removefromSpt', sessionMiddleware, emptyLikedTracks);
 app.use("/", emptySpotifyPlaylist);
 app.use('/', getSpotifyPlaylistsRouter);
 app.use('/', getYoutubePlaylistsRouter)
+app.use('/', getSpotifyPlaylistContentHandler);
+app.use('/', getYoutubePlaylistContentHandler);
 app.get('/test', sessionMiddleware, migrateWholeYoutubePlaylistToSpotifyplaylist);
 app.get('/sessionmid', sessionMiddleware)
 
