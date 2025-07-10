@@ -7,15 +7,14 @@ import cookieParser from 'cookie-parser'
 import { handleSpotifyLogin, handleSpotifyCallback } from '../OAuth/spotify';
 import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
 import { handleGoogleLogin, handleGoogleCallback } from '../OAuth/google';
-import { searchSpotifyTracks } from './extractTracks/spotifyExt';
-import { searchYoutubeTracks } from './extractTracks/youtubeExt';
 import { modify_YoutubePlaylist } from './modify/youtube/modify_YtLikePlaylist';
 import { addToSptLikePlaylist } from './modify/spotify/addToSptLikePlaylist';
 import { emptyLikedTracks } from '../backend/modify/spotify/removeFromSpotifyPlaylist';
 import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations';
-import emptyPlaylist from './modify/emptySpotify/emptySpotifyPlaylist';
 import sessionMiddleware from '../middlewares/sessionMiddleware';
-// import createSpotifyPlaylistHandler from './playlistsCRUD/createSpotifyPlaylist';
+import youtubeRoutes from './routes/youtube.routes';
+import spotifyRoutes from './routes/spotify.routes';
+import emptySpotifyPlaylist from './routes/emptySpotify.routes';
 
 dotenv.config();
 const app = express();
@@ -32,12 +31,12 @@ app.get('/spotify/login', sessionMiddleware, handleSpotifyLogin);
 app.get('/spotify/callback', sessionMiddleware, handleSpotifyCallback);
 app.get('/youtube/login', sessionMiddleware, handleYouTubeLogin);
 app.get('/youtube/callback', sessionMiddleware, handleYouTubeCallback);
-app.get('/spotifyTracks', sessionMiddleware, searchSpotifyTracks);
-app.get('/youtubeTrack', sessionMiddleware, searchYoutubeTracks);
+app.use("/api", spotifyRoutes);
+app.use("/", youtubeRoutes);
 app.get('/modifyYoutubeLikePlaylist', sessionMiddleware, modify_YoutubePlaylist);
 app.get('/addtoSpt', sessionMiddleware, addToSptLikePlaylist);
 app.get('/removefromSpt', sessionMiddleware, emptyLikedTracks);
-app.get('/emptySpotify', sessionMiddleware, emptyPlaylist);
+app.use("/emptySpotify", emptySpotifyPlaylist);
 app.get('/test', sessionMiddleware, migrateWholeYoutubePlaylistToSpotifyplaylist);
 app.get('/sessionmid', sessionMiddleware)
 

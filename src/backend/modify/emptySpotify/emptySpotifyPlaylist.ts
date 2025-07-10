@@ -6,7 +6,7 @@ const SPOTIFY_API_URL = 'https://api.spotify.com/v1/me/tracks';
 const DEFAULT_RETRY_DELAY = 1000;
 
 // Handles token expiry, rate limiting, and other Spotify API errors
-const handleSpotifyError = async (error, retryCount) => {
+const handleSpotifyError = async (error, retryCount, userId) => {
     const { response } = error;
 
     if (!response) {
@@ -19,16 +19,18 @@ const handleSpotifyError = async (error, retryCount) => {
     if (status === 401 && retryCount < MAX_RETRIES) {
         console.warn('Access token expired. Refreshing...');
         try {
-            await refreshSpotifyToken();
-            const newToken = await get_SpotifyAccessToken();
+            await refreshSpotifyToken(userId);
+            const newToken = await get_SpotifyAccessToken(userId);
             return { shouldRetry: true, newAccessToken: newToken };
         } catch (refreshError) {
             console.error('Token refresh failed:', refreshError.message);
         }
     } else if (status === 429) {
-        const retryAfter = parseInt(headers['retry-after'] || '1', 10) * 1000;
+        const retryAfter = headers['retry-after']
+            ? parseInt(headers['retry-after'], 10) * 1000
+            : DEFAULT_RETRY_DELAY;
         console.warn(`Rate limited. Retrying after ${retryAfter} ms...`);
-        await new Promise(res => setTimeout(res, retryAfter || DEFAULT_RETRY_DELAY));
+        await new Promise(res => setTimeout(res, retryAfter));
         return { shouldRetry: true };
     } else if (status === 403 && data?.error?.message === 'quotaExceeded') {
         console.error('Quota exceeded. Cannot proceed.');
@@ -60,7 +62,7 @@ const fetchLikedTracks = async (accessToken, tracks = [], nextUrl = null) => {
 };
 
 // Remove tracks from liked list in batches of 50, handling retries if needed
-const removeTracksFromLiked = async (tracks, accessToken, retryCount = 0) => {
+const removeTracksFromLiked = async (tracks, accessToken, userId, retryCount = 0) => {
     const BATCH_SIZE = 50;
     const trackIds = tracks.map(item => item.track.id);
 
@@ -80,11 +82,11 @@ const removeTracksFromLiked = async (tracks, accessToken, retryCount = 0) => {
                 console.warn(`Unexpected response while removing batch. Status: ${response.status}`);
             }
         } catch (error) {
-            const { shouldRetry, newAccessToken } = await handleSpotifyError(error, retryCount);
+            const { shouldRetry, newAccessToken } = await handleSpotifyError(error, retryCount, userId);
 
             if (shouldRetry) {
                 const tokenToUse = newAccessToken || accessToken;
-                await removeTracksFromLiked(tracks, tokenToUse, retryCount + 1);
+                await removeTracksFromLiked(tracks, tokenToUse, userId, retryCount + 1);
                 return;
             }
 
@@ -94,8 +96,18 @@ const removeTracksFromLiked = async (tracks, accessToken, retryCount = 0) => {
 };
 
 // Main function to orchestrate the clearing of liked tracks
-export const emptySpotifyPlaylist = async () => {
-    let accessToken = await get_SpotifyAccessToken();
+export const emptySpotifyPlaylist = async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+        console.error('User ID not found in session.');
+        return res.status(401).json({
+            success: false,
+            error: 'AUTH_ERROR',
+            message: 'User session not found. Please log in again.',
+        });
+    }
+
+    let accessToken = await get_SpotifyAccessToken(userId);
 
     try {
         console.log('Fetching liked tracks...');
@@ -103,14 +115,32 @@ export const emptySpotifyPlaylist = async () => {
 
         if (tracks.length === 0) {
             console.log('No liked tracks found.');
-            return;
+            return res.json({
+                success: true,
+                message: 'No liked tracks found. Nothing to remove.',
+                remainingTracks: [],
+            });
         }
 
         console.log(`Found ${tracks.length} liked tracks. Removing...`);
-        await removeTracksFromLiked(tracks, accessToken);
+        await removeTracksFromLiked(tracks, accessToken, userId);
         console.log('Successfully removed all liked tracks.');
+
+        // Fetch remaining liked tracks (should be zero)
+        const updatedTracks = await fetchLikedTracks(accessToken);
+
+        return res.json({
+            success: true,
+            message: `Successfully removed ${tracks.length} liked tracks.`,
+            remainingTracks: updatedTracks, // Should be an empty array
+        });
     } catch (error) {
         console.error('Error during playlist clearing:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: 'CLEAR_FAILED',
+            message: error.message,
+        });
     }
 };
 
