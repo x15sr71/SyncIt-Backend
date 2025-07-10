@@ -15,6 +15,8 @@ import sessionMiddleware from '../middlewares/sessionMiddleware';
 import youtubeRoutes from './routes/youtube.routes';
 import spotifyRoutes from './routes/spotify.routes';
 import emptySpotifyPlaylist from './routes/emptySpotify.routes';
+import getSpotifyPlaylistsRouter from './routes/spotifyGetPlaylists.route';
+import getYoutubePlaylistsRouter from './routes/youtubeGetPlaylist.route';
 
 dotenv.config();
 const app = express();
@@ -31,12 +33,14 @@ app.get('/spotify/login', sessionMiddleware, handleSpotifyLogin);
 app.get('/spotify/callback', sessionMiddleware, handleSpotifyCallback);
 app.get('/youtube/login', sessionMiddleware, handleYouTubeLogin);
 app.get('/youtube/callback', sessionMiddleware, handleYouTubeCallback);
-app.use("/api", spotifyRoutes);
+app.use("/", spotifyRoutes);
 app.use("/", youtubeRoutes);
 app.get('/modifyYoutubeLikePlaylist', sessionMiddleware, modify_YoutubePlaylist);
 app.get('/addtoSpt', sessionMiddleware, addToSptLikePlaylist);
 app.get('/removefromSpt', sessionMiddleware, emptyLikedTracks);
-app.use("/api", emptySpotifyPlaylist);
+app.use("/", emptySpotifyPlaylist);
+app.use('/', getSpotifyPlaylistsRouter);
+app.use('/', getYoutubePlaylistsRouter)
 app.get('/test', sessionMiddleware, migrateWholeYoutubePlaylistToSpotifyplaylist);
 app.get('/sessionmid', sessionMiddleware)
 
