@@ -7,7 +7,6 @@ import cookieParser from 'cookie-parser'
 import { handleSpotifyLogin, handleSpotifyCallback } from '../OAuth/spotify';
 import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
 import { handleGoogleLogin, handleGoogleCallback } from '../OAuth/google';
-import { modify_YoutubePlaylist } from './modify/youtube/modify_YtLikePlaylist';
 import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations';
 import sessionMiddleware from '../middlewares/sessionMiddleware';
 import youtubeRoutes from './routes/youtube.routes';
@@ -18,6 +17,7 @@ import getYoutubePlaylistsRouter from './routes/youtubeGetPlaylist.route';
 import getSpotifyPlaylistContentHandler from './routes/spotifyContent.route';
 import getYoutubePlaylistContentHandler from './routes/youtubeContent.route';
 import emptyYoutubePlaylist from './routes/emptyYoutube.route';
+import migrateSpotifyToYoutubeHandler from './routes/migrateSpotifyToYoutube.router';
 
 dotenv.config();
 const app = express();
@@ -36,13 +36,13 @@ app.get('/youtube/login', sessionMiddleware, handleYouTubeLogin);
 app.get('/youtube/callback', sessionMiddleware, handleYouTubeCallback);
 app.use("/", spotifyRoutes);
 app.use("/", youtubeRoutes);
-app.get('/modifyYoutubeLikePlaylist', sessionMiddleware, modify_YoutubePlaylist);
 app.use("/", emptySpotifyPlaylist);
 app.use("/", emptyYoutubePlaylist);
 app.use('/', getSpotifyPlaylistsRouter);
 app.use('/', getYoutubePlaylistsRouter)
 app.use('/', getSpotifyPlaylistContentHandler);
 app.use('/', getYoutubePlaylistContentHandler);
+app.use('/', migrateSpotifyToYoutubeHandler);
 app.get('/test', sessionMiddleware, migrateWholeYoutubePlaylistToSpotifyplaylist);
 app.get('/sessionmid', sessionMiddleware)
 

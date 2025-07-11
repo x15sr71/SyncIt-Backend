@@ -4,7 +4,7 @@ import axios from 'axios';
 import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../../OAuth/tokenManagement/youtubeTokensUtil';
 
 const YOUTUBE_PLAYLISTS_API = 'https://www.googleapis.com/youtube/v3/playlists';
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 10;
 
 export const getYouTubePlaylistsHandler = async (req, res) => {
   const userId = req.session?.id;
@@ -61,4 +61,11 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
       });
     }
   }
+
+  // 🔒 Fallback: all retries exhausted, no return occurred
+  return res.status(401).json({
+    success: false,
+    error: 'MAX_RETRIES_EXCEEDED',
+    message: 'YouTube token expired and could not be refreshed. Please log in again.',
+  });
 };

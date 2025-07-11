@@ -2,7 +2,7 @@ import axios from 'axios';
 import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../../../OAuth/tokenManagement/spotifyTokenUtil';
 import { convertDurationToFormattedString } from '../../../../OAuth/utility/convertDuration';
 
-const MAX_RETRIES = 3; // Maximum retries for failed requests
+const MAX_RETRIES = 10; // Maximum retries for failed requests
 const SPOTIFY_API_URL = 'https://api.spotify.com/v1/search';
 
 // Validate that the tracks array is not empty or invalid
@@ -60,7 +60,8 @@ const performSearch = async (track, accessToken, userId, retryCount = 0) => {
         if (retryCount < MAX_RETRIES) {
             const newToken = await handleSearchError(error, userId);
             if (newToken) {
-                return performSearch(track, newToken, retryCount + 1); // Retry with a new token
+                // ✅ FIXED: correctly pass userId and retryCount
+                return performSearch(track, newToken, userId, retryCount + 1);
             }
         }
         return { title: track.title, youtubeChannelName: track.videoChannelTitle, results: [] }; // Return empty on failure

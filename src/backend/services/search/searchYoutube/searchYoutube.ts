@@ -1,3 +1,5 @@
+// src/services/youtube/searchTracksService.ts
+
 import axios from "axios";
 import {
   get_YoutubeAccessToken,
@@ -7,13 +9,25 @@ import {
 const MAX_RETRIES = 3;
 const YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/search";
 
-const validateTracks = (tracks) => {
+type TrackInput = {
+  trackName: string;
+  artists?: string;
+  albumName?: string;
+};
+
+type YouTubeSearchResult = {
+  trackName: string;
+  query: string;
+  results: any[]; // you can tighten this to the exact snippet shape
+};
+
+const validateTracks = (tracks: TrackInput[]) => {
   if (!tracks || tracks.length === 0) {
     throw new Error("Invalid or empty tracks array");
   }
 };
 
-const getApiKey = () => {
+const getApiKey = (): string => {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -23,11 +37,14 @@ const getApiKey = () => {
   return apiKey;
 };
 
-const createSearchQuery = ({ trackName, artists, albumName }) => {
-  return `${trackName || ""} ${artists || ""} ${albumName || ""}`.trim();
-};
+const createSearchQuery = ({ trackName, artists, albumName }: TrackInput) =>
+  `${trackName || ""} ${artists || ""} ${albumName || ""}`.trim();
 
-const handleSearchError = async (error, track, userId) => {
+const handleSearchError = async (
+  error: any,
+  track: TrackInput,
+  userId: string
+): Promise<string | null> => {
   if (error.response) {
     const { status, data } = error.response;
     console.error(
@@ -36,7 +53,7 @@ const handleSearchError = async (error, track, userId) => {
     );
 
     if (status === 401) {
-      console.warn("Access token expired or invalid. Refreshing token...");
+      console.warn("Access token expired. Refreshing token...");
       try {
         await refreshYoutubeAccessToken(userId);
         return await get_YoutubeAccessToken(userId);
@@ -48,9 +65,7 @@ const handleSearchError = async (error, track, userId) => {
       status === 403 &&
       data?.error?.errors?.[0]?.reason === "quotaExceeded"
     ) {
-      console.error(
-        "Quota exceeded. Please check your quota usage or request an increase."
-      );
+      console.error("Quota exceeded. Cannot proceed further.");
     } else {
       console.error(
         `Error searching for track ${track.trackName}:`,
@@ -66,94 +81,78 @@ const handleSearchError = async (error, track, userId) => {
   return null;
 };
 
-const performSearch = async (track, apiKey, accessToken, userId) => {
-  const searchQuery = createSearchQuery(track);
-
-  if (!searchQuery) {
-    console.error(
-      `Search query for track ${track.trackName} is null or empty. Skipping search.`
-    );
+const performSearch = async (
+  track: TrackInput,
+  apiKey: string,
+  accessToken: string,
+  userId: string
+): Promise<{ trackName: string; results: any[] }> => {
+  const query = createSearchQuery(track);
+  if (!query) {
+    console.warn(`Empty search query for track ${track.trackName}.`);
     return { trackName: track.trackName, results: [] };
   }
 
-  console.log(`Searching for query: ${searchQuery}`);
-
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const response = await axios.get(YOUTUBE_API_URL, {
+      const resp = await axios.get(YOUTUBE_API_URL, {
         params: {
           part: "snippet",
-          q: searchQuery,
+          q: query,
           type: "video",
           videoCategoryId: "10",
           maxResults: 3,
           key: apiKey,
         },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
-
-      console.log(
-        `Search results for track ${track.trackName}:`,
-        response.data.items
-      );
-      return { trackName: track.trackName, results: response.data.items };
-    } catch (error) {
-      const newAccessToken = await handleSearchError(error, track, userId);
-      if (newAccessToken) {
-        accessToken = newAccessToken;
+      return { trackName: track.trackName, results: resp.data.items };
+    } catch (err: any) {
+      const newToken = await handleSearchError(err, track, userId);
+      if (newToken) {
+        accessToken = newToken;
         continue;
-      } else {
-        break;
       }
+      break;
     }
   }
 
   return { trackName: track.trackName, results: [] };
 };
 
-export const searchTracksOnYoutube = async (req, res, tracks) => {
-  const userId = req.session?.id;
-
+/**
+ * Pure service: searches YouTube for each track and returns results.
+ * @param userId - your session or DB user identifier
+ * @param tracks - array of { trackName, artists?, albumName? }
+ */
+export async function searchTracksOnYoutubeService(
+  userId: string,
+  tracks: TrackInput[]
+): Promise<YouTubeSearchResult[]> {
   if (!userId) {
-    return res.status(401).json({
-      error: "AUTH_ERROR",
-      message: "User session not found. Please log in again.",
-    });
+    throw new Error("AUTH_ERROR: Missing userId");
   }
 
-  try {
-    validateTracks(tracks);
-    const apiKey = getApiKey();
-    let accessToken = await get_YoutubeAccessToken(userId);
+  validateTracks(tracks);
+  const apiKey = getApiKey();
+  let accessToken = await get_YoutubeAccessToken(userId);
 
-    const searchPromises = tracks.map((track) =>
-      performSearch(track, apiKey, accessToken, userId)
-    );
+  // perform all searches in parallel
+  const settled = await Promise.allSettled(
+    tracks.map((track) => performSearch(track, apiKey, accessToken, userId))
+  );
 
-    const results = await Promise.allSettled(searchPromises);
-
-    const formattedResults = results.map((result, index) => {
-      const query = createSearchQuery(tracks[index]);
-      if (result.status === "fulfilled") {
-        const { trackName, results: searchResults } = result.value;
-        return { trackName, query, results: searchResults };
-      } else {
-        console.error(
-          `Error searching for track ${tracks[index].trackName}:`,
-          result.reason
-        );
-        return { trackName: tracks[index].trackName, query, results: [] };
-      }
-    });
-
-    return res.json({ status: "success", data: formattedResults });
-  } catch (err) {
-    console.error("Unexpected error:", err.message);
-    return res.status(500).json({
-      error: "INTERNAL_SERVER_ERROR",
-      message: "An unexpected error occurred while searching YouTube.",
-    });
-  }
-};
+  // format results array
+  return settled.map((r, idx) => {
+    const query = createSearchQuery(tracks[idx]);
+    if (r.status === "fulfilled") {
+      return { trackName: r.value.trackName, query, results: r.value.results };
+    } else {
+      console.error(
+        `Search failed for ${tracks[idx].trackName}:`,
+        r.reason
+      );
+      return { trackName: tracks[idx].trackName, query, results: [] };
+    }
+  });
+}
