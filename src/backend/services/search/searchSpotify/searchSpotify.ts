@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../../OAuth/tokenManagement/spotifyTokenUtil';
-import { convertDurationToFormattedString } from '../../../OAuth/utility/convertDuration';
+import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../../../OAuth/tokenManagement/spotifyTokenUtil';
+import { convertDurationToFormattedString } from '../../../../OAuth/utility/convertDuration';
 
 const MAX_RETRIES = 3; // Maximum retries for failed requests
 const SPOTIFY_API_URL = 'https://api.spotify.com/v1/search';

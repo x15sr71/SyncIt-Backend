@@ -1,6 +1,6 @@
 import { searchYoutubeTracks } from "../utils/searchYoutube";
 import { trimTrackDescriptions } from "../../OAuth/utility/trim";
-import { searchTracksOnSpotify } from "../search/searchSpotify/searchSpotify";
+import { searchTracksOnSpotify } from "../services/search/searchSpotify/searchSpotify";
 import { callOpenAIModel } from "../openAI/getBestMatch";
 import { addToSptLikePlaylist } from "./spotify/addToSptLikePlaylist";
 import prisma from "../../db";
@@ -177,7 +177,7 @@ export const migrateWholeYoutubePlaylistToSpotifyplaylist = async (
         "Chunks prepared for adding to Spotify:",
         spotifyChunks.length
       );
-      await addToSptLikePlaylist(spotifyChunks);
+      await addToSptLikePlaylist(spotifyChunks, userId);
     } catch (error) {
       console.error("Error adding to Spotify:", error);
       return res

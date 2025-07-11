@@ -3,7 +3,12 @@ import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../../OAuth/toke
 
 const MAX_RETRIES = 5;
 
-export const addToSptLikePlaylist = async function (trackIdsToAdd: string[][]) {
+export const addToSptLikePlaylist = async function (trackIdsToAdd: string[][], userId: string) {
+  console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
+  console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
+  console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
+  console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
+  console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
   let retryCount = 0;
   const flatTrackIds = trackIdsToAdd.flat(); // Ensure it's a flat array
 
@@ -17,12 +22,12 @@ export const addToSptLikePlaylist = async function (trackIdsToAdd: string[][]) {
   while (retryCount < MAX_RETRIES) {
     try {
       console.log("🚀 Sending these track IDs to Spotify:", validTrackIds);
-      await addToLikePlaylist(validTrackIds);
+      await addToLikePlaylist(validTrackIds, userId);
       return;
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 401) {
         console.log("Access token expired, refreshing...");
-        await refreshSpotifyToken();
+        await refreshSpotifyToken(userId);
         retryCount++;
         console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
       } else {
@@ -33,9 +38,9 @@ export const addToSptLikePlaylist = async function (trackIdsToAdd: string[][]) {
   }
 };
 
-const addToLikePlaylist = async (trackIdsToAdd: string[]) => {
+const addToLikePlaylist = async (trackIdsToAdd: string[], userId: string) => {
   try {
-    const access_Token = await get_SpotifyAccessToken();
+    const access_Token = await get_SpotifyAccessToken(userId);
 
     const response = await axios.put(
       'https://api.spotify.com/v1/me/tracks',
