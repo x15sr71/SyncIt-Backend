@@ -1,5 +1,3 @@
-// src/services/youtube/clearYouTubePlaylist.ts
-
 import axios from "axios";
 import {
   get_YoutubeAccessToken,
@@ -88,32 +86,43 @@ const removeItemsFromPlaylist = async (
   retryCount = 0
 ): Promise<void> => {
   for (const itemId of playlistItemIds) {
-    try {
-      await axios.delete(`${YT_PLAYLIST_ITEMS_API}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        params: { id: itemId },
-      });
+    let attempt = 0;
 
-      console.log(`Removed playlist item: ${itemId}`);
-    } catch (error) {
-      const { shouldRetry, newAccessToken } = await handleYouTubeError(
-        error,
-        retryCount,
-        userId
-      );
+    while (attempt <= 3) {
+      try {
+        await axios.delete(`${YT_PLAYLIST_ITEMS_API}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          params: { id: itemId },
+        });
 
-      if (shouldRetry) {
-        const tokenToUse = newAccessToken || accessToken;
-        await removeItemsFromPlaylist(
-          [itemId],
-          tokenToUse,
-          userId,
-          retryCount + 1
+        console.log(`Removed playlist item: ${itemId}`);
+        await new Promise((res) => setTimeout(res, 100)); // ✅ delay between deletions
+        break; // exit loop if successful
+
+      } catch (error) {
+        const status = error?.response?.status;
+
+        const { shouldRetry, newAccessToken } = await handleYouTubeError(
+          error,
+          retryCount,
+          userId
         );
-        continue;
-      }
 
-      throw new Error(`Failed to remove playlist item ${itemId}: ${error.message}`);
+        if (shouldRetry) {
+          const tokenToUse = newAccessToken || accessToken;
+          await removeItemsFromPlaylist([itemId], tokenToUse, userId, retryCount + 1);
+          break;
+        }
+
+        if (status === 409 && attempt < 3) {
+          console.warn(`409 Conflict deleting ${itemId}. Retrying (${attempt + 1}/3) after 500ms...`);
+          await new Promise((res) => setTimeout(res, 500));
+          attempt++;
+          continue;
+        }
+
+        throw new Error(`Failed to remove playlist item ${itemId}: ${error.message}`);
+      }
     }
   }
 };
@@ -122,12 +131,10 @@ export const clearYouTubePlaylist = async (
   userId: string,
   playlistId: string
 ) => {
-//   if (!userId || !playlistId) throw new Error("Missing userId or playlistId");
-
   let accessToken = await get_YoutubeAccessToken(userId);
 
   console.log(`Fetching items in playlist: ${playlistId}`);
-  const playlistItemIds = await fetchPlaylistItemIds("PLY6KwKMkfULW2bGdfKhzHa8mEf9joJwXK", accessToken);
+  const playlistItemIds = await fetchPlaylistItemIds(playlistId, accessToken);
 
   if (playlistItemIds.length === 0) {
     return {

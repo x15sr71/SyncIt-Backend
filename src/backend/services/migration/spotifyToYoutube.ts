@@ -100,6 +100,7 @@ export async function migrateSpotifyPlaylistToYoutube(
     album: ytInputs[idx].albumName,
     results: r.results.map((item: any, i: number) => ({
       videoId: item.id.videoId,
+      title: item.snippet.title,
       channelTitle: item.snippet.channelTitle,
       publishedDate: item.snippet.publishedAt,
       resultNumber: i + 1,
@@ -112,6 +113,10 @@ export async function migrateSpotifyPlaylistToYoutube(
   const failedDetails: string[] = [];
 
   for (const chunk of llmChunks) {
+    console.log("==== Sending to LLM ====");
+    console.log(chunk);
+    console.log("========================");
+
     const { content } = await callOpenAIModel([{
       role: "user",
       content:
@@ -119,10 +124,18 @@ export async function migrateSpotifyPlaylistToYoutube(
         `If no good match for track N, set value to "error".\n\n${chunk}`
     }]);
 
+    console.log("==== LLM Raw Response ====");
+    console.log(content);
+    console.log("==========================");
+
     let parsed: any;
     try {
       parsed = JSON.parse(content);
+      console.log("==== Parsed LLM Selection ====");
+      console.log(parsed);
+      console.log("================================");
     } catch {
+      console.log("Failed to parse LLM response");
       continue;
     }
     for (const [numStr, pick] of Object.entries(parsed)) {
@@ -143,6 +156,10 @@ export async function migrateSpotifyPlaylistToYoutube(
       return entry?.results[pick - 1]?.videoId;
     })
     .filter((id): id is string => typeof id === "string");
+
+  console.log("==== Final Selected Video IDs ====");
+  console.log(videoIdsToAdd);
+  console.log("==================================");
 
   // 6. Persist failures & add videos
   await prisma.spotifyData.updateMany({
