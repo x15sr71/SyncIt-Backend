@@ -1,7 +1,6 @@
 import prisma from "../../db/index";
 import axios from "axios";
 import querystring from "querystring";
-import redis from "../../config/redis";
 
 const client_id = process.env.YOUTUBE_CLIENT_ID;
 const client_secret = process.env.YOUTUBE_CLIENT_SECRET;
