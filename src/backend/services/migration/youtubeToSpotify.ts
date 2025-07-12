@@ -1,5 +1,5 @@
 import { searchYoutubeTracks } from "../search/searchSpotify/searchYoutube";
-import { trimTrackDescriptions } from "../../../OAuth/utility/trim";
+import { trimTrackDescriptions } from "../../utility/trim";
 import { searchTracksOnSpotify } from "../search/searchSpotify/searchSpotify";
 import { callOpenAIModel } from "../../openAI/getBestMatch";
 import { addToSptLikePlaylist } from "../addTo/addToSptLikePlaylist";

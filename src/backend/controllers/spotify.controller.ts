@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
 import prisma from "../../db";
-import { get_SpotifyAccessToken, refreshSpotifyToken } from "../../OAuth/tokenManagement/spotifyTokenUtil";
-import { hashId } from "../../OAuth/utility/encrypt";
+import { get_SpotifyAccessToken, refreshSpotifyToken } from "../../auth/spotify/spotifyTokenUtil";
+import { hashId } from "../utility/encrypt";
 
 const MAX_RETRIES = 3;
 const MAX_TRACKS = 100;

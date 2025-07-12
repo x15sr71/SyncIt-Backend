@@ -2,7 +2,7 @@ import axios from "axios";
 import {
   get_YoutubeAccessToken,
   refreshYoutubeAccessToken,
-} from "../../../OAuth/tokenManagement/youtubeTokensUtil";
+} from "../../../auth/youtube/youtubeTokensUtil";
 
 const MAX_RETRIES = 3;
 const YT_PLAYLIST_ITEMS_API =

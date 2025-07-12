@@ -2,7 +2,7 @@ import axios, { AxiosError } from "axios";
 import {
   get_YoutubeAccessToken,
   refreshYoutubeAccessToken,
-} from "../../../OAuth/tokenManagement/youtubeTokensUtil";
+} from "../../../auth/youtube/youtubeTokensUtil";
 
 const MAX_RETRIES = 5;
 

@@ -1,8 +1,8 @@
-import prisma from "../db/index";
+import prisma from "../../db/index";
 import axios from "axios";
 import querystring from "querystring";
 import dotenv from "dotenv";
-import redis from "../config/redis";
+import redis from "../../config/redis";
 
 dotenv.config();
 

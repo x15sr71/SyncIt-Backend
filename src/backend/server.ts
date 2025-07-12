@@ -4,9 +4,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import redies from '../config/redis';
 import cookieParser from 'cookie-parser'
-import { handleSpotifyLogin, handleSpotifyCallback } from '../OAuth/spotify';
-import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
-import { handleGoogleLogin, handleGoogleCallback } from '../OAuth/google';
+import { handleSpotifyLogin, handleSpotifyCallback } from '../auth/spotify/spotify';
+import { handleYouTubeLogin, handleYouTubeCallback } from '../auth/youtube/youtube';
+import { handleGoogleLogin, handleGoogleCallback } from '../auth/google/google';
 import sessionMiddleware from '../middlewares/sessionMiddleware';
 import youtubeRoutes from './routes/youtube.routes';
 import spotifyRoutes from './routes/spotify.routes';

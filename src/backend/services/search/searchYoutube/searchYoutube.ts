@@ -4,7 +4,7 @@ import axios from "axios";
 import {
   get_YoutubeAccessToken,
   refreshYoutubeAccessToken,
-} from "../../../../OAuth/tokenManagement/youtubeTokensUtil";
+} from "../../../../auth/youtube/youtubeTokensUtil";
 
 const MAX_RETRIES = 3;
 const YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/search";

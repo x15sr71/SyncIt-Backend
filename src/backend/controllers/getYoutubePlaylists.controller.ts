@@ -1,7 +1,7 @@
 // src/api/handlers/getYouTubePlaylistsHandler.ts
 
 import axios from 'axios';
-import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../../OAuth/tokenManagement/youtubeTokensUtil';
+import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../../auth/youtube/youtubeTokensUtil';
 
 const YOUTUBE_PLAYLISTS_API = 'https://www.googleapis.com/youtube/v3/playlists';
 const MAX_RETRIES = 10;

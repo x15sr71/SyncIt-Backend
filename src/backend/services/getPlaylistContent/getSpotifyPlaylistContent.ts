@@ -2,7 +2,7 @@ import axios from "axios";
 import {
   get_SpotifyAccessToken,
   refreshSpotifyToken,
-} from "../../../OAuth/tokenManagement/spotifyTokenUtil";
+} from "../../../auth/spotify/spotifyTokenUtil";
 
 const MAX_RETRIES = 2;
 

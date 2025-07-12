@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../../OAuth/tokenManagement/spotifyTokenUtil';
+import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../../auth/spotify/spotifyTokenUtil';
 
 const MAX_RETRIES = 5;
 

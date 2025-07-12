@@ -4,7 +4,7 @@ import axios from "axios";
 import {
   get_SpotifyAccessToken,
   refreshSpotifyToken,
-} from "../../../OAuth/tokenManagement/spotifyTokenUtil";
+} from "../../../auth/spotify/spotifyTokenUtil";
 
 const MAX_RETRIES = 3;
 const SPOTIFY_API_URL = "https://api.spotify.com/v1/me/tracks";
@@ -124,6 +124,7 @@ export const clearLikedTracks = async (userId: string) => {
   const tracks = await fetchLikedTracks(accessToken);
 
   if (tracks.length === 0) {
+    console.log("No liked tracks found. Nothing to remove.");
     return {
       success: true,
       message: "No liked tracks found. Nothing to remove.",

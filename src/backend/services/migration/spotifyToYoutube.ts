@@ -3,7 +3,7 @@
 import {
   get_YoutubeAccessToken,
   refreshYoutubeAccessToken,
-} from "../../../OAuth/tokenManagement/youtubeTokensUtil";
+} from "../../../auth/youtube/youtubeTokensUtil";
 import { searchTracksOnYoutubeService } from "../../services/search/searchYoutube/searchYoutube";
 import { callOpenAIModel } from "../../openAI/getBestMatch";
 import { getSpotifyPlaylistContent } from "../../services/getPlaylistContent/getSpotifyPlaylistContent";

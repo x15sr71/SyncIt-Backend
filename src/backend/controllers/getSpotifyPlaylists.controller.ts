@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../OAuth/tokenManagement/spotifyTokenUtil';
+import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../auth/spotify/spotifyTokenUtil';
 
 const SPOTIFY_PLAYLISTS_API = 'https://api.spotify.com/v1/me/playlists';
 const MAX_RETRIES = 2;

@@ -1,5 +1,5 @@
 import axios, { AxiosError } from "axios";
-import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from "../../OAuth/tokenManagement/youtubeTokensUtil";
+import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from "../../auth/youtube/youtubeTokensUtil";
 
 const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 const MAX_RETRIES = 5;
