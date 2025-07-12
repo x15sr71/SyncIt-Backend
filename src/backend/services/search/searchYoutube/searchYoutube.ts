@@ -8,6 +8,7 @@ import {
 
 const MAX_RETRIES = 3;
 const YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/search";
+const VIDEO_DETAILS_API_URL = "https://www.googleapis.com/youtube/v3/videos";
 
 type TrackInput = {
   trackName: string;
@@ -18,7 +19,7 @@ type TrackInput = {
 type YouTubeSearchResult = {
   trackName: string;
   query: string;
-  results: any[]; // you can tighten this to the exact snippet shape
+  results: any[]; // can be narrowed later
 };
 
 const validateTracks = (tracks: TrackInput[]) => {
@@ -81,6 +82,39 @@ const handleSearchError = async (
   return null;
 };
 
+// ✅ Fetch video status info for filtering (embeddable, public, processed)
+async function filterValidVideos(videoIds: string[], apiKey: string): Promise<Set<string>> {
+  if (videoIds.length === 0) return new Set();
+
+  try {
+    const resp = await axios.get(VIDEO_DETAILS_API_URL, {
+      params: {
+        part: "status",
+        id: videoIds.join(","),
+        key: apiKey,
+      },
+    });
+
+    const validIds = new Set<string>();
+
+    for (const item of resp.data.items) {
+      const status = item.status;
+      if (
+        status?.embeddable === true &&
+        status?.privacyStatus === "public" &&
+        status?.uploadStatus === "processed"
+      ) {
+        validIds.add(item.id);
+      }
+    }
+
+    return validIds;
+  } catch (err) {
+    console.error("Failed to validate video statuses via videos.list:", err.message);
+    return new Set(); // fallback to empty set = skip all
+  }
+}
+
 const performSearch = async (
   track: TrackInput,
   apiKey: string,
@@ -100,15 +134,24 @@ const performSearch = async (
           part: "snippet",
           q: query,
           type: "video",
-          videoCategoryId: "10",      // Narrow to music category
-          videoEmbeddable: "true",    // Only embeddable videos
-          order: "relevance",         // Sort by relevance (default)
+          videoCategoryId: "10",
+          videoEmbeddable: "true",
+          order: "relevance",
           maxResults: 3,
           key: apiKey,
         },
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      return { trackName: track.trackName, results: resp.data.items };
+
+      const rawResults = resp.data.items;
+      const videoIds = rawResults.map((item: any) => item.id.videoId);
+      const validVideoIds = await filterValidVideos(videoIds, apiKey);
+
+      const filtered = rawResults.filter((item: any) =>
+        validVideoIds.has(item.id.videoId)
+      );
+
+      return { trackName: track.trackName, results: filtered };
     } catch (err: any) {
       const newToken = await handleSearchError(err, track, userId);
       if (newToken) {
@@ -122,12 +165,6 @@ const performSearch = async (
   return { trackName: track.trackName, results: [] };
 };
 
-
-/**
- * Pure service: searches YouTube for each track and returns results.
- * @param userId - your session or DB user identifier
- * @param tracks - array of { trackName, artists?, albumName? }
- */
 export async function searchTracksOnYoutubeService(
   userId: string,
   tracks: TrackInput[]
@@ -140,21 +177,16 @@ export async function searchTracksOnYoutubeService(
   const apiKey = getApiKey();
   let accessToken = await get_YoutubeAccessToken(userId);
 
-  // perform all searches in parallel
   const settled = await Promise.allSettled(
     tracks.map((track) => performSearch(track, apiKey, accessToken, userId))
   );
 
-  // format results array
   return settled.map((r, idx) => {
     const query = createSearchQuery(tracks[idx]);
     if (r.status === "fulfilled") {
       return { trackName: r.value.trackName, query, results: r.value.results };
     } else {
-      console.error(
-        `Search failed for ${tracks[idx].trackName}:`,
-        r.reason
-      );
+      console.error(`Search failed for ${tracks[idx].trackName}:`, r.reason);
       return { trackName: tracks[idx].trackName, query, results: [] };
     }
   });

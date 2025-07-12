@@ -1,8 +1,8 @@
-import { searchYoutubeTracks } from "../utils/searchYoutube";
+import { searchYoutubeTracks } from "../services/search/searchSpotify/searchYoutube";
 import { trimTrackDescriptions } from "../../OAuth/utility/trim";
 import { searchTracksOnSpotify } from "../services/search/searchSpotify/searchSpotify";
 import { callOpenAIModel } from "../openAI/getBestMatch";
-import { addToSptLikePlaylist } from "./spotify/addToSptLikePlaylist";
+import { addToSptLikePlaylist } from "../services/addTo/addToSptLikePlaylist";
 import prisma from "../../db";
 
 // Token-safe chunk size for OpenAI (approx. char-based)

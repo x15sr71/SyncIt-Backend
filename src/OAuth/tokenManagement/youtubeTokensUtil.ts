@@ -29,6 +29,7 @@ export async function get_YoutubeAccessToken(userId: string) {
 
 export async function refreshYoutubeAccessToken(userId: string): Promise<{
   success: boolean;
+  newAccessToken?: string;
   error?: string;
 }> {
   try {
@@ -64,7 +65,8 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
       }
     });
 
-    return { success: true };
+    return { success: true, newAccessToken: access_token }; // ✅ return it here
+
   } catch (error: any) {
     const apiError = error.response?.data;
     console.error("Error refreshing YouTube token:", apiError || error.message);

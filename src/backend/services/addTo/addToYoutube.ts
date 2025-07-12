@@ -1,5 +1,3 @@
-// src/services/addTo/youtube.ts
-
 import axios, { AxiosError } from "axios";
 import {
   get_YoutubeAccessToken,
@@ -10,10 +8,7 @@ const MAX_RETRIES = 5;
 
 /**
  * Add an array of videos to a YouTube playlist, retrying on 401 up to MAX_RETRIES.
- *
- * @param userId           Your internal user identifier
- * @param videoIds         Array of YouTube video IDs to add
- * @param youtubePlaylistId  The target YouTube playlist ID
+ * Skips duplicates already in the playlist.
  */
 export async function addToYoutubePlaylist(
   userId: string,
@@ -24,26 +19,36 @@ export async function addToYoutubePlaylist(
 
   while (retryCount < MAX_RETRIES) {
     try {
-      // Ensure we have a valid access token (this will throw if there's no token)
       let accessToken = await get_YoutubeAccessToken(userId);
 
-      // Attempt to add all videos
-      await addVideosToPlaylist(accessToken, videoIds, youtubePlaylistId);
+      // Get current video IDs in the playlist
+      const existingVideoIds = await fetchExistingVideoIds(
+        youtubePlaylistId,
+        accessToken
+      );
+
+      // Filter out duplicates
+      const uniqueVideoIds = videoIds.filter(
+        (id) => !existingVideoIds.has(id)
+      );
+
+      if (uniqueVideoIds.length === 0) {
+        console.log("🚫 No new videos to add — all already exist in playlist.");
+        return;
+      }
+
+      // Proceed to add unique videos
+      await addVideosToPlaylist(accessToken, uniqueVideoIds, youtubePlaylistId);
       return;
     } catch (err: any) {
-      // If we got a 401, refresh and retry
       if (err instanceof AxiosError && err.response?.status === 401) {
         console.warn(
-          `YouTube access token expired (attempt ${
-            retryCount + 1
-          }), refreshing…`
+          `YouTube access token expired (attempt ${retryCount + 1}), refreshing…`
         );
         await refreshYoutubeAccessToken(userId);
         retryCount++;
         continue;
       }
-
-      // Otherwise, bubble up
       throw new Error(
         `addToYoutubePlaylist failed on attempt ${retryCount + 1}: ${
           err.message
@@ -58,11 +63,45 @@ export async function addToYoutubePlaylist(
 }
 
 /**
- * Low‑level helper: posts each video ID into the given playlist.
- *
- * @param accessToken       A valid YouTube OAuth access token
- * @param videoIds          Array of YouTube video IDs
- * @param playlistId        The target YouTube playlist ID
+ * Helper: fetches all existing video IDs in the given playlist.
+ */
+async function fetchExistingVideoIds(
+  playlistId: string,
+  accessToken: string
+): Promise<Set<string>> {
+  const existingIds = new Set<string>();
+  let nextPageToken: string | undefined = undefined;
+
+  do {
+    const resp = await axios.get(
+      "https://www.googleapis.com/youtube/v3/playlistItems",
+      {
+        params: {
+          part: "contentDetails",
+          playlistId,
+          maxResults: 50,
+          pageToken: nextPageToken,
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    const items = resp.data.items || [];
+    for (const item of items) {
+      const id = item?.contentDetails?.videoId;
+      if (id) existingIds.add(id);
+    }
+
+    nextPageToken = resp.data.nextPageToken;
+  } while (nextPageToken);
+
+  return existingIds;
+}
+
+/**
+ * Posts each video ID into the given playlist.
  */
 async function addVideosToPlaylist(
   accessToken: string,
@@ -94,7 +133,6 @@ async function addVideosToPlaylist(
       );
       console.log(`✅ Added video ${videoId} to playlist ${playlistId}`);
     } catch (err: any) {
-      // Log & continue on per-video errors
       console.error(
         `❌ Error adding video ${videoId} to playlist ${playlistId}:`,
         err.message || err

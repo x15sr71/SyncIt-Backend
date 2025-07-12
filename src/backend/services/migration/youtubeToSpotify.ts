@@ -1,8 +1,8 @@
-import { searchYoutubeTracks } from "../../utils/searchYoutube";
+import { searchYoutubeTracks } from "../search/searchSpotify/searchYoutube";
 import { trimTrackDescriptions } from "../../../OAuth/utility/trim";
 import { searchTracksOnSpotify } from "../search/searchSpotify/searchSpotify";
 import { callOpenAIModel } from "../../openAI/getBestMatch";
-import { addToSptLikePlaylist } from "../../modify/spotify/addToSptLikePlaylist";
+import { addToSptLikePlaylist } from "../addTo/addToSptLikePlaylist";
 import prisma from "../../../db";
 
 const MAX_LLM_CHUNK_CHARS = 10000;

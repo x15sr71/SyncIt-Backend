@@ -42,7 +42,7 @@ function chunkTracksForLLM(
     }
     block += `YouTube Results:\n`;
     for (const r of item.results) {
-      block += `  - ${r.resultNumber}. ID:${r.videoId}, Channel:${r.channelTitle}, Published:${r.publishedDate}\n`;
+      block += `  - ${r.resultNumber}. Channel: ${r.channelTitle}, Published: ${r.publishedDate}\n`;
     }
     block += "\n";
 
@@ -123,9 +123,9 @@ export async function migrateSpotifyPlaylistToYoutube(
       {
         role: "user",
         content: `
-For each track in the following list (Track Number 1 to 11), pick the best matching YouTube search result from the options provided.
+For each track in the following list, select the best matching YouTube search result from the options provided.
 
-Return a valid JSON object like:
+Return a valid JSON object with the format:
 {
   "1": 2,
   "2": 1,
@@ -133,10 +133,15 @@ Return a valid JSON object like:
   ...
 }
 
-For each track:
-- If a match is found, return the result number (1-based index).
-- If no suitable match is found, return "error" as the value.
-You MUST include all track numbers from 1 to 11 in the JSON response — no skipping.
+Instructions:
+- Keys must be **all** track numbers listed in the input (no skipping, no extra entries).
+- Values must be either:
+  - A number (1-based result index of the best YouTube match for that track), OR
+  - The string "error" if no result is appropriate.
+- Do **not** guess. Use only the provided data.
+- Ensure all track numbers match the actual "Track Number" field exactly (e.g., "1", "2", ..., etc).
+- Do not include any additional keys or explanation — return **only** the JSON object.
+
 Now, here is the list:
 ${chunk}
 `,
@@ -162,7 +167,9 @@ ${chunk}
       if (typeof pick === "number") {
         bestMatches[num] = pick;
       } else {
-        failedDetails.push(`Track ${numStr}: ${searchResults[num - 1].title}`);
+        const trackData = searchResults[num - 1];
+        const title = trackData?.title || "Unknown Title";
+        failedDetails.push(`Track ${numStr}: ${title}`);
       }
     }
   }
