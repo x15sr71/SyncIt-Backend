@@ -4,3 +4,5 @@ dist/
 build/
 .syncit-a9aac-firebase-adminsdk-fbsvc-2e9efee3ad.json
 .env
+tree.txt
+dump.rdb
