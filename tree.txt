@@ -1,0 +1,20 @@
+.
+├── dump.rdb
+├── package-lock.json
+├── package.json
+├── prisma
+│   ├── migrations
+│   ├── schema.prisma
+│   └── seed.ts
+├── README.md
+├── src
+│   ├── auth
+│   ├── backend
+│   ├── config
+│   ├── db
+│   ├── middlewares
+│   └── Scheduler
+├── tree.txt
+└── tsconfig.json
+
+10 directories, 8 files
