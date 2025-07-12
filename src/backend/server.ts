@@ -7,7 +7,6 @@ import cookieParser from 'cookie-parser'
 import { handleSpotifyLogin, handleSpotifyCallback } from '../OAuth/spotify';
 import { handleYouTubeLogin, handleYouTubeCallback } from '../OAuth/youtube';
 import { handleGoogleLogin, handleGoogleCallback } from '../OAuth/google';
-import { migrateWholeYoutubePlaylistToSpotifyplaylist } from '../backend/modify/playlistMigrations';
 import sessionMiddleware from '../middlewares/sessionMiddleware';
 import youtubeRoutes from './routes/youtube.routes';
 import spotifyRoutes from './routes/spotify.routes';
@@ -18,6 +17,7 @@ import getSpotifyPlaylistContentHandler from './routes/spotifyContent.route';
 import getYoutubePlaylistContentHandler from './routes/youtubeContent.route';
 import emptyYoutubePlaylist from './routes/emptyYoutube.route';
 import migrateSpotifyToYoutubeHandler from './routes/migrateSpotifyToYoutube.router';
+import migrateYoutubeToSpotifyHandler from './routes/migrateYoutubeToSpotify.route';
 
 dotenv.config();
 const app = express();
@@ -43,7 +43,7 @@ app.use('/', getYoutubePlaylistsRouter)
 app.use('/', getSpotifyPlaylistContentHandler);
 app.use('/', getYoutubePlaylistContentHandler);
 app.use('/', migrateSpotifyToYoutubeHandler);
-app.get('/test', sessionMiddleware, migrateWholeYoutubePlaylistToSpotifyplaylist);
+app.use('/', migrateYoutubeToSpotifyHandler);
 app.get('/sessionmid', sessionMiddleware)
 
 app.post('/sync-playlists', async (req, res) => {

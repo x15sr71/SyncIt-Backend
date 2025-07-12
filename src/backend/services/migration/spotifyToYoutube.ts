@@ -32,7 +32,7 @@ function chunkTracksForLLM(
   let current = "";
 
   for (const item of searchResults) {
-    let block = 
+    let block =
       `Track Number: ${item.trackNumber}\n` +
       `Title: ${item.title}\n` +
       `Artists: ${item.artists.join(", ")}\n` +
@@ -42,8 +42,7 @@ function chunkTracksForLLM(
     }
     block += `YouTube Results:\n`;
     for (const r of item.results) {
-      block +=
-        `  - ${r.resultNumber}. ID:${r.videoId}, Channel:${r.channelTitle}, Published:${r.publishedDate}\n`;
+      block += `  - ${r.resultNumber}. ID:${r.videoId}, Channel:${r.channelTitle}, Published:${r.publishedDate}\n`;
     }
     block += "\n";
 
@@ -76,10 +75,13 @@ export async function migrateSpotifyPlaylistToYoutube(
   }
 
   // 1. Fetch Spotify tracks
-  const spotifyData = await getSpotifyPlaylistContent(userId, spotifyPlaylistId);
-  console.log("$$$$$$$$$$$$$$$$$$$$")
-  console.log(spotifyData)
-  console.log("$$$$$$$$$$$$$$$$$$$$")
+  const spotifyData = await getSpotifyPlaylistContent(
+    userId,
+    spotifyPlaylistId
+  );
+  console.log("$$$$$$$$$$$$$$$$$$$$");
+  console.log(spotifyData);
+  console.log("$$$$$$$$$$$$$$$$$$$$");
   if (spotifyData.length === 0) {
     return { success: false, message: "Spotify playlist is empty" };
   }
@@ -117,12 +119,29 @@ export async function migrateSpotifyPlaylistToYoutube(
     console.log(chunk);
     console.log("========================");
 
-    const { content } = await callOpenAIModel([{
-      role: "user",
-      content:
-        `Return JSON mapping each track number to the best YouTube result number, e.g. {"1":2,"2":1}. ` +
-        `If no good match for track N, set value to "error".\n\n${chunk}`
-    }]);
+    const { content } = await callOpenAIModel([
+      {
+        role: "user",
+        content: `
+For each track in the following list (Track Number 1 to 11), pick the best matching YouTube search result from the options provided.
+
+Return a valid JSON object like:
+{
+  "1": 2,
+  "2": 1,
+  "3": "error",
+  ...
+}
+
+For each track:
+- If a match is found, return the result number (1-based index).
+- If no suitable match is found, return "error" as the value.
+You MUST include all track numbers from 1 to 11 in the JSON response — no skipping.
+Now, here is the list:
+${chunk}
+`,
+      },
+    ]);
 
     console.log("==== LLM Raw Response ====");
     console.log(content);

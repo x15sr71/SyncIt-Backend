@@ -121,7 +121,7 @@ export const handleGoogleCallback = async (req, res) => {
       httpOnly: true,
       secure: false, // Secure only in production
       sameSite: "Lax",
-      maxAge: 86400000, // 1 day expiration
+      maxAge: 1000 * 60 * 60 * 24 * 60, // 60 days expiration
     });
 
     return res.json({

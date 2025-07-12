@@ -5,8 +5,8 @@ type SessionData = { id: string; email: string } | null;
 
 const sessionMiddleware = async (req, res, next) => {
     try {
-        console.log('[SESSION] Incoming cookies:', req.cookies);
-        console.log('[SESSION] Incoming headers:', req.headers);
+        // console.log('[SESSION] Incoming cookies:', req.cookies);
+        // console.log('[SESSION] Incoming headers:', req.headers);
 
         let sessionId = req.cookies?.sessionId || req.headers?.authorization;
         console.log('[SESSION] Extracted session ID:', sessionId);

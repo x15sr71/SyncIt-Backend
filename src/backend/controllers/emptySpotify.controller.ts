@@ -1,4 +1,3 @@
-// src/controllers/spotify.controller.ts
 import { clearLikedTracks } from "../services/emptyPlaylist/emptySpotifyPlaylist";
 
 export const emptySpotifyPlaylist = async (req, res) => {

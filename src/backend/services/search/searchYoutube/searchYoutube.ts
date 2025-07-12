@@ -100,7 +100,9 @@ const performSearch = async (
           part: "snippet",
           q: query,
           type: "video",
-          videoCategoryId: "10",
+          videoCategoryId: "10",      // Narrow to music category
+          videoEmbeddable: "true",    // Only embeddable videos
+          order: "relevance",         // Sort by relevance (default)
           maxResults: 3,
           key: apiKey,
         },
@@ -119,6 +121,7 @@ const performSearch = async (
 
   return { trackName: track.trackName, results: [] };
 };
+
 
 /**
  * Pure service: searches YouTube for each track and returns results.

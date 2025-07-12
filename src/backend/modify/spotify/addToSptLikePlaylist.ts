@@ -6,6 +6,7 @@ const MAX_RETRIES = 5;
 export const addToSptLikePlaylist = async function (trackIdsToAdd: string[][], userId: string) {
   console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
   console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
+  console.log(trackIdsToAdd)
   console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
   console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
   console.log("&^&^&^&^^^&&^&^^&&^&^&^&^&^&^^&^&&^&^&^&^&^&^&^^&^^&^&^&^^&^")
