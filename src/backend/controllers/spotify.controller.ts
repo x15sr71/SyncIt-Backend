@@ -18,45 +18,51 @@ export const searchSpotifyTracks = async (req, res): Promise<void> => {
   let retryCount = 0;
   let accessToken: string | null = null;
 
-  while (retryCount < MAX_RETRIES) {
-    try {
+while (retryCount < MAX_RETRIES) {
+  try {
+    if (!accessToken) {
       accessToken = await get_SpotifyAccessToken(userId);
-      if (!accessToken) {
-        return res.status(401).json({
-          error: "AUTH_ERROR",
-          message: "Access token not found or expired. Please log in again.",
-        });
-      }
+    }
 
-      const tracks = await fetchSpotifyTracks(accessToken, userId);
-      return res.json({ success: true, data: tracks });
-    } catch (error) {
-      const isUnauthorized =
-        error instanceof AxiosError && error.response?.status === 401;
-
-      if (isUnauthorized) {
-        const refreshed = await refreshSpotifyToken(userId);
-        if (refreshed && typeof refreshed === "string") {
-          accessToken = refreshed;
-          retryCount++;
-          continue;
-        }
-
-        return res.status(401).json({
-          success: false,
-          redirect: "/spotify/login",
-          error: "AUTH_REFRESH_FAILED",
-          message: "Failed to refresh access token. Please log in again.",
-        });
-      }
-
-      return res.status(500).json({
-        success: false,
-        error: "TRACK_FETCH_FAILED",
-        message: "Failed to fetch tracks. Please try again later.",
+    if (!accessToken) {
+      return res.status(401).json({
+        error: "AUTH_ERROR",
+        message: "Access token not found or expired. Please log in again.",
       });
     }
+
+    const tracks = await fetchSpotifyTracks(accessToken, userId);
+    return res.json({ success: true, data: tracks });
+
+  } catch (error) {
+    const isUnauthorized =
+      error instanceof AxiosError && error.response?.status === 401;
+
+    if (isUnauthorized) {
+      const refreshed = await refreshSpotifyToken(userId);
+
+      if (refreshed?.access_token) {
+        accessToken = refreshed.access_token; // use directly
+        retryCount++;
+        continue;
+      }
+
+      return res.status(401).json({
+        success: false,
+        redirect: "/spotify/login",
+        error: "AUTH_REFRESH_FAILED",
+        message: "Failed to refresh access token. Please log in again.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "TRACK_FETCH_FAILED",
+      message: "Failed to fetch tracks. Please try again later.",
+    });
   }
+}
+
 
   return res.status(429).json({
     success: false,
