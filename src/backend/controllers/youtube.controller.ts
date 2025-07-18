@@ -1,5 +1,8 @@
 import axios, { AxiosError } from "axios";
-import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from "../../auth/youtube/youtubeTokensUtil";
+import {
+  get_YoutubeAccessToken,
+  refreshYoutubeAccessToken,
+} from "../../auth/youtube/youtubeTokensUtil";
 
 const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 const MAX_RETRIES = 5;
@@ -16,10 +19,15 @@ export const searchYoutubeTracks = async (req, res) => {
   }
 
   let retryCount = 0;
+  let accessToken: string | null = null;
 
   while (retryCount < MAX_RETRIES) {
     try {
-      const accessToken = await get_YoutubeAccessToken(userId);
+      // Only fetch from DB if not already refreshed
+      if (!accessToken) {
+        accessToken = await get_YoutubeAccessToken(userId);
+      }
+
       const fetchedTracks = await fetchYoutubeTracks(accessToken);
       return res.json({ success: true, data: fetchedTracks });
     } catch (error) {
@@ -29,7 +37,8 @@ export const searchYoutubeTracks = async (req, res) => {
       if (isUnauthorized) {
         const refreshed = await refreshYoutubeAccessToken(userId);
 
-        if (refreshed.success) {
+        if (refreshed.success && refreshed.newAccessToken) {
+          accessToken = refreshed.newAccessToken; // ✅ use the newly refreshed token directly
           retryCount++;
           continue;
         }
@@ -38,7 +47,8 @@ export const searchYoutubeTracks = async (req, res) => {
           success: false,
           redirect: "/youtube/login",
           error: "AUTH_REFRESH_FAILED",
-          message: "Failed to refresh YouTube access token. Please log in again.",
+          message:
+            "Failed to refresh YouTube access token. Please log in again.",
         });
       }
 
