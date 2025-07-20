@@ -1,20 +1,20 @@
-import axios from 'axios';
-import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../auth/spotify/spotifyTokenUtil';
+import axios from "axios";
+import {
+  get_SpotifyAccessToken,
+  refreshSpotifyToken,
+} from "../../auth/spotify/spotifyTokenUtil";
 
-const SPOTIFY_PLAYLISTS_API = 'https://api.spotify.com/v1/me/playlists';
+const SPOTIFY_PLAYLISTS_API = "https://api.spotify.com/v1/me/playlists";
 const MAX_RETRIES = 2;
 
 export const getPlaylistsHandler = async (req, res) => {
   const userId = req.session?.id;
-  console.log("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-  console.log(req.session)
-  console.log("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 
   if (!userId) {
     return res.status(401).json({
       success: false,
-      error: 'UNAUTHORIZED',
-      message: 'User session not found. Please log in.',
+      error: "UNAUTHORIZED",
+      message: "User session not found. Please log in.",
     });
   }
 
@@ -28,7 +28,7 @@ export const getPlaylistsHandler = async (req, res) => {
           Authorization: `Bearer ${accessToken}`,
         },
         params: {
-          limit: 50, // You can paginate further if needed
+          limit: 50,
         },
       });
 
@@ -37,26 +37,30 @@ export const getPlaylistsHandler = async (req, res) => {
       const status = error?.response?.status;
 
       if (status === 401 && retryCount < MAX_RETRIES) {
-        console.warn('Access token expired. Attempting to refresh...');
-        const newAccessToken = await refreshSpotifyToken(userId);
-        if (newAccessToken && typeof newAccessToken === 'string') {
-          accessToken = newAccessToken;
+        console.warn("Access token expired. Attempting to refresh...");
+        const refreshed = await refreshSpotifyToken(userId);
+
+        if (refreshed?.access_token) {
+          accessToken = refreshed.access_token;
           retryCount++;
           continue;
         } else {
           return res.status(401).json({
             success: false,
-            error: 'AUTH_REFRESH_FAILED',
-            message: 'Failed to refresh token. Please log in again.',
+            error: "AUTH_REFRESH_FAILED",
+            message: "Failed to refresh token. Please log in again.",
           });
         }
       }
 
-      console.error('Spotify API error:', error?.response?.data || error.message);
+      console.error(
+        "Spotify API error:",
+        error?.response?.data || error.message
+      );
       return res.status(500).json({
         success: false,
-        error: 'SPOTIFY_API_ERROR',
-        message: 'Failed to fetch playlists from Spotify.',
+        error: "SPOTIFY_API_ERROR",
+        message: "Failed to fetch playlists from Spotify.",
       });
     }
   }

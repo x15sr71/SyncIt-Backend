@@ -40,17 +40,23 @@ export async function getSpotifyPlaylistContent(
         }
       );
 
-      return resp.data.items.map((item: any) => ({
-        id: item.track.id,
-        name: item.track.name,
-        artists: item.track.artists.map((a: any) => a.name),
-        album: item.track.album.name,
-        duration_ms: item.track.duration_ms,
-      }));
+      return resp.data.items
+        .filter((item: any) => item.track) // skip null/invalid tracks
+        .map((item: any) => ({
+          id: item.track.id,
+          name: item.track.name,
+          artists: item.track.artists.map((a: any) => a.name),
+          album: item.track.album.name,
+          duration_ms: item.track.duration_ms,
+        }));
     } catch (err: any) {
       const status = err.response?.status;
       if (status === 401 && retries < MAX_RETRIES) {
-        token = (await refreshSpotifyToken(userId)).access_token;
+        const refreshed = await refreshSpotifyToken(userId);
+        if (!refreshed?.access_token) {
+          throw new Error("Failed to refresh Spotify access token");
+        }
+        token = refreshed.access_token;
         retries++;
         continue;
       }
