@@ -21,7 +21,7 @@ export async function migrateSpotifyToYoutubeHandler(req, res) {
     const result = await migrateSpotifyPlaylistToYoutube(
       userId,
       "PLY6KwKMkfULW2bGdfKhzHa8mEf9joJwXK",
-      "3ogemKEe33j0shVnqjTliY"
+      "0QmChKbZIAl4P0P1sTSbF2"
     );
 
     return res.json(result);

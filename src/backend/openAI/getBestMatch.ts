@@ -10,7 +10,7 @@ export const callOpenAIModel = async (messages) => {
               model: 'gpt-3.5-turbo',
               messages: messages,
               max_tokens: 500, // Adjust this according to your needs
-              temperature: 0.7, // Adjust the creativity level
+              temperature: 0.1, // Adjust the creativity level
           },
           {
               headers: {
