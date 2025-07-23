@@ -23,47 +23,47 @@ export async function getSpotifyPlaylistContent(
   playlistId: string,
   limit = 100
 ): Promise<SpotifyTrackInfo[]> {
-  if (!userId || !playlistId) {
-    throw new Error("Missing userId or playlistId");
-  }
-
-  let retries = 0;
+  let offset = 0;
+  let allTracks: SpotifyTrackInfo[] = [];
+  let total = 1; // dummy to start
   let token = await get_SpotifyAccessToken(userId);
 
-  while (retries <= MAX_RETRIES) {
-    try {
-      const resp = await axios.get(
-        `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { limit },
+  while (allTracks.length < limit && offset < total) {
+    let retries = 0;
+    while (retries <= MAX_RETRIES) {
+      try {
+        const resp = await axios.get(
+          `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { offset, limit: Math.min(100, limit - allTracks.length) }
+          }
+        );
+        total = resp.data.total;
+        const chunk = resp.data.items
+          .filter((item: any) => item.track)
+          .map((item: any) => ({
+            id: item.track.id,
+            name: item.track.name,
+            artists: item.track.artists.map((a: any) => a.name),
+            album: item.track.album.name,
+            duration_ms: item.track.duration_ms,
+          }));
+        allTracks = allTracks.concat(chunk);
+        break; // success, do next page if needed
+      } catch (err: any) {
+        if (err.response?.status === 401 && retries < MAX_RETRIES) {
+          const refreshed = await refreshSpotifyToken(userId);
+          if (!refreshed?.access_token) throw new Error("Failed to refresh Spotify access token");
+          token = refreshed.access_token;
+          retries++;
+          continue;
         }
-      );
-
-      return resp.data.items
-        .filter((item: any) => item.track) // skip null/invalid tracks
-        .map((item: any) => ({
-          id: item.track.id,
-          name: item.track.name,
-          artists: item.track.artists.map((a: any) => a.name),
-          album: item.track.album.name,
-          duration_ms: item.track.duration_ms,
-        }));
-    } catch (err: any) {
-      const status = err.response?.status;
-      if (status === 401 && retries < MAX_RETRIES) {
-        const refreshed = await refreshSpotifyToken(userId);
-        if (!refreshed?.access_token) {
-          throw new Error("Failed to refresh Spotify access token");
-        }
-        token = refreshed.access_token;
-        retries++;
-        continue;
+        throw err;
       }
-      throw err;
     }
+    offset += 100;
   }
 
-  // should never reach here
-  return [];
+  return allTracks;
 }

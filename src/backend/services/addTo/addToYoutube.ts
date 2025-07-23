@@ -9,12 +9,14 @@ const MAX_RETRIES = 5;
 /**
  * Add an array of videos to a YouTube playlist, retrying on 401 up to MAX_RETRIES.
  * Skips duplicates already in the playlist.
+ * 
+ * Returns an array of video IDs that were actually successfully added.
  */
 export async function addToYoutubePlaylist(
   userId: string,
   videoIds: string[],
   youtubePlaylistId: string
-): Promise<void> {
+): Promise<string[]> {       // CHANGED: no longer void, now returns array
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {
@@ -34,12 +36,12 @@ export async function addToYoutubePlaylist(
 
       if (uniqueVideoIds.length === 0) {
         console.log("🚫 No new videos to add — all already exist in playlist.");
-        return;
+        return [];    // CHANGED: Return empty array
       }
 
       // Proceed to add unique videos
-      await addVideosToPlaylist(accessToken, uniqueVideoIds, youtubePlaylistId);
-      return;
+      const actuallyAdded = await addVideosToPlaylist(accessToken, uniqueVideoIds, youtubePlaylistId);
+      return actuallyAdded;      // CHANGED: Return successfully added IDs
     } catch (err: any) {
       if (err instanceof AxiosError && err.response?.status === 401) {
         console.warn(
@@ -102,14 +104,16 @@ async function fetchExistingVideoIds(
 
 /**
  * Posts each video ID into the given playlist.
+ * Returns the video IDs that were successfully added (YouTube API 200).
  */
 async function addVideosToPlaylist(
   accessToken: string,
   videoIds: string[],
   playlistId: string
-): Promise<void> {
+): Promise<string[]> {        // CHANGED: Return success array
   const url =
     "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet";
+  const added: string[] = [];   // CHANGED: collect successful adds
 
   for (const videoId of videoIds) {
     try {
@@ -132,6 +136,7 @@ async function addVideosToPlaylist(
         }
       );
       console.log(`✅ Added video ${videoId} to playlist ${playlistId}`);
+      added.push(videoId);    // track success
     } catch (err: any) {
       console.error(
         `❌ Error adding video ${videoId} to playlist ${playlistId}:`,
@@ -139,4 +144,5 @@ async function addVideosToPlaylist(
       );
     }
   }
+  return added;               // CHANGED: Return successful adds
 }
