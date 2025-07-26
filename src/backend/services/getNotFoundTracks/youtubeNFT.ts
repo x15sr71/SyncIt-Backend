@@ -4,10 +4,12 @@ export const getNotFoundTracksFromYoutube = async (userId: string) => {
   try {
     const result = await prisma.youTubeData.findFirst({
       where: { userId },
-      select: { notFoundTracks: true },
+      select: { retryToFindTracks: true },
     });
 
-    const tracks = result?.notFoundTracks || [];
+    console.log("YouTube Not Found Tracks Result:", result);
+
+    const tracks = result?.retryToFindTracks || [];
 
     if (tracks.length === 0) {
       return {
