@@ -222,10 +222,15 @@ ${chunk}
   console.log(videoIdsToAdd);
   console.log("==================================");
 
+  const youtubeUserId = await prisma.youTubeData.findFirst({
+    where: { userId },
+    select: { id: true },
+  });
+
   // 6. Persist failures & add videos
   try {
-    await prisma.spotifyData.updateMany({
-      where: { userId },
+    await prisma.youTubeData.updateMany({
+      where: { id: youtubeUserId?.id },
       data: { retryToFindTracks: JSON.stringify(failedDetails) },
     });
   } catch (prismaError: any) {

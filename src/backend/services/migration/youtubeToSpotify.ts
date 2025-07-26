@@ -18,7 +18,10 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
   }
 
   const allYoutubeTracks = await searchYoutubeTracks(userId);
-  const formattedYoutubeTracks = trimTrackDescriptions(allYoutubeTracks.data, 750);
+  const formattedYoutubeTracks = trimTrackDescriptions(
+    allYoutubeTracks.data,
+    750
+  );
 
   if (!formattedYoutubeTracks.length) {
     throw new Error("No tracks found in YouTube playlist.");
@@ -31,18 +34,25 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
   let failedTrackDetails = [];
 
   for (const chunk of searchChunks) {
-    const chunkResults = await searchTracksOnSpotify(chunk, globalTrackNumber, userId);
+    const chunkResults = await searchTracksOnSpotify(
+      chunk,
+      globalTrackNumber,
+      userId
+    );
     spotifySearchResults = spotifySearchResults.concat(chunkResults);
     globalTrackNumber += chunk.length;
   }
 
-  const llmChunks = chunkTracksForLLM(spotifySearchResults, allYoutubeTracks.data);
+  const llmChunks = chunkTracksForLLM(
+    spotifySearchResults,
+    allYoutubeTracks.data
+  );
 
   for (const chunkText of llmChunks) {
     const messages = [
-{
-          role: "user",
-          content: `Please identify the best matching Spotify search result for each track in the following list based solely on the current input.
+      {
+        role: "user",
+        content: `Please identify the best matching Spotify search result for each track in the following list based solely on the current input.
                     Do not consider any previous interactions or suggestions.
                     Use these criteria: title, YouTube channel name, YouTube video duration, artist relevance, and release date.
                     Return the results in this format: {
@@ -52,13 +62,13 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
                     }
                     If a track does not have a match, respond with { "error": "Unable to find best match for track <trackNumber>" }.
                     \n\n${chunkText}`,
-        },
+      },
     ];
 
     const bestResultsForChunk = await callOpenAIModel(messages);
-    console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+    console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
     console.log("LLM response for chunk:", bestResultsForChunk);
-    console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+    console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 
     let parsedBestResults: any;
     try {
@@ -79,7 +89,7 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
 
       if (result?.error) {
         bestMatches[trackNumber] = { error: result.error };
-        const details = 
+        const details =
           `Title: ${youtubeTrack.title}\n` +
           `Channel: ${youtubeTrack.channelName}\n` +
           `Duration: ${youtubeTrack.duration}\n` +
@@ -106,8 +116,17 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
     }
   }
 
-  await prisma.youTubeData.update({
-    where: { id: youtubeUserId.id },
+  const spotifyUserId = await prisma.spotifyData.findFirst({
+    where: { userId },
+    select: { id: true },
+  });
+  console.log("**********************************");
+  console.log("Failed track details:", failedTrackDetails);
+  console.log("spotifyUserId:", spotifyUserId);
+  console.log("**********************************");
+
+  await prisma.spotifyData.update({
+    where: { id: spotifyUserId.id },
     data: { retryToFindTracks: JSON.stringify(failedTrackDetails) },
   });
 
@@ -123,7 +142,11 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
   };
 };
 
-function chunkArray(arr: string[], firstChunkSize: number, subsequentChunkSize: number): string[][] {
+function chunkArray(
+  arr: string[],
+  firstChunkSize: number,
+  subsequentChunkSize: number
+): string[][] {
   const chunks: string[][] = [];
   if (arr.length === 0) return chunks;
 
@@ -163,7 +186,9 @@ function chunkTracksForLLM(spotifySearchResults, youtubeData): string[] {
       const artistNames = Array.isArray(r.artists)
         ? r.artists
         : [r.artists || "Unknown Artist"];
-      formatted += `  - Name: ${r.name}, Artist(s): ${artistNames.join(", ")}\n`;
+      formatted += `  - Name: ${r.name}, Artist(s): ${artistNames.join(
+        ", "
+      )}\n`;
       formatted += `    Release Date: ${r.release_date}, Duration: ${r.duration}, Result Number: ${r.resultNumber}\n`;
     });
 
