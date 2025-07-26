@@ -16,10 +16,32 @@ export const emptySpotifyPlaylist = async (req, res) => {
     return res.json(result);
   } catch (error) {
     console.error("Error clearing playlist:", error.message);
+    const message = error.message || "Unknown error";
+
+    if (message.includes("Authentication failed")) {
+      return res.status(401).json({
+        success: false,
+        error: "AUTH_ERROR",
+        message,
+      });
+    } else if (message.includes("rate limit")) {
+      return res.status(429).json({
+        success: false,
+        error: "RATE_LIMIT_EXCEEDED",
+        message,
+      });
+    } else if (message.includes("quota")) {
+      return res.status(403).json({
+        success: false,
+        error: "QUOTA_EXCEEDED",
+        message,
+      });
+    }
+
     return res.status(500).json({
       success: false,
       error: "CLEAR_FAILED",
-      message: error.message,
+      message,
     });
   }
 };
