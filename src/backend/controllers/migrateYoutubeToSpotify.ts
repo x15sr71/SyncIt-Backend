@@ -22,6 +22,7 @@ export const migrateYoutubeToSpotifyHandler = async (req, res) => {
       console.error("[Controller][Quota] YouTube API quota exceeded");
       return res.status(503).json({
         error: "YOUTUBE_QUOTA_EXCEEDED",
+        code: 503,
         message: "YouTube API quota has been exceeded. Please try again later or upgrade your quota.",
       });
     }
@@ -31,6 +32,7 @@ export const migrateYoutubeToSpotifyHandler = async (req, res) => {
       console.warn("[Controller] No YouTube tracks to migrate");
       return res.status(400).json({
         error: "NO_YOUTUBE_TRACKS",
+        code: 400,
         message: "No valid tracks found in your YouTube playlist to migrate.",
       });
     }
@@ -39,6 +41,7 @@ export const migrateYoutubeToSpotifyHandler = async (req, res) => {
     console.error("[Controller] Unexpected error during migration:", err);
     return res.status(500).json({
       error: "MIGRATION_FAILED",
+      code: 500,
       message: "An unexpected error occurred during migration.",
     });
   }

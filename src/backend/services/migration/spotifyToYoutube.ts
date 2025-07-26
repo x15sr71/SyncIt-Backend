@@ -1,5 +1,3 @@
-// src/services/migrate/migrateSpotifyPlaylistToYoutube.ts
-
 import {
   get_YoutubeAccessToken,
   refreshYoutubeAccessToken,
@@ -12,7 +10,6 @@ import prisma from "../../../db";
 
 const MAX_LLM_CHUNK_CHARS = 10000;
 
-/** Build LLM‐friendly text chunks from search results + Spotify metadata */
 function chunkTracksForLLM(
   searchResults: Array<{
     trackNumber: number;
@@ -58,32 +55,44 @@ function chunkTracksForLLM(
   return chunks;
 }
 
-/**
- * Migrate a Spotify playlist to YouTube:
- * 1. Fetch Spotify tracks
- * 2. Search YouTube for every track
- * 3. Chunk and call OpenAI to pick best match
- * 4. Persist failures & add to YouTube playlist
- */
 export async function migrateSpotifyPlaylistToYoutube(
   userId: string,
   youtubePlaylistId: string,
   spotifyPlaylistId: string
 ) {
+  // Defensive parameter check
   if (!userId || !spotifyPlaylistId || !youtubePlaylistId) {
-    throw new Error("Missing required parameters");
+    throw {
+      success: false,
+      error: "MISSING_PARAMETERS",
+      message: "Missing required parameters",
+      statusCode: 400,
+    };
   }
 
   // 1. Fetch Spotify tracks
-  const spotifyData = await getSpotifyPlaylistContent(
-    userId,
-    spotifyPlaylistId
-  );
+  let spotifyData;
+  try {
+    spotifyData = await getSpotifyPlaylistContent(userId, spotifyPlaylistId);
+  } catch (fetchError: any) {
+    throw {
+      success: false,
+      error: "SPOTIFY_PLAYLIST_FETCH_FAILED",
+      message: fetchError?.message || "Failed to fetch Spotify playlist data",
+      statusCode: 502,
+    };
+  }
   console.log("$$$$$$$$$$$$$$$$$$$$");
   console.log(spotifyData);
   console.log("$$$$$$$$$$$$$$$$$$$$");
+
   if (spotifyData.length === 0) {
-    return { success: false, message: "Spotify playlist is empty" };
+    throw {
+      success: false,
+      error: "EMPTY_SPOTIFY_PLAYLIST",
+      message: "Spotify playlist is empty",
+      statusCode: 400,
+    };
   }
 
   // 2. Prepare inputs and search YouTube
@@ -92,7 +101,18 @@ export async function migrateSpotifyPlaylistToYoutube(
     artists: t.artists.join(", "),
     albumName: t.album,
   }));
-  const rawYtResults = await searchTracksOnYoutubeService(userId, ytInputs);
+
+  let rawYtResults;
+  try {
+    rawYtResults = await searchTracksOnYoutubeService(userId, ytInputs);
+  } catch (ytError: any) {
+    throw {
+      success: false,
+      error: "YOUTUBE_SEARCH_FAILED",
+      message: ytError?.message || "Failed to search tracks on YouTube",
+      statusCode: 502,
+    };
+  }
 
   // 3. Annotate with trackNumber + normalize shape
   const searchResults = rawYtResults.map((r, idx) => ({
@@ -119,10 +139,12 @@ export async function migrateSpotifyPlaylistToYoutube(
     console.log(chunk);
     console.log("========================");
 
-    const { content } = await callOpenAIModel([
-      {
-        role: "user",
-        content: `
+    let content: string;
+    try {
+      const result = await callOpenAIModel([
+        {
+          role: "user",
+          content: `
 For each track in the following list, select the best matching YouTube search result from the options provided.
 
 Return a valid JSON object with the format:
@@ -145,8 +167,17 @@ Instructions:
 Now, here is the list:
 ${chunk}
 `,
-      },
-    ]);
+        },
+      ]);
+      content = result.content;
+    } catch (llmError: any) {
+      throw {
+        success: false,
+        error: "LLM_MODEL_ERROR",
+        message: llmError?.message || "Failed to get response from LLM",
+        statusCode: 502,
+      };
+    }
 
     console.log("==== LLM Raw Response ====");
     console.log(content);
@@ -159,8 +190,12 @@ ${chunk}
       console.log(parsed);
       console.log("================================");
     } catch {
-      console.log("Failed to parse LLM response");
-      continue;
+      throw {
+        success: false,
+        error: "LLM_PARSE_ERROR",
+        message: "Failed to parse LLM response",
+        statusCode: 502,
+      };
     }
     for (const [numStr, pick] of Object.entries(parsed)) {
       const num = Number(numStr);
@@ -188,19 +223,46 @@ ${chunk}
   console.log("==================================");
 
   // 6. Persist failures & add videos
-  await prisma.spotifyData.updateMany({
-    where: { userId },
-    data: { retryToFindTracks: JSON.stringify(failedDetails) },
-  });
+  try {
+    await prisma.spotifyData.updateMany({
+      where: { userId },
+      data: { retryToFindTracks: JSON.stringify(failedDetails) },
+    });
+  } catch (prismaError: any) {
+    throw {
+      success: false,
+      error: "DB_UPDATE_FAILED",
+      message: prismaError?.message || "Failed to update DB with failed tracks",
+      statusCode: 500,
+    };
+  }
 
   // ensure YouTube token is fresh
   try {
     await get_YoutubeAccessToken(userId);
   } catch {
-    await refreshYoutubeAccessToken(userId);
+    try {
+      await refreshYoutubeAccessToken(userId);
+    } catch (tokenError: any) {
+      throw {
+        success: false,
+        error: "YOUTUBE_TOKEN_REFRESH_FAILED",
+        message: tokenError?.message || "Failed to refresh YouTube access token",
+        statusCode: 401,
+      };
+    }
   }
 
-  await addToYoutubePlaylist(userId, videoIdsToAdd, youtubePlaylistId);
+  try {
+    await addToYoutubePlaylist(userId, videoIdsToAdd, youtubePlaylistId);
+  } catch (addError: any) {
+    throw {
+      success: false,
+      error: "ADD_TO_YOUTUBE_PLAYLIST_FAILED",
+      message: addError?.message || "Failed to add tracks to YouTube playlist",
+      statusCode: 502,
+    };
+  }
 
   return {
     success: true,

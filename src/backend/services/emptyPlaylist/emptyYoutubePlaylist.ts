@@ -20,7 +20,7 @@ const handleYouTubeError = async (error, retryCount, userId) => {
   const { status, data, headers } = response;
 
   if (status === 401 && retryCount < MAX_RETRIES) {
-    console.warn("YouTube access token expired. Refreshing...");
+    console.log("YouTube access token expired. Refreshing...");
     try {
       await refreshYoutubeAccessToken(userId);
       const newToken = await get_YoutubeAccessToken(userId);
@@ -32,7 +32,7 @@ const handleYouTubeError = async (error, retryCount, userId) => {
     const retryAfter = headers["retry-after"]
       ? parseInt(headers["retry-after"], 10) * 1000
       : DEFAULT_RETRY_DELAY;
-    console.warn(`Rate limited. Retrying after ${retryAfter} ms...`);
+    console.log(`Rate limited. Retrying after ${retryAfter} ms...`);
     await new Promise((res) => setTimeout(res, retryAfter));
     return { shouldRetry: true };
   } else {
@@ -142,7 +142,7 @@ const removeItemsFromPlaylist = async (
         }
 
         if (status === 409 && attempt < 3) {
-          console.warn(
+          console.log(
             `409 Conflict deleting ${itemId}. Retrying (${
               attempt + 1
             }/3) after 500ms...`

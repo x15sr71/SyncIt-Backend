@@ -21,18 +21,21 @@ export const emptySpotifyPlaylist = async (req, res) => {
     if (message.includes("Authentication failed")) {
       return res.status(401).json({
         success: false,
+        code: 401,
         error: "AUTH_ERROR",
         message,
       });
     } else if (message.includes("rate limit")) {
       return res.status(429).json({
         success: false,
+        code: 429,
         error: "RATE_LIMIT_EXCEEDED",
         message,
       });
     } else if (message.includes("quota")) {
       return res.status(403).json({
         success: false,
+        code: 403,
         error: "QUOTA_EXCEEDED",
         message,
       });
@@ -40,6 +43,7 @@ export const emptySpotifyPlaylist = async (req, res) => {
 
     return res.status(500).json({
       success: false,
+      code: 500,
       error: "CLEAR_FAILED",
       message,
     });

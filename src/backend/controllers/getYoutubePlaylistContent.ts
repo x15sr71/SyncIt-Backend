@@ -12,11 +12,10 @@ export const getYouTubePlaylistContentHandler = async (req, res) => {
     });
   }
 
-  const result = await getYouTubePlaylistContentService(userId, playlistId);
-
-  if (!result.success) {
-    return res.status(result.statusCode || 500).json(result);
+  try {
+    const result = await getYouTubePlaylistContentService(userId, playlistId);
+    return res.json(result);
+  } catch (error: any) {
+    return res.status(error.statusCode || 500).json(error);
   }
-
-  return res.json(result);
 };

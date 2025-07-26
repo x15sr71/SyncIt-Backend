@@ -37,7 +37,7 @@ export const getPlaylistsHandler = async (req, res) => {
       const status = error?.response?.status;
 
       if (status === 401 && retryCount < MAX_RETRIES) {
-        console.warn("Access token expired. Attempting to refresh...");
+        console.log("Access token expired. Attempting to refresh...");
         const refreshed = await refreshSpotifyToken(userId);
 
         if (refreshed?.access_token) {

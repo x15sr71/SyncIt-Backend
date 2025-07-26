@@ -48,7 +48,7 @@ export const getYouTubePlaylistContentService = async (
           retryCount++;
           continue;
         } else {
-          return {
+          throw {
             success: false,
             error: "AUTH_REFRESH_FAILED",
             message: "Failed to refresh token.",
@@ -61,7 +61,7 @@ export const getYouTubePlaylistContentService = async (
         "YouTube content fetch error:",
         error?.response?.data || error.message
       );
-      return {
+      throw {
         success: false,
         error: "YOUTUBE_CONTENT_FETCH_FAILED",
         message: "Failed to fetch playlist contents.",
@@ -70,7 +70,7 @@ export const getYouTubePlaylistContentService = async (
     }
   }
 
-  return {
+  throw {
     success: false,
     error: "MAX_RETRIES_EXCEEDED",
     message: "Retry limit exceeded while fetching playlist content.",
