@@ -7,3 +7,7 @@ build/
 tree.txt
 dump.rdb
 .DS_Store
+dump.rdb
+openapi-syncit.json
+tree.txt
+structure.txt

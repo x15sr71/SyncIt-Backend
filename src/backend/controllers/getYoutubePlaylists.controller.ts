@@ -83,6 +83,8 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
 
             return res.status(401).json({
               success: false,
+              //temporary error code for clarity
+              code: 401,
               error: 'AUTH_REFRESH_FAILED',
               message: errorMessage,
             });
@@ -91,6 +93,8 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
           console.error('Error during token refresh:', refreshError);
           return res.status(401).json({
             success: false,
+            //temporary error code for clarity
+            code: 401,
             error: 'AUTH_REFRESH_ERROR',
             message: 'An error occurred while refreshing the token. Please log in again.',
           });
@@ -99,6 +103,8 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
         console.error('YouTube API quota exceeded or forbidden:', errorData);
         return res.status(403).json({
           success: false,
+          //temporary error code for clarity
+          code: 403,
           error: 'QUOTA_EXCEEDED',
           message: 'YouTube API quota exceeded. Please try again later.',
         });
@@ -106,6 +112,8 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
         console.error('YouTube API rate limit exceeded:', errorData);
         return res.status(429).json({
           success: false,
+          //temporary error code for clarity
+          code: 429,  
           error: 'RATE_LIMIT_EXCEEDED',
           message: 'YouTube API rate limit exceeded. Please try again later.',
         });
@@ -113,6 +121,8 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
         console.error('YouTube API error:', errorData || error.message);
         return res.status(500).json({
           success: false,
+          //temporary error code for clarity
+          code: 500,
           error: 'YOUTUBE_API_ERROR',
           message: 'Failed to fetch playlists from YouTube.',
           details: process.env.NODE_ENV === 'development' ? errorData : undefined,
@@ -124,6 +134,8 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
   // Fallback: all retries exhausted
   return res.status(401).json({
     success: false,
+    //temporary error code for clarity
+    code: 401,
     error: 'MAX_RETRIES_EXCEEDED',
     message: 'YouTube token expired and could not be refreshed after multiple attempts. Please log in again.',
   });

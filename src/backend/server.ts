@@ -27,7 +27,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-
 app.get('/google/login', handleGoogleLogin);
 app.get('/google/callback', handleGoogleCallback);
 app.get('/spotify/login', sessionMiddleware, handleSpotifyLogin);
@@ -87,7 +86,6 @@ const cleanup = async () => {
         process.exit(1);
     }
 };
-
 
 // Handle termination signals
 process.on('SIGINT', () => {
