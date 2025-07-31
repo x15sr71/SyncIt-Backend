@@ -42,6 +42,7 @@
     "express-session": "^1.18.0",
     "firebase-admin": "^13.3.0",
     "ioredis": "^5.5.0",
+    "iso8601-duration": "^2.1.2",
     "jest": "^30.0.5",
     "openai": "^4.56.0",
     "swagger-jsdoc": "^6.2.8",

@@ -1,20 +1,37 @@
-import { getYouTubePlaylistContentService } from '../services/getPlaylistContent/getYoutubePlaylistContent';
+import { getYouTubePlaylistContentService } from "../services/getPlaylistContent/getYoutubePlaylistContent";
 
 export const getYouTubePlaylistContentHandler = async (req, res) => {
   const userId = req.session?.id;
-  const playlistId = req.query?.playlistId || "PLY6KwKMkfULUu2t60pJNEieOi83oXWS9Q"; // fallback
+  const { playlistIds } = req.body; // Expecting an array of playlist IDs
 
-  if (!userId || !playlistId) {
+  if (!userId || !playlistIds || !Array.isArray(playlistIds) || playlistIds.length === 0) {
     return res.status(400).json({
       success: false,
-      error: 'BAD_REQUEST',
-      message: 'User session or playlistId missing.',
+      error: "BAD_REQUEST",
+      message: "User session or playlistIds missing.",
     });
   }
 
   try {
-    const result = await getYouTubePlaylistContentService(userId, playlistId);
-    return res.json(result);
+    // Fetch content for each playlist ID concurrently
+    const results = await Promise.all(
+      playlistIds.map(async (playlistId: string) => {
+        const result = await getYouTubePlaylistContentService(userId, playlistId);
+        // If successful, include the tracks; if not, return empty array for this playlist
+        return {
+          playlistId,
+          tracks: result.success && result.data ? result.data : [],
+        };
+      })
+    );
+
+    // Build a record mapping each playlistId to its respective tracks array
+    const data = results.reduce((acc: Record<string, any[]>, curr) => {
+      acc[curr.playlistId] = curr.tracks;
+      return acc;
+    }, {});
+
+    return res.json({ success: true, data });
   } catch (error: any) {
     return res.status(error.statusCode || 500).json(error);
   }

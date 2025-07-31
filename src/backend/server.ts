@@ -23,9 +23,13 @@ import getNotFoundTracksRouter from './routes/getNotFoundTracks.route';
 dotenv.config();
 const app = express();
 app.use(cookieParser());
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 
-app.use(cors());
+// In your backend CORS configuration
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://syncit-app-1.vercel.app'], // Your frontend URLs
+  credentials: true // Allow cookies to be sent
+}));
 app.use(bodyParser.json());
 
 app.get('/google/login', handleGoogleLogin);

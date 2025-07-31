@@ -2,23 +2,21 @@ import { getSpotifyPlaylistContent } from "../services/getPlaylistContent/getSpo
 
 export const getSpotifyPlaylistContentHandler = async (req, res) => {
   const userId = req.session?.id;
-  // const { playlistId } = req.query as { playlistId?: string };
+  const { playlistIds } = req.body; // ✅ read playlistIds from POST body
 
-  if (!userId) {
+  if (!userId || !Array.isArray(playlistIds) || playlistIds.length === 0) {
     return res.status(400).json({
       success: false,
       error: "BAD_REQUEST",
-      message: "User session or playlistId missing.",
+      message: "User session or playlistIds missing or invalid.",
     });
   }
 
   try {
-    const tracks = await getSpotifyPlaylistContent(
-      userId,
-      "0QmChKbZIAl4P0P1sTSbF2"
-    );
+    const tracks = await getSpotifyPlaylistContent(userId, playlistIds);
+    console.log("Received playlistIds:", playlistIds);
     return res.json({ success: true, data: tracks });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Spotify content fetch error:", err.response?.data || err);
 
     const status = err.response?.status;

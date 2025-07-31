@@ -17,7 +17,7 @@ export const handleGoogleLogin = async (req, res) => {
   if (sessionId) {
     const sessionData = await redis.get(`session:${sessionId}`);
     if (sessionData) {
-      return res.redirect("/dashboard"); // ✅ Already logged in
+      return res.redirect("https://syncit-app-1.vercel.app/dashboard"); // ✅ Already logged in
     }
   }
 
@@ -46,7 +46,7 @@ export const handleGoogleCallback = async (req, res) => {
     if (existingSessionId) {
       const existingSessionData = await redis.get(`session:${existingSessionId}`);
       if (existingSessionData) {
-        return res.redirect("/dashboard");
+        return res.redirect("https://syncit-app-1.vercel.app`");
       }
     }
 
@@ -124,13 +124,8 @@ export const handleGoogleCallback = async (req, res) => {
       maxAge: 1000 * 60 * 60 * 24 * 60, // 60 days expiration
     });
 
-    return res.json({
-      message: "Google login successful",
-      userId: user.id,
-      sessionId: session.session_id,
-      access_token,
-      refresh_token,
-    });
+    // ✅ Redirect to frontend dashboard after successful authentication
+    return res.redirect("https://syncit-app-1.vercel.app/dashboard");
   } catch (error) {
     return res.status(400).json({
       error: "Google authentication failed.",

@@ -4,6 +4,6 @@ import sessionMiddleware from "../../middlewares/sessionMiddleware";
 
 const router = express.Router();
 
-router.get("/spotifyPlaylistContent", sessionMiddleware, getSpotifyPlaylistContentHandler);
+router.post("/spotifyPlaylistContent", sessionMiddleware, getSpotifyPlaylistContentHandler);
 
 export default router;

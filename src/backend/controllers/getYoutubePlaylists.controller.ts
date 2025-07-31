@@ -8,6 +8,10 @@ const REQUEST_TIMEOUT = 10000; // 10 seconds
 export const getYouTubePlaylistsHandler = async (req, res) => {
   const userId = req.session?.id;
 
+  console.log("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+console.log("YouTube Playlists Route Loaded");
+console.log("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+
   if (!userId) {
     return res.status(401).json({
       success: false,

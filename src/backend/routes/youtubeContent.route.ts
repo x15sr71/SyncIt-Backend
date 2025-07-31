@@ -4,6 +4,6 @@ import sessionMiddleware from "../../middlewares/sessionMiddleware";
 
 const router = express.Router();
 
-router.get("/youtubePlaylistContent", sessionMiddleware, getYouTubePlaylistContentHandler);
+router.post("/youtubePlaylistContent", sessionMiddleware, getYouTubePlaylistContentHandler);
 
 export default router;
