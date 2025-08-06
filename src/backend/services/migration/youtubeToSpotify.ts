@@ -7,7 +7,7 @@ import prisma from "../../../db";
 
 const MAX_LLM_CHUNK_CHARS = 10000;
 
-export const migrateYoutubeToSpotifyService = async (userId: string) => {
+export const migrateYoutubeToSpotifyService = async (userId: string, playlistId: string, playlistName: string) => {
   const youtubeUserId = await prisma.youTubeData.findFirst({
     where: { userId },
     select: { id: true },
@@ -17,14 +17,15 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
     throw new Error("YouTube user not found in database.");
   }
 
-  const allYoutubeTracks = await searchYoutubeTracks(userId);
+  // 👇 Use playlistId in searchYoutubeTracks
+  const allYoutubeTracks = await searchYoutubeTracks(userId, playlistId);
   const formattedYoutubeTracks = trimTrackDescriptions(
     allYoutubeTracks.data,
     750
   );
 
   if (!formattedYoutubeTracks.length) {
-    throw new Error("No tracks found in YouTube playlist.");
+    throw new Error("NO_YOUTUBE_TRACKS");
   }
 
   const searchChunks = chunkArray(formattedYoutubeTracks, 20, 10);
@@ -131,7 +132,7 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
   });
 
   const spotifyChunks = chunkArray(trackIdsToAdd, 40, 10);
-  await addToSptLikePlaylist(spotifyChunks, userId);
+  await addToSptLikePlaylist(spotifyChunks, userId, playlistName);
 
   return {
     bestMatches,
@@ -141,6 +142,7 @@ export const migrateYoutubeToSpotifyService = async (userId: string) => {
     failedTrackDetails,
   };
 };
+
 
 function chunkArray(
   arr: string[],

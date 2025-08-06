@@ -10,34 +10,40 @@ export const migrateYoutubeToSpotifyHandler = async (req, res) => {
     });
   }
 
+  const { playlistId, playlistName } = req.body;
+  if (!playlistId || !playlistName) {
+    console.warn("[Controller] Missing YouTube playlist ID or name in request body");
+    return res.status(400).json({
+      error: "MISSING_PLAYLIST_INFO",
+      message: "YouTube playlist ID and name are required for migration.",
+    });
+  }
+
   try {
-    console.log(`[Controller] Starting migration for user ${userId}`);
-    const result = await migrateYoutubeToSpotifyService(userId);
+    console.log(`[Controller] Starting migration for user ${userId}, playlistId: ${playlistId}, playlistName: ${playlistName}`);
+    const result = await migrateYoutubeToSpotifyService(userId, playlistId, playlistName);
     console.log(`[Controller] Migration successful: added ${result.numberOfTracksAdded} tracks`);
     return res.json(result);
 
   } catch (err: any) {
-    // Quota hit → send custom code and message
-    if (err.message === "YOUTUBE_QUOTA_EXCEEDED") {
-      console.error("[Controller][Quota] YouTube API quota exceeded");
+    if (err.message === "SPOTIFY_QUOTA_EXCEEDED") {
+      console.error("[Controller][Quota] Spotify API quota exceeded");
       return res.status(503).json({
-        error: "YOUTUBE_QUOTA_EXCEEDED",
+        error: "SPOTIFY_QUOTA_EXCEEDED",
         code: 503,
-        message: "YouTube API quota has been exceeded. Please try again later or upgrade your quota.",
+        message: "Spotify API quota has been exceeded. Please try again later or upgrade your quota.",
       });
     }
 
-    // No tracks found
     if (err.message === "NO_YOUTUBE_TRACKS") {
-      console.warn("[Controller] No YouTube tracks to migrate");
+      console.warn("[Controller] No tracks to migrate");
       return res.status(400).json({
-        error: "NO_YOUTUBE_TRACKS",
+        error: "NO_TRACKS",
         code: 400,
-        message: "No valid tracks found in your YouTube playlist to migrate.",
+        message: "No valid tracks found to migrate.",
       });
     }
 
-    // Catch‐all for other errors
     console.error("[Controller] Unexpected error during migration:", err);
     return res.status(500).json({
       error: "MIGRATION_FAILED",

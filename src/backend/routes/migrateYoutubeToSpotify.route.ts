@@ -4,6 +4,7 @@ import sessionMiddleware from "../../middlewares/sessionMiddleware";
 
 const router = Router();
 
-router.get("/youtube-to-spotify", sessionMiddleware, migrateYoutubeToSpotifyHandler);
+// Change from GET to POST
+router.post("/youtube-to-spotify", sessionMiddleware, migrateYoutubeToSpotifyHandler);
 
 export default router;

@@ -10,10 +10,6 @@ const MAX_RETRIES = 2;
 export const getPlaylistsHandler = async (req, res) => {
   const userId = req.session?.id;
 
-  console.log("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-  console.log("Spotify Playlists Handler Invoked");
-  console.log("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-
   if (!userId) {
     return res.status(401).json({
       success: false,

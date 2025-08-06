@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3002;
 
 // In your backend CORS configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://syncit-app-1.vercel.app'], // Your frontend URLs
+  origin: ['http://localhost:3000', 'https://syncit-app-1.vercel.app/'], // Your frontend URLs
   credentials: true // Allow cookies to be sent
 }));
 app.use(bodyParser.json());

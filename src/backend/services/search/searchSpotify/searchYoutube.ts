@@ -1,5 +1,4 @@
-import axios from "axios";
-import { AxiosError } from "axios";
+import axios, { AxiosError } from "axios";
 import {
   get_YoutubeAccessToken,
   refreshYoutubeAccessToken,
@@ -12,41 +11,49 @@ let youtubeTrackArray = [];
 const MAX_RETRIES = 5;
 const MAX_TRACKS = 40;
 
-// Function to convert ISO 8601 duration to seconds
+// Convert ISO 8601 duration to "MM:SS"
 const convertDurationToMinutesAndSeconds = (duration) => {
   const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
   const hours = parseInt(match[1]) || 0;
   const minutes = parseInt(match[2]) || 0;
   const seconds = parseInt(match[3]) || 0;
-
-  // Total minutes
   const totalMinutes = hours * 60 + minutes;
-  return `${totalMinutes}:${String(seconds).padStart(2, "0")}`; // Format as "MM:SS"
+  return `${totalMinutes}:${String(seconds).padStart(2, "0")}`;
 };
 
-export const searchYoutubeTracks = async (userId: string) => {
-//   const userId = req.session.id;
-//   if (!userId) {
-//     return res.status(401).json({
-//       error: "AUTH_ERROR",
-//       message: "User session not found. Please log in again.",
-//     });
-//   }
+/**
+ * Search YouTube playlist tracks for a user.
+ * @param userId - ID of the user in your system
+ * @param playlistId - YouTube playlist ID to fetch
+ */
+export const searchYoutubeTracks = async (
+  userId: string,
+  playlistId: string
+) => {
+  if (!playlistId) {
+    console.error("Missing playlistId");
+    return {
+      success: false,
+      error: "MISSING_PLAYLIST_ID",
+      message: "No YouTube playlist ID provided.",
+    };
+  }
+
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {
     try {
       const accessToken = await get_YoutubeAccessToken(userId);
-      const fetchedTracks = await fetchYoutubeTracks(accessToken);
+      const fetchedTracks = await fetchYoutubeTracks(accessToken, playlistId);
 
-      return ({ success: true, data: fetchedTracks });
+      return { success: true, data: fetchedTracks };
     } catch (error) {
       if (error.message === "Access token not found") {
         console.error("Access token not found, cannot proceed.");
-        return ({
+        return {
           error: "AUTH_ERROR",
           message: "Access token not found or expired. Please log in again.",
-        });
+        };
       }
 
       if (
@@ -56,9 +63,6 @@ export const searchYoutubeTracks = async (userId: string) => {
       ) {
         console.log("Access token expired, refreshing token...");
         const response = await refreshYoutubeAccessToken(userId);
-        console.log("**************************");
-        console.log(response);
-        console.log("**************************");
 
         if (response.success) {
           retryCount += 1;
@@ -66,30 +70,34 @@ export const searchYoutubeTracks = async (userId: string) => {
           continue;
         } else {
           console.error("Error refreshing token");
-          return ({
+          return {
             success: false,
             error: "AUTH_REFRESH_FAILED",
             redirect: "/youtube/login",
             message:
               "Failed to refresh YouTube access token. Please log in again.",
-            
-          });
+          };
         }
       } else {
         console.error(
           "Error fetching tracks:",
           error.response ? error.response.data : error.message
         );
-        return ({ success: false, error: "Failed to fetch tracks" });
+        return { success: false, error: "Failed to fetch tracks" };
       }
     }
   }
 
-  // fallback: should not be reached normally
-  return ({ success: false, error: "Unexpected error occurred" });
+  return { success: false, error: "Unexpected error occurred" };
 };
 
-const fetchYoutubeTracks = async (accessToken) => {
+/**
+ * Fetch tracks from a YouTube playlist using the YouTube API.
+ */
+const fetchYoutubeTracks = async (
+  accessToken: string,
+  playlistId: string
+) => {
   let url = "https://www.googleapis.com/youtube/v3/playlistItems";
   let allTracks = [];
   let pageToken = "";
@@ -104,7 +112,7 @@ const fetchYoutubeTracks = async (accessToken) => {
         },
         params: {
           part: "snippet",
-          playlistId: "PLY6KwKMkfULVfUn8i6MQP9i6XqKYdG-LK",
+          playlistId: playlistId, // 👈 Use the provided playlistId here
           maxResults: 50,
           pageToken: pageToken,
         },
@@ -143,7 +151,6 @@ const fetchYoutubeTracks = async (accessToken) => {
               )
             : null;
 
-          // Get the published date in the specified format
           const publishedDate = new Date(item.snippet.publishedAt)
             .toISOString()
             .split("T")[0];
@@ -153,8 +160,8 @@ const fetchYoutubeTracks = async (accessToken) => {
             title: item.snippet.title,
             description: description,
             videoChannelTitle: item.snippet.videoOwnerChannelTitle,
-            duration: duration, // Add duration here
-            publishedDate: publishedDate, // Add published date here
+            duration,
+            publishedDate,
           };
         });
 
@@ -164,7 +171,7 @@ const fetchYoutubeTracks = async (accessToken) => {
       pageToken = response.data.nextPageToken || null;
       url =
         pageToken && totalTracksFetched < MAX_TRACKS
-          ? `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=LL&maxResults=50&pageToken=${pageToken}`
+          ? `https://www.googleapis.com/youtube/v3/playlistItems`
           : null;
     }
 
