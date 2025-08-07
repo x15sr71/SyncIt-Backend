@@ -1,30 +1,211 @@
 import { Request, Response } from "express";
+import axios from "axios";
 import { migrateSpotifyPlaylistToYoutube } from "../services/migration/spotifyToYoutube";
+import { get_YoutubeAccessToken } from "../../auth/youtube/youtubeTokensUtil";
 
 export async function migrateSpotifyToYoutubeHandler(req, res) {
   const userId = req.session?.id as string;
-  // const { spotifyPlaylistId, youtubePlaylistId } = req.body;
+  const { spotifyPlaylistId, youtubePlaylistId, playlistName } = req.body;
 
   if (!userId) {
+    console.warn("[Controller] No session, rejecting request");
     return res.status(401).json({
       success: false,
-      error: "UNAUTHORIZED",
-      message: "Unauthorized: Missing user session"
+      error: "AUTH_ERROR",
+      message: "User session not found. Please log in again.",
     });
   }
-  // if (!spotifyPlaylistId || !youtubePlaylistId) {
-  //   return res.status(400).json({ error: "spotifyPlaylistId and youtubePlaylistId are required" });
-  // }
+
+  if (!spotifyPlaylistId) {
+    console.warn("[Controller] Missing Spotify playlist ID in request body");
+    return res.status(400).json({
+      success: false,
+      error: "MISSING_PLAYLIST_INFO",
+      message: "Spotify playlist ID is required for migration.",
+    });
+  }
 
   try {
+    console.log(`[Controller] Starting Spotify to YouTube migration for user ${userId}`, {
+      spotifyPlaylistId,
+      youtubePlaylistId,
+      playlistName
+    });
+
+    let targetPlaylistId = youtubePlaylistId;
+    
+    // If no YouTube playlist ID provided, create a new one
+    if (!targetPlaylistId) {
+      targetPlaylistId = await createDefaultYouTubePlaylist(userId, playlistName);
+    } else {
+      // Validate the provided playlist exists
+      const isValid = await validateYouTubePlaylist(userId, targetPlaylistId);
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          error: "INVALID_YOUTUBE_PLAYLIST",
+          message: "The specified YouTube playlist doesn't exist or is not accessible.",
+        });
+      }
+    }
+
     const result = await migrateSpotifyPlaylistToYoutube(
       userId,
-      "PLY6KwKMkfULW2bGdfKhzHa8mEf9joJwXK",
-      "0QmChKbZIAl4P0P1sTSbF2"
+      targetPlaylistId,
+      spotifyPlaylistId
     );
-    return res.json(result);
+
+    console.log(`[Controller] Migration successful: added ${result.addedCount} tracks, failed ${result.failedCount}`);
+
+    return res.json({
+      success: result.success,
+      numberOfTracksAdded: result.addedCount,
+      successCount: result.addedCount,
+      failedTracks: result.failedDetails || [],
+      playlistName: playlistName || "Migrated Playlist",
+      playlistId: targetPlaylistId,
+      done: "done"
+    });
   } catch (err: any) {
-    console.error("Migration error:", err);
-    return res.status(err?.statusCode || 500).json(err);
+    console.error("[Controller] Error during Spotify to YouTube migration:", err);
+    
+    // Handle specific error types
+    if (err.error === "YOUTUBE_QUOTA_EXCEEDED") {
+      return res.status(503).json({
+        success: false,
+        error: "YOUTUBE_QUOTA_EXCEEDED",
+        message: "YouTube API quota has been exceeded. Please try again later.",
+      });
+    }
+
+    if (err.error === "EMPTY_SPOTIFY_PLAYLIST") {
+      return res.status(400).json({
+        success: false,
+        error: "NO_TRACKS",
+        message: "No valid tracks found to migrate.",
+      });
+    }
+
+    if (err.error === "YOUTUBE_TOKEN_REFRESH_FAILED") {
+      return res.status(401).json({
+        success: false,
+        error: "AUTH_ERROR",
+        message: "YouTube authentication failed. Please reconnect your YouTube account.",
+      });
+    }
+
+    if (err.error === "YOUTUBE_PLAYLIST_CREATION_FAILED") {
+      return res.status(502).json({
+        success: false,
+        error: "PLAYLIST_CREATION_FAILED",
+        message: "Failed to create YouTube playlist. Please try again.",
+      });
+    }
+
+    if (err.error === "INVALID_YOUTUBE_PLAYLIST") {
+      return res.status(400).json({
+        success: false,
+        error: "INVALID_YOUTUBE_PLAYLIST",
+        message: "The specified YouTube playlist doesn't exist or is not accessible.",
+      });
+    }
+
+    // Generic error response
+    return res.status(err.statusCode || 500).json({
+      success: false,
+      error: "MIGRATION_FAILED",
+      message: err.message || "An unexpected error occurred during migration.",
+    });
+  }
+}
+
+// Helper function to create a new YouTube playlist
+async function createDefaultYouTubePlaylist(userId: string, playlistName?: string): Promise<string> {
+  try {
+    const accessToken = await get_YoutubeAccessToken(userId);
+    const defaultName = playlistName || `Imported from Spotify - ${new Date().toLocaleDateString()}`;
+    
+    console.log(`[Controller] Creating new YouTube playlist: ${defaultName}`);
+    
+    const response = await axios.post(
+      'https://www.googleapis.com/youtube/v3/playlists?part=snippet,status',
+      {
+        snippet: {
+          title: defaultName,
+          description: 'Playlist migrated from Spotify using SyncIt',
+        },
+        status: {
+          privacyStatus: 'private' // Change to 'public' if needed
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const playlistId = response.data.id;
+    console.log(`[Controller] Created new YouTube playlist: ${playlistId} with name: ${defaultName}`);
+    return playlistId;
+  } catch (error: any) {
+    console.error('[Controller] Failed to create YouTube playlist:', error);
+    throw {
+      success: false,
+      error: 'YOUTUBE_PLAYLIST_CREATION_FAILED',
+      message: error?.response?.data?.error?.message || 'Failed to create YouTube playlist',
+      statusCode: 502
+    };
+  }
+}
+
+// Helper function to validate YouTube playlist exists and is accessible
+async function validateYouTubePlaylist(userId: string, playlistId: string): Promise<boolean> {
+  try {
+    const accessToken = await get_YoutubeAccessToken(userId);
+    
+    console.log(`[Controller] Validating YouTube playlist: ${playlistId}`);
+    
+    const response = await axios.get(
+      `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    );
+    
+    const isValid = response.data.items && response.data.items.length > 0;
+    console.log(`[Controller] Playlist validation result: ${isValid}`);
+    return isValid;
+  } catch (error: any) {
+    console.error('[Controller] Playlist validation failed:', error);
+    return false;
+  }
+}
+
+// Optional: Helper function to get user's existing playlists
+export async function getUserYouTubePlaylists(userId: string) {
+  try {
+    const accessToken = await get_YoutubeAccessToken(userId);
+    
+    const response = await axios.get(
+      'https://www.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&maxResults=50',
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    );
+    
+    return response.data.items.map((item: any) => ({
+      id: item.id,
+      title: item.snippet.title,
+      description: item.snippet.description
+    }));
+  } catch (error: any) {
+    console.error('[Controller] Failed to fetch user playlists:', error);
+    throw error;
   }
 }
