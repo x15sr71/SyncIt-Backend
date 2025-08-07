@@ -1,4 +1,4 @@
-import { migrateYoutubeToSpotifyService } from "../services/migration/youtubeToSpotify";
+import { migrateYoutubeToSpotifyService } from "../../backend/services/migration/youtubeToSpotify";
 
 export const migrateYoutubeToSpotifyHandler = async (req, res) => {
   const userId = req.session?.id;

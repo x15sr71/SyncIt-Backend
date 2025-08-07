@@ -70,11 +70,15 @@ export async function migrateSpotifyPlaylistToYoutube(
     };
   }
 
+  console.log(`[Service] Starting migration: Spotify playlist ${spotifyPlaylistId} -> YouTube playlist ${youtubePlaylistId}`);
+
   // 1. Fetch Spotify tracks
   let spotifyData;
   try {
     spotifyData = await getSpotifyPlaylistContent(userId, spotifyPlaylistId);
+    console.log(`[Service] Fetched ${spotifyData.length} tracks from Spotify playlist`);
   } catch (fetchError: any) {
+    console.error("[Service] Failed to fetch Spotify playlist:", fetchError);
     throw {
       success: false,
       error: "SPOTIFY_PLAYLIST_FETCH_FAILED",
@@ -82,9 +86,6 @@ export async function migrateSpotifyPlaylistToYoutube(
       statusCode: 502,
     };
   }
-  console.log("$$$$$$$$$$$$$$$$$$$$");
-  console.log(spotifyData);
-  console.log("$$$$$$$$$$$$$$$$$$$$");
 
   if (spotifyData.length === 0) {
     throw {
@@ -102,10 +103,13 @@ export async function migrateSpotifyPlaylistToYoutube(
     albumName: t.album,
   }));
 
+  console.log(`[Service] Searching YouTube for ${ytInputs.length} tracks`);
   let rawYtResults;
   try {
     rawYtResults = await searchTracksOnYoutubeService(userId, ytInputs);
+    console.log(`[Service] YouTube search completed, processing results`);
   } catch (ytError: any) {
+    console.error("[Service] YouTube search failed:", ytError);
     throw {
       success: false,
       error: "YOUTUBE_SEARCH_FAILED",
@@ -134,10 +138,9 @@ export async function migrateSpotifyPlaylistToYoutube(
   const bestMatches: Record<number, number> = {};
   const failedDetails: string[] = [];
 
+  console.log(`[Service] Processing ${llmChunks.length} LLM chunks for track matching`);
   for (const chunk of llmChunks) {
-    console.log("==== Sending to LLM ====");
-    console.log(chunk);
-    console.log("========================");
+    console.log("[Service] Sending chunk to LLM for best match selection");
 
     let content: string;
     try {
@@ -171,6 +174,7 @@ ${chunk}
       ]);
       content = result.content;
     } catch (llmError: any) {
+      console.error("[Service] LLM processing failed:", llmError);
       throw {
         success: false,
         error: "LLM_MODEL_ERROR",
@@ -179,17 +183,12 @@ ${chunk}
       };
     }
 
-    console.log("==== LLM Raw Response ====");
-    console.log(content);
-    console.log("==========================");
-
+    console.log("[Service] Processing LLM response for track matching");
     let parsed: any;
     try {
       parsed = JSON.parse(content);
-      console.log("==== Parsed LLM Selection ====");
-      console.log(parsed);
-      console.log("================================");
     } catch {
+      console.error("[Service] Failed to parse LLM response");
       throw {
         success: false,
         error: "LLM_PARSE_ERROR",
@@ -197,6 +196,7 @@ ${chunk}
         statusCode: 502,
       };
     }
+    
     for (const [numStr, pick] of Object.entries(parsed)) {
       const num = Number(numStr);
       if (typeof pick === "number") {
@@ -218,37 +218,36 @@ ${chunk}
     })
     .filter((id): id is string => typeof id === "string");
 
-  console.log("==== Final Selected Video IDs ====");
-  console.log(videoIdsToAdd);
-  console.log("==================================");
+  console.log(`[Service] Selected ${videoIdsToAdd.length} videos to add, ${failedDetails.length} failed matches`);
 
-  const youtubeUserId = await prisma.youTubeData.findFirst({
-    where: { userId },
-    select: { id: true },
-  });
-
-  // 6. Persist failures & add videos
+  // 6. Store failed tracks in database
   try {
-    await prisma.youTubeData.updateMany({
-      where: { id: youtubeUserId?.id },
-      data: { retryToFindTracks: JSON.stringify(failedDetails) },
+    const youtubeUserId = await prisma.youTubeData.findFirst({
+      where: { userId },
+      select: { id: true },
     });
+
+    if (youtubeUserId) {
+      await prisma.youTubeData.update({
+        where: { id: youtubeUserId.id },
+        data: { retryToFindTracks: JSON.stringify(failedDetails) },
+      });
+      console.log("[Service] Stored failed tracks in database");
+    }
   } catch (prismaError: any) {
-    throw {
-      success: false,
-      error: "DB_UPDATE_FAILED",
-      message: prismaError?.message || "Failed to update DB with failed tracks",
-      statusCode: 500,
-    };
+    console.warn("[Service] Failed to update database with failed tracks:", prismaError);
+    // Don't throw here, continue with migration
   }
 
-  // ensure YouTube token is fresh
+  // 7. Ensure YouTube token is fresh
   try {
     await get_YoutubeAccessToken(userId);
   } catch {
     try {
+      console.log("[Service] Refreshing YouTube access token");
       await refreshYoutubeAccessToken(userId);
     } catch (tokenError: any) {
+      console.error("[Service] YouTube token refresh failed:", tokenError);
       throw {
         success: false,
         error: "YOUTUBE_TOKEN_REFRESH_FAILED",
@@ -258,9 +257,14 @@ ${chunk}
     }
   }
 
+  // 8. Add videos to YouTube playlist
+  let actuallyAddedVideoIds: string[] = [];
   try {
-    await addToYoutubePlaylist(userId, videoIdsToAdd, youtubePlaylistId);
+    console.log(`[Service] Adding ${videoIdsToAdd.length} videos to YouTube playlist ${youtubePlaylistId}`);
+    actuallyAddedVideoIds = await addToYoutubePlaylist(userId, videoIdsToAdd, youtubePlaylistId);
+    console.log(`[Service] Successfully added ${actuallyAddedVideoIds.length} videos to YouTube playlist`);
   } catch (addError: any) {
+    console.error("[Service] Failed to add videos to YouTube playlist:", addError);
     throw {
       success: false,
       error: "ADD_TO_YOUTUBE_PLAYLIST_FAILED",
@@ -269,11 +273,12 @@ ${chunk}
     };
   }
 
+  console.log(`[Service] Migration completed successfully: ${actuallyAddedVideoIds.length} tracks added, ${failedDetails.length} failed`);
   return {
     success: true,
-    addedCount: videoIdsToAdd.length,
+    addedCount: actuallyAddedVideoIds.length,
     failedCount: failedDetails.length,
-    videoIds: videoIdsToAdd,
+    videoIds: actuallyAddedVideoIds,
     failedDetails,
   };
 }

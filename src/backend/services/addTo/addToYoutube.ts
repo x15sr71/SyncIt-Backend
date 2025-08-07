@@ -16,12 +16,18 @@ export async function addToYoutubePlaylist(
   userId: string,
   videoIds: string[],
   youtubePlaylistId: string
-): Promise<string[]> {       // CHANGED: no longer void, now returns array
+): Promise<string[]> {
   let retryCount = 0;
 
   while (retryCount < MAX_RETRIES) {
     try {
       let accessToken = await get_YoutubeAccessToken(userId);
+
+      // Validate that the playlist exists before proceeding
+      const playlistExists = await validatePlaylistExists(youtubePlaylistId, accessToken);
+      if (!playlistExists) {
+        throw new Error(`YouTube playlist ${youtubePlaylistId} does not exist or is not accessible`);
+      }
 
       // Get current video IDs in the playlist
       const existingVideoIds = await fetchExistingVideoIds(
@@ -36,12 +42,12 @@ export async function addToYoutubePlaylist(
 
       if (uniqueVideoIds.length === 0) {
         console.log("🚫 No new videos to add — all already exist in playlist.");
-        return [];    // CHANGED: Return empty array
+        return [];
       }
 
       // Proceed to add unique videos
       const actuallyAdded = await addVideosToPlaylist(accessToken, uniqueVideoIds, youtubePlaylistId);
-      return actuallyAdded;      // CHANGED: Return successfully added IDs
+      return actuallyAdded;
     } catch (err: any) {
       if (err instanceof AxiosError && err.response?.status === 401) {
         console.warn(
@@ -62,6 +68,30 @@ export async function addToYoutubePlaylist(
   throw new Error(
     `addToYoutubePlaylist: exceeded max retries (${MAX_RETRIES})`
   );
+}
+
+/**
+ * Validate that a playlist exists and is accessible
+ */
+async function validatePlaylistExists(
+  playlistId: string,
+  accessToken: string
+): Promise<boolean> {
+  try {
+    const response = await axios.get(
+      `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    
+    return response.data.items && response.data.items.length > 0;
+  } catch (error: any) {
+    console.error(`Failed to validate playlist ${playlistId}:`, error.message);
+    return false;
+  }
 }
 
 /**
@@ -110,10 +140,10 @@ async function addVideosToPlaylist(
   accessToken: string,
   videoIds: string[],
   playlistId: string
-): Promise<string[]> {        // CHANGED: Return success array
+): Promise<string[]> {
   const url =
     "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet";
-  const added: string[] = [];   // CHANGED: collect successful adds
+  const added: string[] = [];
 
   for (const videoId of videoIds) {
     try {
@@ -136,13 +166,14 @@ async function addVideosToPlaylist(
         }
       );
       console.log(`✅ Added video ${videoId} to playlist ${playlistId}`);
-      added.push(videoId);    // track success
+      added.push(videoId);
     } catch (err: any) {
       console.error(
         `❌ Error adding video ${videoId} to playlist ${playlistId}:`,
         err.message || err
       );
+      // Don't throw here, just log and continue with other videos
     }
   }
-  return added;               // CHANGED: Return successful adds
+  return added;
 }

@@ -4,8 +4,8 @@ import sessionMiddleware from "../../middlewares/sessionMiddleware";
 
 const router = Router();
 
-// POST /api/migrate/spotify-to-youtube
-router.get(
+// Updated to POST method for consistency
+router.post(
   "/spotify-to-youtube",
   sessionMiddleware,
   migrateSpotifyToYoutubeHandler
