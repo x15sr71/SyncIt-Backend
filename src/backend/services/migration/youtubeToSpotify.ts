@@ -23,12 +23,21 @@ export const migrateYoutubeToSpotifyService = async (
 
   // 👇 Use playlistId in searchYoutubeTracks
   const allYoutubeTracks = await searchYoutubeTracks(userId, playlistId);
+
+  // 🆕 Deduplicate YouTube tracks by trackId before processing
+  const uniqueYoutubeTracks = allYoutubeTracks.data.filter((track, index, self) => 
+    index === self.findIndex(t => t.trackId === track.trackId)
+  );
+
+  console.log(`[Service] Original tracks: ${allYoutubeTracks.data.length}, Unique tracks: ${uniqueYoutubeTracks.length}`);
+
   const formattedYoutubeTracks = trimTrackDescriptions(
-    allYoutubeTracks.data,
+    uniqueYoutubeTracks, // 🆕 Use deduplicated tracks
     750
   );
 
-  let youtubeTrackIds = allYoutubeTracks.data.map((track) => track.trackId);
+  // 🆕 Extract YouTube track IDs from deduplicated tracks
+  let youtubeTrackIds = uniqueYoutubeTracks.map((track) => track.trackId);
   console.log("Youtube Track IDs:", youtubeTrackIds);
 
   if (!formattedYoutubeTracks.length) {
@@ -52,13 +61,13 @@ export const migrateYoutubeToSpotifyService = async (
   console.log("Existing track IDs in migration:", existingTrackIds);
 
   // 🆕 Filter out tracks that already exist in the migration
-  const newTracksOnly = allYoutubeTracks.data.filter(track => 
+  const newTracksOnly = uniqueYoutubeTracks.filter(track => 
     !existingTrackIds.includes(track.trackId)
   );
   
   const formattedNewTracksOnly = trimTrackDescriptions(newTracksOnly, 750);
   
-  console.log(`Total YouTube tracks: ${allYoutubeTracks.data.length}`);
+  console.log(`Total YouTube tracks: ${uniqueYoutubeTracks.length}`);
   console.log(`Already migrated tracks: ${existingTrackIds.length}`);
   console.log(`New tracks to process: ${newTracksOnly.length}`);
 
@@ -177,6 +186,16 @@ export const migrateYoutubeToSpotifyService = async (
     }
   }
 
+  // 🆕 Add deduplication for Spotify track IDs before sending to playlist
+  const uniqueSpotifyTrackIds = [...new Set(trackIdsToAdd)];
+
+  console.log(`Original Spotify tracks to add: ${trackIdsToAdd.length}`);
+  console.log(`Unique Spotify tracks to add: ${uniqueSpotifyTrackIds.length}`);
+
+  if (trackIdsToAdd.length !== uniqueSpotifyTrackIds.length) {
+    console.warn(`⚠️ Found ${trackIdsToAdd.length - uniqueSpotifyTrackIds.length} duplicate Spotify track(s) - removing duplicates`);
+  }
+
   // 🆕 Combine existing track IDs with new successful ones
   const allSuccessfulTrackIds = [...existingTrackIds, ...newYoutubeTrackIds];
 
@@ -222,14 +241,15 @@ export const migrateYoutubeToSpotifyService = async (
     data: { retryToFindTracks: JSON.stringify(failedTrackDetails) },
   });
 
-  const spotifyChunks = chunkArray(trackIdsToAdd, 40, 10);
+  // 🆕 Use uniqueSpotifyTrackIds instead of trackIdsToAdd for the rest
+  const spotifyChunks = chunkArray(uniqueSpotifyTrackIds, 40, 10);
   await addToSptLikePlaylist(spotifyChunks, userId, playlistName);
 
   return {
     bestMatches,
-    trackIdsToAdd,
+    trackIdsToAdd: uniqueSpotifyTrackIds, // 🆕 Return deduplicated list
     done: "done",
-    numberOfTracksAdded: trackIdsToAdd.length,
+    numberOfTracksAdded: uniqueSpotifyTrackIds.length, // 🆕 Use deduplicated count
     failedTrackDetails,
   };
 };

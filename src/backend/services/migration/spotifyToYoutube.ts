@@ -57,8 +57,9 @@ function chunkTracksForLLM(
 
 export async function migrateSpotifyPlaylistToYoutube(
   userId: string,
+  spotifyPlaylistId: string,
   youtubePlaylistId: string,
-  spotifyPlaylistId: string
+  playlistName?: string
 ) {
   // Defensive parameter check
   if (!userId || !spotifyPlaylistId || !youtubePlaylistId) {
@@ -96,8 +97,57 @@ export async function migrateSpotifyPlaylistToYoutube(
     };
   }
 
-  // 2. Prepare inputs and search YouTube
-  const ytInputs = spotifyData.map((t) => ({
+  // 🆕 Deduplicate Spotify tracks by ID before processing
+  const uniqueSpotifyTracks = spotifyData.filter((track, index, self) => 
+    index === self.findIndex(t => t.id === track.id)
+  );
+
+  console.log(`[Service] Original tracks: ${spotifyData.length}, Unique tracks: ${uniqueSpotifyTracks.length}`);
+
+  // 🆕 Extract Spotify track IDs from deduplicated tracks
+  let spotifyTrackIds = uniqueSpotifyTracks.map((track) => track.id);
+  console.log("Spotify Track IDs:", spotifyTrackIds);
+
+  // 🆕 Check for existing tracks in playlistMigration
+  const existingMigration = await prisma.playlistMigration.findFirst({
+    where: {
+      userId: userId,
+      playlistId: spotifyPlaylistId,
+      sourcePlatform: "SPOTIFY",
+      destinationPlatform: "YOUTUBE"
+    },
+    select: {
+      sourceTrackIds: true
+    }
+  });
+
+  const existingTrackIds = existingMigration?.sourceTrackIds || [];
+  console.log("Existing track IDs in migration:", existingTrackIds);
+
+  // 🆕 Filter out tracks that already exist in the migration
+  const newTracksOnly = uniqueSpotifyTracks.filter(track => 
+    !existingTrackIds.includes(track.id)
+  );
+  
+  console.log(`Total Spotify tracks: ${uniqueSpotifyTracks.length}`);
+  console.log(`Already migrated tracks: ${existingTrackIds.length}`);
+  console.log(`New tracks to process: ${newTracksOnly.length}`);
+
+  // If no new tracks to process, skip the processing
+  if (!newTracksOnly.length) {
+    console.log("No new tracks to migrate. All tracks already exist in migration.");
+    return {
+      success: true,
+      addedCount: 0,
+      failedCount: 0,
+      videoIds: [],
+      failedDetails: [],
+      message: "No new tracks to migrate"
+    };
+  }
+
+  // 2. Prepare inputs and search YouTube (only for new tracks)
+  const ytInputs = newTracksOnly.map((t) => ({
     trackName: t.name,
     artists: t.artists.join(", "),
     albumName: t.album,
@@ -137,6 +187,9 @@ export async function migrateSpotifyPlaylistToYoutube(
   const llmChunks = chunkTracksForLLM(searchResults);
   const bestMatches: Record<number, number> = {};
   const failedDetails: string[] = [];
+
+  // 🆕 Initialize newSpotifyTrackIds with only new track IDs
+  let newSpotifyTrackIds = newTracksOnly.map((track) => track.id);
 
   console.log(`[Service] Processing ${llmChunks.length} LLM chunks for track matching`);
   for (const chunk of llmChunks) {
@@ -197,6 +250,15 @@ ${chunk}
       };
     }
     
+    // 🆕 Filter newSpotifyTrackIds to keep only those with number values in parsed results
+    newSpotifyTrackIds = newSpotifyTrackIds.filter((trackId, index) => {
+      const resultKey = (index + 1).toString();
+      const resultValue = parsed[resultKey];
+      return typeof resultValue === "number";
+    });
+
+    console.log("Filtered New Spotify Track IDs:", newSpotifyTrackIds);
+    
     for (const [numStr, pick] of Object.entries(parsed)) {
       const num = Number(numStr);
       if (typeof pick === "number") {
@@ -219,6 +281,38 @@ ${chunk}
     .filter((id): id is string => typeof id === "string");
 
   console.log(`[Service] Selected ${videoIdsToAdd.length} videos to add, ${failedDetails.length} failed matches`);
+
+  // 🆕 Combine existing track IDs with new successful ones
+  const allSuccessfulTrackIds = [...existingTrackIds, ...newSpotifyTrackIds];
+
+  // 🆕 Save migration state to database
+  const saveMigrationData = await prisma.playlistMigration.upsert({
+    where: {
+      userId_playlistId_sourcePlatform_destinationPlatform: {
+        userId: userId,
+        playlistId: spotifyPlaylistId,
+        sourcePlatform: "SPOTIFY",
+        destinationPlatform: "YOUTUBE",
+      },
+    },
+    update: {
+      sourceTrackIds: allSuccessfulTrackIds,
+      migrationCounter: {
+        increment: 1,
+      },
+      updatedAt: new Date(),
+    },
+    create: {
+      userId: userId,
+      playlistId: spotifyPlaylistId,
+      sourcePlatform: "SPOTIFY",
+      destinationPlatform: "YOUTUBE",
+      sourceTrackIds: allSuccessfulTrackIds,
+      migrationCounter: 1,
+    },
+  });
+
+  console.log("Migration data saved:", saveMigrationData);
 
   // 6. Store failed tracks in database
   try {
