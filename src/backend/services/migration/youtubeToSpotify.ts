@@ -7,7 +7,11 @@ import prisma from "../../../db";
 
 const MAX_LLM_CHUNK_CHARS = 10000;
 
-export const migrateYoutubeToSpotifyService = async (userId: string, playlistId: string, playlistName: string) => {
+export const migrateYoutubeToSpotifyService = async (
+  userId: string,
+  playlistId: string,
+  playlistName: string
+) => {
   const youtubeUserId = await prisma.youTubeData.findFirst({
     where: { userId },
     select: { id: true },
@@ -24,11 +28,54 @@ export const migrateYoutubeToSpotifyService = async (userId: string, playlistId:
     750
   );
 
+  let youtubeTrackIds = allYoutubeTracks.data.map((track) => track.trackId);
+  console.log("Youtube Track IDs:", youtubeTrackIds);
+
   if (!formattedYoutubeTracks.length) {
     throw new Error("NO_YOUTUBE_TRACKS");
   }
 
-  const searchChunks = chunkArray(formattedYoutubeTracks, 20, 10);
+  // 🆕 Check for existing tracks in playlistMigration
+  const existingMigration = await prisma.playlistMigration.findFirst({
+    where: {
+      userId: userId,
+      playlistId: playlistId,
+      sourcePlatform: "YOUTUBE",
+      destinationPlatform: "SPOTIFY"
+    },
+    select: {
+      sourceTrackIds: true
+    }
+  });
+
+  const existingTrackIds = existingMigration?.sourceTrackIds || [];
+  console.log("Existing track IDs in migration:", existingTrackIds);
+
+  // 🆕 Filter out tracks that already exist in the migration
+  const newTracksOnly = allYoutubeTracks.data.filter(track => 
+    !existingTrackIds.includes(track.trackId)
+  );
+  
+  const formattedNewTracksOnly = trimTrackDescriptions(newTracksOnly, 750);
+  
+  console.log(`Total YouTube tracks: ${allYoutubeTracks.data.length}`);
+  console.log(`Already migrated tracks: ${existingTrackIds.length}`);
+  console.log(`New tracks to process: ${newTracksOnly.length}`);
+
+  // If no new tracks to process, skip the LLM processing
+  if (!newTracksOnly.length) {
+    console.log("No new tracks to migrate. All tracks already exist in migration.");
+    return {
+      bestMatches: {},
+      trackIdsToAdd: [],
+      done: "done",
+      numberOfTracksAdded: 0,
+      failedTrackDetails: [],
+      message: "No new tracks to migrate"
+    };
+  }
+
+  const searchChunks = chunkArray(formattedNewTracksOnly, 20, 10);
   let spotifySearchResults = [];
   let globalTrackNumber = 1;
   let bestMatches = {};
@@ -46,8 +93,11 @@ export const migrateYoutubeToSpotifyService = async (userId: string, playlistId:
 
   const llmChunks = chunkTracksForLLM(
     spotifySearchResults,
-    allYoutubeTracks.data
+    newTracksOnly // 🆕 Use filtered tracks instead of all tracks
   );
+
+  // 🆕 Initialize youtubeTrackIds with only new track IDs
+  let newYoutubeTrackIds = newTracksOnly.map((track) => track.trackId);
 
   for (const chunkText of llmChunks) {
     const messages = [
@@ -77,6 +127,16 @@ export const migrateYoutubeToSpotifyService = async (userId: string, playlistId:
       console.log("$$$$$$$$$$$$$$$$$$$$$$");
       console.log(parsedBestResults);
       console.log("$$$$$$$$$$$$$$$$$$$$$$");
+      // Filter newYoutubeTrackIds to keep only those with integer values in parsedBestResults
+      newYoutubeTrackIds = newYoutubeTrackIds.filter((trackId, index) => {
+        const resultKey = (index + 1).toString(); // Convert 0-based index to 1-based key
+        const resultValue = parsedBestResults[resultKey];
+
+        // Keep only if the value is a number (integer)
+        return typeof resultValue === "number" && Number.isInteger(resultValue);
+      });
+
+      console.log("Filtered New YouTube Track IDs:", newYoutubeTrackIds);
     } catch {
       console.warn("Skipping chunk: could not parse LLM response");
       continue;
@@ -84,7 +144,7 @@ export const migrateYoutubeToSpotifyService = async (userId: string, playlistId:
 
     for (const trackNumber in parsedBestResults) {
       const result = parsedBestResults[trackNumber];
-      const youtubeTrack = allYoutubeTracks.data[Number(trackNumber) - 1];
+      const youtubeTrack = newTracksOnly[Number(trackNumber) - 1]; // 🆕 Use newTracksOnly
 
       if (!youtubeTrack) continue;
 
@@ -117,6 +177,37 @@ export const migrateYoutubeToSpotifyService = async (userId: string, playlistId:
     }
   }
 
+  // 🆕 Combine existing track IDs with new successful ones
+  const allSuccessfulTrackIds = [...existingTrackIds, ...newYoutubeTrackIds];
+
+  const saveYoutubeTrackIds = await prisma.playlistMigration.upsert({
+    where: {
+      userId_playlistId_sourcePlatform_destinationPlatform: {
+        userId: userId,
+        playlistId: playlistId,
+        sourcePlatform: "YOUTUBE",
+        destinationPlatform: "SPOTIFY",
+      },
+    },
+    update: {
+      sourceTrackIds: allSuccessfulTrackIds, // 🆕 Use combined track IDs
+      migrationCounter: {
+        increment: 1,
+      },
+      updatedAt: new Date(),
+    },
+    create: {
+      userId: userId,
+      playlistId: playlistId,
+      sourcePlatform: "YOUTUBE",
+      destinationPlatform: "SPOTIFY",
+      sourceTrackIds: allSuccessfulTrackIds, // 🆕 Use combined track IDs
+      migrationCounter: 1,
+    },
+  });
+
+  console.log("Migration data saved:", saveYoutubeTrackIds);
+
   const spotifyUserId = await prisma.spotifyData.findFirst({
     where: { userId },
     select: { id: true },
@@ -142,7 +233,6 @@ export const migrateYoutubeToSpotifyService = async (userId: string, playlistId:
     failedTrackDetails,
   };
 };
-
 
 function chunkArray(
   arr: string[],

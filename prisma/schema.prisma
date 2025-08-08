@@ -90,3 +90,18 @@ model YouTubeData {
   user   User @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
   userId String
 }
+
+model PlaylistMigration {
+  id                  String   @id @default(cuid())
+  userId              String
+  playlistId          String
+  sourcePlatform      String
+  destinationPlatform String
+  sourceTrackIds      String[]
+  migrationCounter    Int
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([userId, playlistId, sourcePlatform, destinationPlatform])
+}
+

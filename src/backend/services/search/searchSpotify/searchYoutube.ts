@@ -157,6 +157,7 @@ const fetchYoutubeTracks = async (
 
           return {
             trackNumber: trackCounter++,
+            trackId: item.snippet.resourceId.videoId,
             title: item.snippet.title,
             description: description,
             videoChannelTitle: item.snippet.videoOwnerChannelTitle,
