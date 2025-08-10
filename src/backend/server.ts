@@ -21,6 +21,8 @@ import migrateYoutubeToSpotifyHandler from './routes/migrateYoutubeToSpotify.rou
 import getNotFoundTracksRouter from './routes/getNotFoundTracks.route';
 import spotifyActionsRouter from "./routes/routes/spotifyActions.routes";
 import youtubeactionrouter from "./routes/routes/youtubeActions.routes";
+import autoSyncRoutes from "./routes/autoSync.routes"
+import { SyncCronJob } from '../jobs/syncCronJobs';
 
 dotenv.config();
 const app = express();
@@ -54,6 +56,9 @@ app.use("/", getNotFoundTracksRouter)
 app.use("/spotify", spotifyActionsRouter);
 app.use("/youtube", youtubeactionrouter);
 app.get('/sessionmid', sessionMiddleware)
+app.use("/api/auto-sync", autoSyncRoutes);
+
+SyncCronJob.start();
 
 app.post('/sync-playlists', async (req, res) => {
     const { spotifyToken, youtubeToken } = req.body;
