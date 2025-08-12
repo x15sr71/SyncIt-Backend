@@ -93,26 +93,30 @@ model YouTubeData {
 }
 
 model PlaylistMigration {
-  id                  String   @id @default(cuid())
-  userId              String
-  playlistId          String
-  sourcePlatform      String
+  id String @id @default(cuid())
+  userId String
+  playlistId String
+  sourcePlatform String
   destinationPlatform String
-  sourceTrackIds      String[]
-  migrationCounter    Int
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  sourceTrackIds String[]
+  migrationCounter Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 🆕 Store destination playlist details
+  destinationPlaylistId String?
+  destinationPlaylistName String?
 
   // 🔄 Sync Job Config
-  autoSyncEnabled     Boolean   @default(false)
+  autoSyncEnabled Boolean @default(false)
   syncIntervalMinutes Int?
-  nextSyncAt          DateTime?
-  lastSyncAt          DateTime?
-  lastSyncStatus      String?
-  lastSyncError       String?
+  nextSyncAt DateTime?
+  lastSyncAt DateTime?
+  lastSyncStatus String?
+  lastSyncError String?
 
   // Relation to User
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, playlistId, sourcePlatform, destinationPlatform])
 }
+
