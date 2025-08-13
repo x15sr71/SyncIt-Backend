@@ -63,7 +63,7 @@ SyncIt-Client/
         server.ts    
     ├── config/ 
     ├── middlewares/ 
-
+|── tests/
 ├── .gitignore          
 ├── README.md
 ├── package-lock.json        
