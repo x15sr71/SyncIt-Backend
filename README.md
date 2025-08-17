@@ -34,7 +34,7 @@ SyncIt Backend is built with modern technologies for performance, scalability, a
 - Redis (ioredis) (Planned) – Used for caching frequently accessed data, reducing API calls, and improving performance.
 - esbuild – High-performance bundler for efficient TypeScript compilation.
 
-🔐 Security & 
+🔐 Security 
 
 - OAuth 2.0 – Secure authentication for Spotify, YouTube, and other platforms.
 - express-session – Manages user sessions securely.
