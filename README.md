@@ -66,6 +66,7 @@ SyncIt-Client/
 |── tests/
 ├── .gitignore          
 ├── README.md
+|──jest.config.js
 ├── package-lock.json        
 ├── package.json       
 ├── tsconfig.json          
