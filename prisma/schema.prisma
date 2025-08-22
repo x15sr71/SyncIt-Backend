@@ -95,7 +95,7 @@ model YouTubeData {
 model PlaylistMigration {
   id String @id @default(cuid())
   userId String
-  playlistId String
+  sourcePlaylistId String
   sourcePlatform String
   destinationPlatform String
   sourceTrackIds String[]
@@ -117,6 +117,6 @@ model PlaylistMigration {
 
   // Relation to User
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@unique([userId, playlistId, sourcePlatform, destinationPlatform])
+  @@unique([userId, sourcePlaylistId, sourcePlatform, destinationPlatform])
 }
 
