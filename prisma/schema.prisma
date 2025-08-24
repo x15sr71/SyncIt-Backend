@@ -34,10 +34,11 @@ model User {
   lastSyncTracks  Json?
 
   // Relations
-  spotifyTokens   SpotifyData[] @relation(name: "UserSpotifyTokens")
-  youtubeTokens   YouTubeData[] @relation(name: "UserYouTubeTokens")
+  spotifyTokens       SpotifyData[]       @relation(name: "UserSpotifyTokens")
+  youtubeTokens       YouTubeData[]       @relation(name: "UserYouTubeTokens")
+  playlistMigrations  PlaylistMigration[] 
 
-  sessions        Session[] // ✅ Corrected to be plural
+  sessions        Session[]
 }
 
 model Session {
@@ -92,16 +93,31 @@ model YouTubeData {
 }
 
 model PlaylistMigration {
-  id                  String   @id @default(cuid())
-  userId              String
-  sourcePlaylistId    String
-  destinationPlaylistId String?
-  sourcePlatform      String
-  destinationPlatform String
-  sourceTrackIds      String[]
-  migrationCounter    Int
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sourcePlaylistId      String
+  sourcePlatform        String
+  destinationPlatform   String
+
+  // 🆕 Destination playlist info
+  destinationPlaylistId   String?
+  destinationPlaylistName String?
+
+  sourceTrackIds        String[]
+  migrationCounter      Int       @default(0)
+
+  // 🔄 Sync Job Config
+  autoSyncEnabled       Boolean   @default(false)
+  syncIntervalMinutes   Int?
+  nextSyncAt            DateTime?
+  lastSyncAt            DateTime?
+  lastSyncStatus        String?
+  lastSyncError         String?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@unique([userId, sourcePlaylistId, sourcePlatform, destinationPlatform])
 }
