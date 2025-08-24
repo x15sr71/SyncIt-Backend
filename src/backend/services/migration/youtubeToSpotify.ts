@@ -2,7 +2,7 @@ import { searchYoutubeTracks } from "../search/searchSpotify/searchYoutube";
 import { trimTrackDescriptions } from "../../utility/trim";
 import { searchTracksOnSpotify } from "../search/searchSpotify/searchSpotify";
 import { callOpenAIModel } from "../../openAI/getBestMatch";
-import { addToSptLikePlaylist } from "../addTo/addToSptLikePlaylist";
+import { addToSptPlaylist } from "../addTo/addToSptPlaylist";
 import prisma from "../../../db";
 
 const MAX_LLM_CHUNK_CHARS = 10000;
@@ -243,7 +243,7 @@ export const migrateYoutubeToSpotifyService = async (
 
   // 🆕 Use uniqueSpotifyTrackIds instead of trackIdsToAdd for the rest
   const spotifyChunks = chunkArray(uniqueSpotifyTrackIds, 40, 10);
-  await addToSptLikePlaylist(spotifyChunks, userId, playlistName);
+  await addToSptPlaylist(spotifyChunks, userId, playlistName);
 
   return {
     bestMatches,

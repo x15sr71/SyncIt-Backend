@@ -3,7 +3,7 @@ import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../../auth/spoti
 
 const MAX_RETRIES = 5;
 
-export const addToSptLikePlaylist = async function (trackIdsToAdd: string[][], userId: string, playlistName: string) {
+export const addToSptPlaylist = async function (trackIdsToAdd: string[][], userId: string, playlistName: string) {
   console.log(trackIdsToAdd);
 
   let retryCount = 0;
@@ -24,7 +24,7 @@ export const addToSptLikePlaylist = async function (trackIdsToAdd: string[][], u
       const playlistId = await findOrCreatePlaylist(playlistName, access_Token);
       
       console.log("🚀 Sending these track IDs to Spotify:", validTrackIds);
-      await addToLikePlaylist(validTrackIds, playlistId, access_Token);
+      await addToPlaylist(validTrackIds, playlistId, access_Token);
       return;
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 401) {
@@ -40,7 +40,7 @@ export const addToSptLikePlaylist = async function (trackIdsToAdd: string[][], u
   }
 };
 
-const addToLikePlaylist = async (trackIdsToAdd: string[], playlistId: string, access_Token: string) => {
+const addToPlaylist = async (trackIdsToAdd: string[], playlistId: string, access_Token: string) => {
   try {
     const response = await axios.post(
       `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,

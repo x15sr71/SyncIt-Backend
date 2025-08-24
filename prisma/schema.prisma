@@ -94,7 +94,8 @@ model YouTubeData {
 model PlaylistMigration {
   id                  String   @id @default(cuid())
   userId              String
-  playlistId          String
+  sourcePlaylistId    String
+  destinationPlaylistId String?
   sourcePlatform      String
   destinationPlatform String
   sourceTrackIds      String[]
@@ -102,5 +103,5 @@ model PlaylistMigration {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  @@unique([userId, playlistId, sourcePlatform, destinationPlatform])
+  @@unique([userId, sourcePlaylistId, sourcePlatform, destinationPlatform])
 }
