@@ -119,4 +119,3 @@ model PlaylistMigration {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, sourcePlaylistId, sourcePlatform, destinationPlatform])
 }
-
