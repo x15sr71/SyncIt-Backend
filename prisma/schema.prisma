@@ -104,4 +104,3 @@ model PlaylistMigration {
 
   @@unique([userId, playlistId, sourcePlatform, destinationPlatform])
 }
-
