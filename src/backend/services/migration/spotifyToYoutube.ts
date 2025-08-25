@@ -112,7 +112,7 @@ export async function migrateSpotifyPlaylistToYoutube(
   const existingMigration = await prisma.playlistMigration.findFirst({
     where: {
       userId: userId,
-      playlistId: spotifyPlaylistId,
+      sourcePlaylistId: spotifyPlaylistId,
       sourcePlatform: "SPOTIFY",
       destinationPlatform: "YOUTUBE"
     },
@@ -288,9 +288,9 @@ ${chunk}
   // 🆕 Save migration state to database
   const saveMigrationData = await prisma.playlistMigration.upsert({
     where: {
-      userId_playlistId_sourcePlatform_destinationPlatform: {
+      userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {
         userId: userId,
-        playlistId: spotifyPlaylistId,
+        sourcePlaylistId: spotifyPlaylistId,
         sourcePlatform: "SPOTIFY",
         destinationPlatform: "YOUTUBE",
       },
@@ -304,7 +304,7 @@ ${chunk}
     },
     create: {
       userId: userId,
-      playlistId: spotifyPlaylistId,
+      sourcePlaylistId: spotifyPlaylistId,
       sourcePlatform: "SPOTIFY",
       destinationPlatform: "YOUTUBE",
       sourceTrackIds: allSuccessfulTrackIds,
