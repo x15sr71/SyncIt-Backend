@@ -1,6 +1,6 @@
 // src/jobs/migrationCronJob.ts
-import cron from "node-cron";
-import { MigrationCronService } from "../backend/services/migration/migrationCronService";
+import * as cron from "node-cron";
+import { MigrationCronService } from "../cron/migrationCronService";
 
 export class MigrationCronJob {
   private static job: cron.ScheduledTask | null = null;
@@ -21,11 +21,10 @@ export class MigrationCronJob {
         console.error("[MigrationCronJob] Cron execution failed:", error);
       }
     }, {
-      scheduled: false,
+      scheduled: true, // ✅ Fixed: this option is valid
       timezone: "UTC"
     });
 
-    this.job.start();
     console.log("[MigrationCronJob] Migration cron job started (every 10 minutes)");
     
     // Optionally run immediately on startup
