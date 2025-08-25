@@ -49,7 +49,8 @@ export async function migrateYoutubePlaylistToSpotify(
 export const migrateYoutubeToSpotifyService = async (
   userId: string,
   playlistId: string,
-  playlistName: string
+  playlistName: string,
+  destinationPlaylistId?: string
 ) => {
   const youtubeUserId = await prisma.youTubeData.findFirst({
     where: { userId },
@@ -64,11 +65,14 @@ export const migrateYoutubeToSpotifyService = async (
   const allYoutubeTracks = await searchYoutubeTracks(userId, playlistId);
 
   // 🆕 Deduplicate YouTube tracks by trackId before processing
-  const uniqueYoutubeTracks = allYoutubeTracks.data.filter((track, index, self) => 
-    index === self.findIndex(t => t.trackId === track.trackId)
+  const uniqueYoutubeTracks = allYoutubeTracks.data.filter(
+    (track, index, self) =>
+      index === self.findIndex((t) => t.trackId === track.trackId)
   );
 
-  console.log(`[Service] Original tracks: ${allYoutubeTracks.data.length}, Unique tracks: ${uniqueYoutubeTracks.length}`);
+  console.log(
+    `[Service] Original tracks: ${allYoutubeTracks.data.length}, Unique tracks: ${uniqueYoutubeTracks.length}`
+  );
 
   const formattedYoutubeTracks = trimTrackDescriptions(
     uniqueYoutubeTracks, // 🆕 Use deduplicated tracks
@@ -87,39 +91,41 @@ export const migrateYoutubeToSpotifyService = async (
   const existingMigration = await prisma.playlistMigration.findFirst({
     where: {
       userId: userId,
-      playlistId: playlistId,
+      sourcePlaylistId: playlistId,
       sourcePlatform: "YOUTUBE",
-      destinationPlatform: "SPOTIFY"
+      destinationPlatform: "SPOTIFY",
     },
     select: {
-      sourceTrackIds: true
-    }
+      sourceTrackIds: true,
+    },
   });
 
   const existingTrackIds = existingMigration?.sourceTrackIds || [];
   console.log("Existing track IDs in migration:", existingTrackIds);
 
   // 🆕 Filter out tracks that already exist in the migration
-  const newTracksOnly = uniqueYoutubeTracks.filter(track => 
-    !existingTrackIds.includes(track.trackId)
+  const newTracksOnly = uniqueYoutubeTracks.filter(
+    (track) => !existingTrackIds.includes(track.trackId)
   );
-  
+
   const formattedNewTracksOnly = trimTrackDescriptions(newTracksOnly, 750);
-  
+
   console.log(`Total YouTube tracks: ${uniqueYoutubeTracks.length}`);
   console.log(`Already migrated tracks: ${existingTrackIds.length}`);
   console.log(`New tracks to process: ${newTracksOnly.length}`);
 
   // If no new tracks to process, skip the LLM processing
   if (!newTracksOnly.length) {
-    console.log("No new tracks to migrate. All tracks already exist in migration.");
+    console.log(
+      "No new tracks to migrate. All tracks already exist in migration."
+    );
     return {
       bestMatches: {},
       trackIdsToAdd: [],
       done: "done",
       numberOfTracksAdded: 0,
       failedTrackDetails: [],
-      message: "No new tracks to migrate"
+      message: "No new tracks to migrate",
     };
   }
 
@@ -232,7 +238,11 @@ export const migrateYoutubeToSpotifyService = async (
   console.log(`Unique Spotify tracks to add: ${uniqueSpotifyTrackIds.length}`);
 
   if (trackIdsToAdd.length !== uniqueSpotifyTrackIds.length) {
-    console.warn(`⚠️ Found ${trackIdsToAdd.length - uniqueSpotifyTrackIds.length} duplicate Spotify track(s) - removing duplicates`);
+    console.warn(
+      `⚠️ Found ${
+        trackIdsToAdd.length - uniqueSpotifyTrackIds.length
+      } duplicate Spotify track(s) - removing duplicates`
+    );
   }
 
   // 🆕 Combine existing track IDs with new successful ones
@@ -240,9 +250,9 @@ export const migrateYoutubeToSpotifyService = async (
 
   const saveYoutubeTrackIds = await prisma.playlistMigration.upsert({
     where: {
-      userId_playlistId_sourcePlatform_destinationPlatform: {
+      userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {
         userId: userId,
-        playlistId: playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform: "YOUTUBE",
         destinationPlatform: "SPOTIFY",
       },
@@ -260,7 +270,7 @@ export const migrateYoutubeToSpotifyService = async (
     },
     create: {
       userId: userId,
-      playlistId: playlistId,
+      sourcePlaylistId: playlistId,
       sourcePlatform: "YOUTUBE",
       destinationPlatform: "SPOTIFY",
       sourceTrackIds: allSuccessfulTrackIds, // 🆕 Use combined track IDs

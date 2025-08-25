@@ -3,7 +3,7 @@ import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../../auth/spoti
 
 const MAX_RETRIES = 5;
 
-export const addToSptPlaylist = async function (trackIdsToAdd: string[][], userId: string, playlistName: string) {
+export const addToSptPlaylist = async function (trackIdsToAdd: string[][], userId: string, playlistName: string,  destinationPlaylistId?: string) {
   console.log(trackIdsToAdd);
 
   let retryCount = 0;
