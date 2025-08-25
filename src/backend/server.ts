@@ -27,8 +27,6 @@ import migrateYoutubeToSpotifyHandler from "./routes/migrateYoutubeToSpotify.rou
 import getNotFoundTracksRouter from "./routes/getNotFoundTracks.route";
 import spotifyActionsRouter from "./routes/routes/spotifyActions.routes";
 import youtubeactionrouter from "./routes/routes/youtubeActions.routes";
-import { MigrationCronJob } from "../jobs/migrationCronJob";
-import migrationRoutes from "../backend/routes/migration.routes";
 
 dotenv.config();
 const app = express();
@@ -63,8 +61,12 @@ app.use("/", migrateYoutubeToSpotifyHandler);
 app.use("/", getNotFoundTracksRouter);
 app.use("/spotify", spotifyActionsRouter);
 app.use("/youtube", youtubeactionrouter);
-app.get("/sessionmid", sessionMiddleware);
-app.use("/api/migration", migrationRoutes);
+
+app.get('/sessionmid', sessionMiddleware)
+app.use("/api/auto-sync", autoSyncRoutes);
+
+SyncCronJob.start();
+
 
 // Start the cron job when server starts
 MigrationCronJob.start();
