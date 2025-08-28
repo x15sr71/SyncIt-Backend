@@ -4,7 +4,7 @@ The SyncIt Backend is a robust and scalable Express.js application that powers S
 
 Built with a modular design, the backend ensures seamless extensibility, making it easy to integrate additional platforms like Apple Music, Deezer, and more. As the core engine of the SyncIt ecosystem, it efficiently handles cation, API requests, data processing, and synchronization tasks with high performance and reliability. Designed for scalability and future enhancements, SyncIt provides a flexible foundation for cross-platform music management.
 
-SyncIt waitlist is live! 🚀🎵 Join now: https://syncit.org.in/ 🔥
+SyncIt waitlist is live! 🚀🎵 Join the waitlist now: https://syncit.org.in/ 🔥
 
 ## 🚀 Features (Planned & In Development) ✨ – SyncIt Backend
 
@@ -34,7 +34,7 @@ SyncIt Backend is built with modern technologies for performance, scalability, a
 - Redis (ioredis) (Planned) – Used for caching frequently accessed data, reducing API calls, and improving performance.
 - esbuild – High-performance bundler for efficient TypeScript compilation.
 
-🔐 Security & 
+🔐 Security 
 
 - OAuth 2.0 – Secure authentication for Spotify, YouTube, and other platforms.
 - express-session – Manages user sessions securely.
@@ -63,9 +63,10 @@ SyncIt-Client/
         server.ts    
     ├── config/ 
     ├── middlewares/ 
-
+|── tests/
 ├── .gitignore          
 ├── README.md
+|──jest.config.js
 ├── package-lock.json        
 ├── package.json       
 ├── tsconfig.json          
