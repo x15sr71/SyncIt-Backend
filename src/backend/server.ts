@@ -27,6 +27,8 @@ import migrateYoutubeToSpotifyHandler from "./routes/migrateYoutubeToSpotify.rou
 import getNotFoundTracksRouter from "./routes/getNotFoundTracks.route";
 import spotifyActionsRouter from "./routes/routes/spotifyActions.routes";
 import youtubeactionrouter from "./routes/routes/youtubeActions.routes";
+import { MigrationCronJob } from "../jobs/migrationCronJob";
+import migrationRoutes from "./backend/routes/migration.routes";
 
 dotenv.config();
 const app = express();
