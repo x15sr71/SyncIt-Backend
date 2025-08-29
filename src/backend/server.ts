@@ -63,8 +63,11 @@ app.use("/", migrateYoutubeToSpotifyHandler);
 app.use("/", getNotFoundTracksRouter);
 app.use("/spotify", spotifyActionsRouter);
 app.use("/youtube", youtubeactionrouter);
-app.get("/sessionmid", sessionMiddleware);
-// app.use("/api/migration", migrationRoutes);
+
+app.get('/sessionmid', sessionMiddleware)
+app.use("/api/auto-sync", autoSyncRoutes);
+
+SyncCronJob.start();
 
 // Start the cron job when server starts
 MigrationCronJob.start();
