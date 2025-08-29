@@ -28,7 +28,7 @@ import getNotFoundTracksRouter from "./routes/getNotFoundTracks.route";
 import spotifyActionsRouter from "./routes/routes/spotifyActions.routes";
 import youtubeactionrouter from "./routes/routes/youtubeActions.routes";
 import { MigrationCronJob } from "../jobs/migrationCronJob";
-import migrationRoutes from "./backend/routes/migration.routes";
+// import migrationRoutes from "./backend/routes/migration.routes";
 
 dotenv.config();
 const app = express();
@@ -64,7 +64,7 @@ app.use("/", getNotFoundTracksRouter);
 app.use("/spotify", spotifyActionsRouter);
 app.use("/youtube", youtubeactionrouter);
 app.get("/sessionmid", sessionMiddleware);
-app.use("/api/migration", migrationRoutes);
+// app.use("/api/migration", migrationRoutes);
 
 // Start the cron job when server starts
 MigrationCronJob.start();
