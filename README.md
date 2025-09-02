@@ -2,7 +2,7 @@
 # SyncIt Backend
 The SyncIt Backend is a robust and scalable Express.js application that powers SyncIt, a next-generation music synchronization platform. It seamlessly syncs playlists and liked songs across multiple streaming services, including Spotify and YouTube Music, while also supporting effortless playlist migration between platforms.
 
-Built with a modular design, the backend ensures seamless extensibility, making it easy to integrate additional platforms like Apple Music, Deezer, and more. As the core engine of the SyncIt ecosystem, it efficiently handles cation, API requests, data processing, and synchronization tasks with high performance and reliability. Designed for scalability and future enhancements, SyncIt provides a flexible foundation for cross-platform music management.
+Built with a modular design, the backend ensures seamless extensibility, making it easy to integrate additional platforms like Apple Music, Deezer, and more. As the core engine of the SyncIt ecosystem, it efficiently handles cation, API requests, data processing, and synchronization tasks with high performance and reliability. Designed for scalability and future enhancements, SyncIt provides a flexible foundation for cross-platform music management and future platforms integrations.
 
 SyncIt waitlist is live! 🚀🎵 Join the waitlist now: https://syncit.org.in/ 🔥
 
