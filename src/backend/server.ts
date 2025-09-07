@@ -81,33 +81,43 @@ const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// Graceful shutdown handler - UPDATED
-const cleanup = async () => {
-  console.log("Shutting down server...");
+let isShuttingDown = false;
+
+const cleanup = async (signal?: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`\nReceived ${signal || "shutdown request"}, cleaning up...`);
 
   // Force shutdown timer
   const shutdownTimeout = setTimeout(() => {
     console.error("Forcing shutdown due to timeout.");
     process.exit(1);
   }, 10000);
-
-  shutdownTimeout.unref(); // Allow process to exit if cleanup finishes
+  shutdownTimeout.unref();
 
   try {
     if (redies && redies.quit) {
-      await redies.quit();
-      console.log("Redis connection closed.");
+      try {
+        await redies.quit();
+        console.log("Redis connection closed.");
+      } catch (err) {
+        console.error("Error closing Redis:", err);
+      }
     }
 
-    server.close((err) => {
-      if (err) {
-        console.error("Error closing server:", err);
-        process.exit(1);
-      } else {
-        console.log("Server closed, releasing port.");
-        process.exit(0);
-      }
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
+
+    console.log("Server closed, releasing port.");
+    process.exit(0);
   } catch (error) {
     console.error("Error during cleanup:", error);
     process.exit(1);
@@ -115,17 +125,14 @@ const cleanup = async () => {
 };
 
 // Handle termination signals
-process.on("SIGINT", () => {
-  cleanup();
-});
-process.on("SIGTERM", () => {
-  cleanup();
+["SIGINT", "SIGTERM"].forEach((sig) => {
+  process.on(sig, () => cleanup(sig));
 });
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
-  cleanup();
+  cleanup("uncaughtException");
 });
-process.on("unhandledRejection", (reason, promise) => {
+process.on("unhandledRejection", (reason) => {
   console.error("Unhandled Rejection:", reason);
-  cleanup();
+  cleanup("unhandledRejection");
 });
