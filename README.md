@@ -105,3 +105,7 @@ Build for Deployment
 npm run build
 ```
     
+## 🤝 Contributing
+
+We welcome contributions from the community! Whether it’s fixing bugs, improving documentation, or adding new features, your help is always appreciated.  
+Feel free to fork the repo, open issues, or submit pull requests to make SyncIt even better. 🚀
