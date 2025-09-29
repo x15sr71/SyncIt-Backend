@@ -21,6 +21,15 @@ export const getPlaylistsHandler = async (req, res) => {
   let retryCount = 0;
   let accessToken: string | null = await get_SpotifyAccessToken(userId);
 
+  // If there's no access token in DB, we cannot even attempt an API call (nor a refresh)
+  if (!accessToken) {
+    return res.status(401).json({
+      success: false,
+      error: "SPOTIFY_TOKEN_NOT_FOUND",
+      message: "Spotify access token not found. Please log in again.",
+    });
+  }
+
   while (retryCount <= MAX_RETRIES) {
     try {
       const response = await axios.get(SPOTIFY_PLAYLISTS_API, {
@@ -36,6 +45,7 @@ export const getPlaylistsHandler = async (req, res) => {
     } catch (error: any) {
       const status = error?.response?.status;
 
+      // Only try to refresh IF there was a valid access token, and it's expired (401)
       if (status === 401 && retryCount < MAX_RETRIES) {
         console.log("Access token expired. Attempting to refresh...");
         const refreshed = await refreshSpotifyToken(userId);
@@ -65,3 +75,4 @@ export const getPlaylistsHandler = async (req, res) => {
     }
   }
 };
+
