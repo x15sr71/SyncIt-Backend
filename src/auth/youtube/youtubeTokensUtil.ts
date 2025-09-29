@@ -17,16 +17,22 @@ export async function get_YoutubeAccessToken(userId: string): Promise<string | n
       select: { access_token: true }
     });
 
-    if (!accessTokenData?.access_token) {
-      throw new Error('Access token not found');
+    if (!accessTokenData) {
+      console.error("Access token not found: No YouTube data for user");
+      return null;
+    }
+    if (!accessTokenData.access_token) {
+      console.error("Access token not found: Field 'access_token' empty for user");
+      return null;
     }
 
     return accessTokenData.access_token;
   } catch (error) {
-    console.error("Error in fetching YouTube access_token:", error);
+    console.error("Error in fetching YouTube access_token:", error.message);
     return null;
   }
 }
+
 
 export async function refreshYoutubeAccessToken(userId: string): Promise<{
   success: boolean;

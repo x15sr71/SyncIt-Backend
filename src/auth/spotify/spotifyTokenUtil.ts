@@ -17,16 +17,22 @@ export async function get_SpotifyAccessToken(userId: string): Promise<string | n
       select: { access_token: true },
     });
 
-    if (!spotifyData?.access_token) {
-      throw new Error("Access token not found or invalid");
+    if (!spotifyData) {
+      console.error("Access token not found: No Spotify data for user");
+      return null;
+    }
+    if (!spotifyData.access_token) {
+      console.error("Access token not found: Field 'access_token' empty for user");
+      return null;
     }
 
     return spotifyData.access_token;
   } catch (error) {
-    console.error("Error in Spotify fetching access_token:", error.message);
+    console.error("Error in Spotify access_token fetch:", error.message);
     return null;
   }
 }
+
 
 export const refreshSpotifyToken = async (userId: string) => {
   if (!userId || typeof userId !== 'string') {
