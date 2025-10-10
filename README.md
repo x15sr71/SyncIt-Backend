@@ -15,7 +15,7 @@ SyncIt waitlist is live! 🚀🎵 Join the waitlist now: https://syncit.org.in/ 
 - OAuth Authentication: Secure login and access token management for Spotify, YouTube, and other future integrations.
 - Real-Time Data Processing: Syncs and updates user data dynamically, ensuring the latest changes reflect across platforms.
 - Android App Compatibility: Optimized to support a future Android app, extending SyncIt’s functionality to mobile users.
-- Extendable & Modular: Built with flexibility in mind, allowing easy integration of additional music services and new features.
+- Extendable & Modular: Built with flexibility in mind, allowing easy integration of additional music platforms and new features.
 ## Technologies Used 🛠
 SyncIt Backend is built with modern technologies for performance, scalability, and security.
 
