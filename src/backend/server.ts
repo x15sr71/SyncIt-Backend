@@ -27,7 +27,7 @@ import migrateYoutubeToSpotifyHandler from "./routes/migrateYoutubeToSpotify.rou
 import getNotFoundTracksRouter from "./routes/getNotFoundTracks.route";
 import spotifyActionsRouter from "./routes/routes/spotifyActions.routes";
 import youtubeactionrouter from "./routes/routes/youtubeActions.routes";
-import { MigrationCronJob } from "../jobs/migrationCronJob";
+// import { MigrationCronJob } from "../jobs/migrationCronJob";
 // import migrationRoutes from "./backend/routes/migration.routes";
 
 dotenv.config();
@@ -67,7 +67,7 @@ app.get("/sessionmid", sessionMiddleware);
 // app.use("/api/migration", migrationRoutes);
 
 // Start the cron job when server starts
-MigrationCronJob.start();
+// MigrationCronJob.start();
 
 app.post("/sync-playlists", async (req, res) => {
   const { spotifyToken, youtubeToken } = req.body;

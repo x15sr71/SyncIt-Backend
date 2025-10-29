@@ -16,8 +16,9 @@ export const handleGoogleLogin = async (req, res) => {
 
   if (sessionId) {
     const sessionData = await redis.get(`session:${sessionId}`);
+    console.log("Session Data:", sessionData);
     if (sessionData) {
-      return res.redirect("https://syncit-app-1.vercel.app/dashboard"); // ✅ Already logged in
+      return res.redirect("http://localhost:3000/dashboard"); // ✅ Already logged in
     }
   }
 
@@ -125,7 +126,7 @@ export const handleGoogleCallback = async (req, res) => {
     });
 
     // ✅ Redirect to frontend dashboard after successful authentication
-    return res.redirect("https://syncit-app-1.vercel.app/dashboard");
+    return res.redirect("http://localhost:3000/dashboard");
   } catch (error) {
     return res.status(400).json({
       error: "Google authentication failed.",
