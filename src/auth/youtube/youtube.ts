@@ -68,25 +68,16 @@ export const handleYouTubeCallback = async (req, res) => {
 
     const { access_token, refresh_token } = response.data;
     console.log("*******************");
-    console.log(refresh_token);
+    console.log("Refresh token:", refresh_token);
 
-    if (!refresh_token) {
-      console.log(
-        "⚠️ No refresh_token received. This may be due to prior authorization."
-      );
-    }
-
-    // Fetch user profile data from Google
+    // Fetch user profile data
     const profileResponse = await axios.get(
       "https://www.googleapis.com/oauth2/v1/userinfo",
-      {
-        headers: { Authorization: `Bearer ${access_token}` },
-      }
+      { headers: { Authorization: `Bearer ${access_token}` } }
     );
 
     const { name, picture, email } = profileResponse.data;
 
-    // 🔍 Check if user already exists in the database
     let user = await prisma.user.findUnique({ where: { id: userId } });
 
     if (!user) {
@@ -95,11 +86,10 @@ export const handleYouTubeCallback = async (req, res) => {
         error: "AUTH_ERROR",
         message: "User session not found. Please log in again.",
       });
-    } else {
-      console.log("✅ Existing user:", user.id, user.email);
     }
 
-    // 🔍 Check if the user already has YouTube data stored
+    console.log(" Existing user:", user.id, user.email);
+
     const existingYouTubeData = await prisma.youTubeData.findFirst({
       where: { userId: user.id },
     });
@@ -115,7 +105,7 @@ export const handleYouTubeCallback = async (req, res) => {
         },
       });
     } else {
-      console.log("🆕 No existing YouTube data, creating new entry...");
+      console.log("🆕 Creating new YouTube data entry...");
       await prisma.youTubeData.create({
         data: {
           userId: user.id,
@@ -128,26 +118,27 @@ export const handleYouTubeCallback = async (req, res) => {
       });
     }
 
-    console.log("✅ YouTube data stored for:", user.id);
-
-    // ✅ Send detailed JSON response (instead of redirect)
-    return res.status(200).json({
+    const responsePayload = {
       status: "success",
       message: "YouTube login successful",
       userId: user.id,
       username: name,
       picture: picture,
       email: email,
-    });
+    };
+
+    //  Log the full JSON response to backend logs
+    console.log("🔁 Final Response to Frontend:", JSON.stringify(responsePayload, null, 2));
+
+    //  Redirect user to frontend dashboard
+    return res.redirect("http://localhost:3000/dashboard");
   } catch (error) {
-    console.error(
-      "YouTube OAuth Error:",
-      error.response?.data || error.message
-    );
+    console.error("YouTube OAuth Error:", error.response?.data || error.message);
     return res.status(400).json({
       error: "YouTube authentication failed.",
       details: error.response?.data || error.message,
     });
   }
 };
+
 

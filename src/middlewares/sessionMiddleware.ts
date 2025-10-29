@@ -1,7 +1,11 @@
 import redis from "../config/redis";
 import prisma from "../db";
 
-type SessionData = { id: string; email: string } | null;
+type SessionData = {
+  id: string;
+  email: string;
+  expiresAt?: string; // ✅ optional field to store expiry in Redis
+} | null;
 
 const sessionMiddleware = async (req, res, next) => {
   try {
@@ -16,33 +20,52 @@ const sessionMiddleware = async (req, res, next) => {
     let sessionData: SessionData = null;
 
     // Check Redis for session
-    let redisSession = await redis.get(`session:${sessionId}`);
+    const redisSession = await redis.get(`session:${sessionId}`);
     console.log("[SESSION] Redis session data:", redisSession);
 
     if (redisSession) {
       try {
-        sessionData = JSON.parse(redisSession);
-        console.log("[SESSION] Parsed Redis session data:", sessionData);
+        const parsed = JSON.parse(redisSession);
+
+        // ✅ Ensure type correctness
+        if (parsed?.expiresAt && new Date() > new Date(parsed.expiresAt)) {
+          console.log("[SESSION] Redis session expired, removing...");
+          await redis.del(`session:${sessionId}`);
+        } else {
+          sessionData = parsed;
+          console.log("[SESSION] Parsed Redis session data:", sessionData);
+        }
       } catch (err) {
-        console.warn(
-          "[SESSION] Failed to parse Redis session. Removing corrupt data..."
-        );
+        console.warn("[SESSION] Failed to parse Redis session. Removing corrupt data...");
         await redis.del(`session:${sessionId}`);
       }
     }
 
     // If not in Redis, check DB
     if (!sessionData) {
-      console.log(
-        "[SESSION] Session not found in Redis, checking PostgreSQL..."
-      );
+      console.log("[SESSION] Session not found in Redis, checking PostgreSQL...");
       const dbSession = await prisma.session.findUnique({
         where: { session_id: sessionId },
+        select: { session_id: true, user_id: true, expires_at: true },
       });
 
       console.log("[SESSION] DB session:", dbSession);
 
       if (dbSession?.user_id) {
+        // ✅ Proper expiry validation
+        const now = new Date();
+        const expiresAt = new Date(dbSession.expires_at);
+
+        if (now > expiresAt) {
+          console.log("[SESSION] DB session expired, deleting...");
+          try {
+            await prisma.session.delete({ where: { session_id: sessionId } });
+          } catch (err) {
+            console.warn("[SESSION] Failed to delete expired session:", err.message);
+          }
+          return res.status(401).json({ message: "Session expired" });
+        }
+
         const userInfo = await prisma.user.findUnique({
           where: { id: dbSession.user_id },
           select: { email: true },
@@ -51,11 +74,23 @@ const sessionMiddleware = async (req, res, next) => {
         console.log("[SESSION] User info from DB:", userInfo);
 
         if (userInfo) {
-          sessionData = { id: dbSession.user_id, email: userInfo.email };
+          sessionData = {
+            id: dbSession.user_id,
+            email: userInfo.email,
+            expiresAt: expiresAt.toISOString(), // ✅ store expiry as string for Redis
+          };
+
           console.log("[SESSION] Restoring session in Redis...");
+
+          // ✅ TTL based on DB expiry (type-safe)
+          const ttlSeconds = Math.max(
+            0,
+            Math.floor((expiresAt.getTime() - now.getTime()) / 1000)
+          );
+
           await redis.setex(
             `session:${sessionId}`,
-            parseInt(process.env.SESSION_TTL || "86400"),
+            ttlSeconds || parseInt(process.env.SESSION_TTL || "86400"),
             JSON.stringify(sessionData)
           );
         }
@@ -63,9 +98,7 @@ const sessionMiddleware = async (req, res, next) => {
     }
 
     if (!sessionData) {
-      console.log(
-        "[SESSION] No session data found after DB check. Unauthorized."
-      );
+      console.log("[SESSION] No session data found after DB check. Unauthorized.");
       return res.status(401).json({ message: "Unauthorized" });
     }
 
