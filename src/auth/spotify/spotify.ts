@@ -1,4 +1,4 @@
-import prisma from "../../db/index";
+import prisma from "../../db/prisma";
 import axios from "axios";
 import querystring from "querystring";
 
@@ -108,14 +108,9 @@ export const handleSpotifyCallback = async (req, res) => {
       console.log("******************************");
     }
 
-    return res.status(200).json({
-      status: "success",
-      message: "Spotify login successful.",
-      userId,
-      spotify_user_id: id,
-      username: display_name,
-      picture: profile_picture,
-    });
+    console.log("Spotify authentication successful for user:", userId);
+
+    res.redirect("http://localhost:3000/dashboard"); // Redirect to frontend sync page
   } catch (error) {
     console.error(
       "Spotify OAuth Error:",

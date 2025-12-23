@@ -5,7 +5,7 @@ import { trimTrackDescriptions } from "../../utility/trim";
 import { searchTracksOnSpotify } from "../search/searchSpotify/searchSpotify";
 import { callOpenAIModel } from "../../openAI/getBestMatch";
 import { addToSptPlaylist } from "../addTo/addToSptPlaylist";
-import prisma from "../../../db";
+import prisma from "../../../db/prisma";
 
 const MAX_LLM_CHUNK_CHARS = 10000;
 

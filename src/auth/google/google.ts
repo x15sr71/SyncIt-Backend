@@ -1,4 +1,4 @@
-import prisma from "../../db/index";
+import prisma from "../../db/prisma";
 import axios from "axios";
 import querystring from "querystring";
 import dotenv from "dotenv";

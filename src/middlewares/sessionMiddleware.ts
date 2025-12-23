@@ -1,5 +1,5 @@
 import redis from "../config/redis";
-import prisma from "../db";
+import prisma from "../db/prisma";
 
 type SessionData = {
   id: string;
@@ -9,6 +9,10 @@ type SessionData = {
 
 const sessionMiddleware = async (req, res, next) => {
   try {
+    // ✅ Prevent duplicate executions in a single request
+    if (req._sessionChecked) return next();
+    req._sessionChecked = true;
+
     let sessionId = req.cookies?.sessionId || req.headers?.authorization;
     console.log("[SESSION] Extracted session ID:", sessionId);
 
@@ -31,6 +35,7 @@ const sessionMiddleware = async (req, res, next) => {
         if (parsed?.expiresAt && new Date() > new Date(parsed.expiresAt)) {
           console.log("[SESSION] Redis session expired, removing...");
           await redis.del(`session:${sessionId}`);
+          res.clearCookie("sessionId");
         } else {
           sessionData = parsed;
           console.log("[SESSION] Parsed Redis session data:", sessionData);
@@ -52,9 +57,9 @@ const sessionMiddleware = async (req, res, next) => {
       console.log("[SESSION] DB session:", dbSession);
 
       if (dbSession?.user_id) {
-        // ✅ Proper expiry validation
-        const now = new Date();
-        const expiresAt = new Date(dbSession.expires_at);
+        // ✅ Proper expiry validation (UTC safe)
+        const now = Date.now();
+        const expiresAt = new Date(dbSession.expires_at).getTime();
 
         if (now > expiresAt) {
           console.log("[SESSION] DB session expired, deleting...");
@@ -63,6 +68,8 @@ const sessionMiddleware = async (req, res, next) => {
           } catch (err) {
             console.warn("[SESSION] Failed to delete expired session:", err.message);
           }
+          await redis.del(`session:${sessionId}`);
+          res.clearCookie("sessionId");
           return res.status(401).json({ message: "Session expired" });
         }
 
@@ -77,7 +84,7 @@ const sessionMiddleware = async (req, res, next) => {
           sessionData = {
             id: dbSession.user_id,
             email: userInfo.email,
-            expiresAt: expiresAt.toISOString(), // ✅ store expiry as string for Redis
+            expiresAt: new Date(expiresAt).toISOString(), // ✅ store expiry as string for Redis
           };
 
           console.log("[SESSION] Restoring session in Redis...");
@@ -85,7 +92,7 @@ const sessionMiddleware = async (req, res, next) => {
           // ✅ TTL based on DB expiry (type-safe)
           const ttlSeconds = Math.max(
             0,
-            Math.floor((expiresAt.getTime() - now.getTime()) / 1000)
+            Math.floor((expiresAt - now) / 1000)
           );
 
           await redis.setex(

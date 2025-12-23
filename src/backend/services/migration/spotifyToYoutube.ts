@@ -6,7 +6,7 @@ import { searchTracksOnYoutubeService } from "../../services/search/searchYoutub
 import { callOpenAIModel } from "../../openAI/getBestMatch";
 import { getSpotifyPlaylistContent } from "../../services/getPlaylistContent/getSpotifyPlaylistContent";
 import { addToYoutubePlaylist } from "../../services/addTo/addToYoutube";
-import prisma from "../../../db";
+import prisma from "../../../db/prisma";
 
 const MAX_LLM_CHUNK_CHARS = 10000;
 

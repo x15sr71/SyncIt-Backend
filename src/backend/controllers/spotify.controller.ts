@@ -1,5 +1,5 @@
 import axios, { AxiosError } from "axios";
-import prisma from "../../db";
+import prisma from "../../db/prisma";
 import { get_SpotifyAccessToken, refreshSpotifyToken } from "../../auth/spotify/spotifyTokenUtil";
 import { hashId } from "../utility/encrypt";
 

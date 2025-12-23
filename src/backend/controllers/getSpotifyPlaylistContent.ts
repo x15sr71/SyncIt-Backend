@@ -2,7 +2,7 @@ import { getSpotifyPlaylistContent } from "../services/getPlaylistContent/getSpo
 
 export const getSpotifyPlaylistContentHandler = async (req, res) => {
   const userId = req.session?.id;
-  const { playlistIds } = req.body; // ✅ read playlistIds from POST body
+  const { playlistIds } = req.body; // read playlistIds from POST body
 
   if (!userId || !Array.isArray(playlistIds) || playlistIds.length === 0) {
     return res.status(400).json({
@@ -13,7 +13,14 @@ export const getSpotifyPlaylistContentHandler = async (req, res) => {
   }
 
   try {
-    const tracks = await getSpotifyPlaylistContent(userId, playlistIds);
+    // Fetch all playlists in parallel if getSpotifyPlaylistContent expects a single ID
+    const tracksArray = await Promise.all(
+      playlistIds.map((id) => getSpotifyPlaylistContent(userId, id))
+    );
+
+    // Flatten if each call returns an array of tracks
+    const tracks = tracksArray.flat();
+
     console.log("Received playlistIds:", playlistIds);
     return res.json({ success: true, data: tracks });
   } catch (err) {
