@@ -41,7 +41,9 @@ const sessionMiddleware = async (req, res, next) => {
           console.log("[SESSION] Parsed Redis session data:", sessionData);
         }
       } catch (err) {
-        console.warn("[SESSION] Failed to parse Redis session. Removing corrupt data...");
+        console.warn(
+          "[SESSION] Failed to parse Redis session. Removing corrupt data..."
+        );
         await redis.del(`session:${sessionId}`);
       }
     }
@@ -49,6 +51,7 @@ const sessionMiddleware = async (req, res, next) => {
     // If not in Redis, check DB
     if (!sessionData) {
       console.log("[SESSION] Session not found in Redis, checking PostgreSQL...");
+
       const dbSession = await prisma.session.findUnique({
         where: { session_id: sessionId },
         select: { session_id: true, user_id: true, expires_at: true },
@@ -64,10 +67,16 @@ const sessionMiddleware = async (req, res, next) => {
         if (now > expiresAt) {
           console.log("[SESSION] DB session expired, deleting...");
           try {
-            await prisma.session.delete({ where: { session_id: sessionId } });
-          } catch (err) {
-            console.warn("[SESSION] Failed to delete expired session:", err.message);
+            await prisma.session.delete({
+              where: { session_id: sessionId },
+            });
+          } catch (err: any) {
+            console.warn(
+              "[SESSION] Failed to delete expired session:",
+              err?.message
+            );
           }
+
           await redis.del(`session:${sessionId}`);
           res.clearCookie("sessionId");
           return res.status(401).json({ message: "Session expired" });
@@ -105,15 +114,25 @@ const sessionMiddleware = async (req, res, next) => {
     }
 
     if (!sessionData) {
-      console.log("[SESSION] No session data found after DB check. Unauthorized.");
+      console.log(
+        "[SESSION] No session data found after DB check. Unauthorized."
+      );
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     console.log("[SESSION] Session validated successfully:", sessionData);
     req.session = sessionData;
     next();
-  } catch (error) {
+  } catch (error: any) {
     console.error("[SESSION] Middleware error:", error);
+
+    // After bootstrap, infra errors should be rare — fail gracefully
+    if (error?.name?.includes("Prisma")) {
+      return res
+        .status(503)
+        .json({ message: "Service temporarily unavailable" });
+    }
+
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
