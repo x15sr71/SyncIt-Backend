@@ -1,6 +1,6 @@
 // src/backend/services/migration/migrationCronService.ts
 
-import prisma from "../db";
+import prisma from "../db/prisma";
 import { migrateYoutubeToSpotifyService } from "../backend/services/migration/youtubeToSpotify";
 
 interface MigrationData {
