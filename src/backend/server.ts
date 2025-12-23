@@ -74,6 +74,11 @@ app.use("/", getNotFoundTracksRouter);
 app.use("/spotify", spotifyActionsRouter);
 app.use("/youtube", youtubeactionrouter);
 
+app.get('/sessionmid', sessionMiddleware)
+app.use("/api/auto-sync", autoSyncRoutes);
+
+SyncCronJob.start();
+
 app.get("/sessionmid", sessionMiddleware);
 
 app.post("/sync-playlists", async (req, res) => {
