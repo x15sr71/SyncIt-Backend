@@ -2,9 +2,9 @@
 # SyncIt Backend
 The SyncIt Backend is a robust and scalable Express.js application that powers SyncIt, a next-generation music synchronization platform. It seamlessly syncs playlists and liked songs across multiple streaming services, including Spotify and YouTube Music, while also supporting effortless playlist migration between platforms.
 
-Built with a modular design, the backend ensures seamless extensibility, making it easy to integrate additional platforms like Apple Music, Deezer, and more. As the core engine of the SyncIt ecosystem, it efficiently handles cation, API requests, data processing, and synchronization tasks with high performance and reliability. Designed for scalability and future enhancements, SyncIt provides a flexible foundation for cross-platform music management.
+Built with a modular design, the backend ensures seamless extensibility, making it easy to integrate additional platforms like Apple Music, Deezer, and more. As the core engine of the SyncIt ecosystem, it efficiently handles cation, API requests, data processing, and synchronization tasks with high performance and reliability. Designed for scalability and future enhancements, SyncIt provides a flexible foundation for cross-platform music management and future platforms integrations.
 
-SyncIt waitlist is live! 🚀🎵 Join now: https://syncit.org.in/ 🔥
+SyncIt waitlist is live! 🚀🎵 Join the waitlist now: https://syncit.org.in/ 🔥
 
 ## 🚀 Features (Planned & In Development) ✨ – SyncIt Backend
 
@@ -15,7 +15,7 @@ SyncIt waitlist is live! 🚀🎵 Join now: https://syncit.org.in/ 🔥
 - OAuth Authentication: Secure login and access token management for Spotify, YouTube, and other future integrations.
 - Real-Time Data Processing: Syncs and updates user data dynamically, ensuring the latest changes reflect across platforms.
 - Android App Compatibility: Optimized to support a future Android app, extending SyncIt’s functionality to mobile users.
-- Extendable & Modular: Built with flexibility in mind, allowing easy integration of additional music services and new features.
+- Extendable & Modular: Built with flexibility in mind, allowing easy integration of additional music platforms and new features.
 ## Technologies Used 🛠
 SyncIt Backend is built with modern technologies for performance, scalability, and security.
 
@@ -34,7 +34,7 @@ SyncIt Backend is built with modern technologies for performance, scalability, a
 - Redis (ioredis) (Planned) – Used for caching frequently accessed data, reducing API calls, and improving performance.
 - esbuild – High-performance bundler for efficient TypeScript compilation.
 
-🔐 Security & 
+🔐 Security 
 
 - OAuth 2.0 – Secure authentication for Spotify, YouTube, and other platforms.
 - express-session – Manages user sessions securely.
@@ -63,9 +63,10 @@ SyncIt-Client/
         server.ts    
     ├── config/ 
     ├── middlewares/ 
-
+|── tests/
 ├── .gitignore          
 ├── README.md
+|──jest.config.js
 ├── package-lock.json        
 ├── package.json       
 ├── tsconfig.json          
@@ -104,3 +105,7 @@ Build for Deployment
 npm run build
 ```
     
+## 🤝 Contributing
+
+We welcome contributions from the community! Whether it’s fixing bugs, improving documentation, or adding new features, your help is always appreciated.  
+Feel free to fork the repo, open issues, or submit pull requests to make SyncIt even better. 🚀

@@ -1,5 +1,5 @@
 import axios from "axios";
-import prisma from "../../db";
+import prisma from "../../db/prisma";
 import querystring from "querystring";
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;

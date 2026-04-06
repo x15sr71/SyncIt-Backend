@@ -1,4 +1,4 @@
-import prisma from "../../../db";
+import prisma from "../../../db/prisma";
 
 export const getNotFoundTracksFromYoutube = async (userId: string) => {
   try {
