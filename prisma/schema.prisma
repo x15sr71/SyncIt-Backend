@@ -2,11 +2,12 @@
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url is now configured in prisma.config.ts (deprecated here in v7)
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 // Enum to define primary sync service
@@ -17,34 +18,33 @@ enum PrimaryService {
 
 // Model for storing user details
 model User {
-  id              String       @id @default(uuid())
-  email           String       @unique
-  username        String       @unique
-  profilePicture  String?
-  access_token    String
-  refresh_token   String?
-  createdAt       DateTime     @default(now())
+  id             String          @id @default(uuid())
+  email          String          @unique
+  username       String          @unique
+  profilePicture String?
+  access_token   String
+  refresh_token  String?
+  createdAt      DateTime        @default(now())
 
   // Sync settings
-  keepInSync      Boolean      @default(true)
-  primaryService  PrimaryService? 
+  keepInSync     Boolean         @default(true)
+  primaryService PrimaryService?
 
   // Last sync details
-  lastSyncTime    DateTime?
-  lastSyncTracks  Json?
+  lastSyncTime   DateTime?
+  lastSyncTracks Json?
 
   // Relations
-  spotifyTokens   SpotifyData[] @relation(name: "UserSpotifyTokens")
-  youtubeTokens   YouTubeData[] @relation(name: "UserYouTubeTokens")
-
-  sessions        Session[] // ✅ Corrected to be plural
+  spotifyTokens  SpotifyData[]   @relation(name: "UserSpotifyTokens")
+  youtubeTokens  YouTubeData[]   @relation(name: "UserYouTubeTokens")
+  sessions       Session[]
 }
 
 model Session {
-  session_id String  @id @default(uuid()) @map("session_id")
-  user_id    String  @map("user_id")
+  session_id String   @id @default(uuid()) @map("session_id")
+  user_id    String   @map("user_id")
 
-  user       User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   expires_at DateTime @default(dbgenerated("NOW() + INTERVAL '1 day'")) @map("expires_at")
 
@@ -54,8 +54,8 @@ model Session {
 
 // Model for storing Spotify access tokens
 model SpotifyData {
-  id                         String     @id @default(uuid())
-  spotify_user_id            String     @unique 
+  id                         String    @id @default(uuid())
+  spotify_user_id            String    @unique
   username                   String
   picture                    String
   access_token               String
@@ -65,16 +65,17 @@ model SpotifyData {
   last_TrackIds              String?
   notFoundTracks             String?
   retryToFindTracks          String?
-  createdAt                  DateTime @default(now())
+  createdAt                  DateTime  @default(now())
 
   // Relation to User
-  user   User @relation(name: "UserSpotifyTokens", fields: [userId], references: [id])
+  user   User   @relation(name: "UserSpotifyTokens", fields: [userId], references: [id])
   userId String
 }
 
 // Model for storing YouTube access tokens
 model YouTubeData {
-  id                         String      @id @default(uuid())
+  id                         String    @id @default(uuid())
+  youtube_user_id            String    @unique 
   username                   String
   picture                    String
   access_token               String
@@ -84,24 +85,24 @@ model YouTubeData {
   last_TracksIds             String?
   notFoundTracks             String?
   retryToFindTracks          String?
-  createdAt                  DateTime @default(now())
+  createdAt                  DateTime  @default(now())
 
   // Relation to User
-  user   User @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
+  user   User   @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
   userId String
 }
 
 model PlaylistMigration {
-  id                  String   @id @default(cuid())
-  userId              String
-  sourcePlaylistId    String
+  id                    String   @id @default(cuid())
+  userId                String
+  sourcePlaylistId      String
   destinationPlaylistId String?
-  sourcePlatform      String
-  destinationPlatform String
-  sourceTrackIds      String[]
-  migrationCounter    Int
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  sourcePlatform        String
+  destinationPlatform   String
+  sourceTrackIds        String[]
+  migrationCounter      Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@unique([userId, sourcePlaylistId, sourcePlatform, destinationPlatform])
 }

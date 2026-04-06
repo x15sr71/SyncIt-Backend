@@ -1,0 +1,66 @@
+.
+├── dump.rdb
+├── jest.config.js
+├── package-lock.json
+├── package.json
+├── README.md
+├── src
+│   ├── auth
+│   │   ├── google
+│   │   │   └── google.ts
+│   │   ├── spotify
+│   │   │   ├── spotify.ts
+│   │   │   └── spotifyTokenUtil.ts
+│   │   └── youtube
+│   │       ├── youtube.ts
+│   │       └── youtubeTokensUtil.ts
+│   ├── backend
+│   │   ├── controllers
+│   │   │   ├── emptySpotify.controller.ts
+│   │   │   ├── emptyYoutubePlaylist.ts
+│   │   │   ├── getSpotifyPlaylistContent.ts
+│   │   │   ├── getSpotifyPlaylists.controller.ts
+│   │   │   ├── getYoutubePlaylistContent.ts
+│   │   │   ├── getYoutubePlaylists.controller.ts
+│   │   │   ├── migrateSpotifyToYoutube.controller.ts
+│   │   │   ├── migrateYoutubeToSpotify.ts
+│   │   │   ├── spotify.controller.ts
+│   │   │   └── youtube.controller.ts
+│   │   ├── openAI
+│   │   │   └── getBestMatch.ts
+│   │   ├── routes
+│   │   │   ├── emptySpotify.routes.ts
+│   │   │   ├── emptyYoutube.route.ts
+│   │   │   ├── migrateSpotifyToYoutube.router.ts
+│   │   │   ├── migrateYoutubeToSpotify.route.ts
+│   │   │   ├── spotify.routes.ts
+│   │   │   ├── spotifyContent.route.ts
+│   │   │   ├── spotifyGetPlaylists.route.ts
+│   │   │   ├── youtube.routes.ts
+│   │   │   ├── youtubeContent.route.ts
+│   │   │   └── youtubeGetPlaylist.route.ts
+│   │   ├── server.ts
+│   │   ├── services
+│   │   │   ├── addTo
+│   │   │   ├── emptyPlaylist
+│   │   │   ├── getPlaylistContent
+│   │   │   ├── migration
+│   │   │   └── search
+│   │   └── utility
+│   │       ├── convertDuration.ts
+│   │       ├── encrypt.ts
+│   │       └── trim.ts
+│   ├── config
+│   │   └── redis.ts
+│   ├── db
+│   │   └── index.ts
+│   ├── middlewares
+│   │   └── sessionMiddleware.ts
+│   └── scheduler
+├── structure.txt
+├── tests
+│   └── addToYtPlaylist.test.ts
+├── tree.txt
+└── tsconfig.json
+
+22 directories, 42 files
