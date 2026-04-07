@@ -77,31 +77,43 @@ SyncIt Backend is built with modern technologies for performance, scalability, a
 - Axios – HTTP client for making API requests to external services.
 - CORS – Middleware for handling cross-origin requests.
 ## 📂 Project Structure
-```
-SyncIt-Client/
+
+The backend follows a modular, service-oriented architecture with clear separation between routing, business logic, and external integrations.
+
+```text
+SyncIt-Backend/
+├── assets/
+│   └── screenshots/        # UI preview images used in README
 ├── prisma/
-    ├── migrations/
-    ├── schema.prisma - Database models
-    ├── seed.ts - seed file for development
+│   ├── migrations/         # Database migration history
+│   ├── schema.prisma       # Prisma schema (DB models)
+│   └── seed.ts             # Seed script for development
+├── scripts/
+│   └── generateDocs.ts     # Script to generate API docs
 ├── src/
-    ├── OAuth/ - Authentication files
-    ├── Scheduler/ - Cron jobs
-    ├── backend/ 
-        ├── extractTracks - Extract tracks from playlists
-        ├── modify - Modify playlists
-        ├── openAI - LLM 
-        ├── playlistCRUD - Playlist CRUD operations
-        ├── routeHandlers 
-        server.ts    
-    ├── config/ 
-    ├── middlewares/ 
-|── tests/
-├── .gitignore          
-├── README.md
-|──jest.config.js
-├── package-lock.json        
-├── package.json       
-├── tsconfig.json          
+│   ├── auth/               # OAuth integrations (Spotify, YouTube, Google)
+│   ├── backend/
+│   │   ├── controllers/    # Request handlers (business entry points)
+│   │   ├── routes/         # API route definitions
+│   │   ├── services/       # Core business logic (sync, migration, search)
+│   │   ├── openAI/         # LLM-based track matching
+│   │   ├── docs/           # Swagger/OpenAPI definitions
+│   │   ├── utility/        # Helper utilities (encryption, formatting, etc.)
+│   │   └── server.ts       # Express app entry point
+│   ├── config/             # Configuration (Redis, env setup)
+│   ├── cron/               # Cron service logic
+│   ├── jobs/               # Background jobs (sync, migration)
+│   ├── db/                 # Database connection & Prisma client
+│   ├── generated/          # Prisma-generated client (auto-generated, do not edit)
+│   ├── middlewares/        # Express middlewares (sessions, auth)
+│   └── startup/            # App bootstrap logic
+├── tests/                  # Unit and integration tests
+├── openapi-syncit.json     # Generated OpenAPI specification
+├── prisma.config.ts        # Prisma configuration
+├── jest.config.js
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
 
