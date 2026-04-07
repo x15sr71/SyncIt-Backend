@@ -36,6 +36,7 @@ This backend powers the SyncIt frontend, which provides a modern interface for m
 <img src="assets/screenshots/preferences.png" width="800"/>
 <img src="assets/screenshots/settings.png" width="800"/>
 
+</details>
 
 ## 🚀 Features (Planned & In Development) ✨ – SyncIt Backend
 
