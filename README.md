@@ -6,6 +6,37 @@ Built with a modular design, the backend ensures seamless extensibility, making 
 
 SyncIt waitlist is live! 🚀🎵 Join the waitlist now: https://syncit.org.in/ 🔥
 
+## 🖥️ Client Preview
+
+This backend powers the SyncIt frontend, which provides a modern interface for managing and syncing music across platforms.
+
+<p align="center">
+  <img src="assets/screenshots/hero.png" width="800"/>
+</p>
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="assets/screenshots/why-syncit.png" width="400"/><br/>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/how-it-works.png" width="400"/><br/>
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary>▶️ View more screens</summary>
+
+<br>
+<img src="assets/screenshots/login.png" width="800"/>
+<img src="assets/screenshots/dashboard.png" width="800"/>
+<img src="assets/screenshots/confirmation.png" width="800"/>
+<img src="assets/screenshots/completed.png" width="800"/>
+<img src="assets/screenshots/preferences.png" width="800"/>
+<img src="assets/screenshots/settings.png" width="800"/>
+
+
 ## 🚀 Features (Planned & In Development) ✨ – SyncIt Backend
 
 - Scalable Architecture: Built with Express.js, ensuring efficient handling of API requests, authentication, and data synchronization.
