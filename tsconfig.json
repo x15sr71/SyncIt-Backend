@@ -107,6 +107,7 @@
   },
   "include": [
     "src/**/*",           // Include all TypeScript files in the src folder
-    "jest.config.ts"     // Include your Jest config file
+    "jest.config.ts",     // Include your Jest config file
+     "prisma.config.ts"
   ]
 }
