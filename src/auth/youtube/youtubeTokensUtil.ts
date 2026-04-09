@@ -2,8 +2,9 @@ import axios from 'axios';
 import prisma from '../../db/prisma';
 import querystring from 'querystring';
 
-const client_id = process.env.YOUTUBE_CLIENT_ID;
-const client_secret = process.env.YOUTUBE_CLIENT_SECRET;
+// Reuse the shared Google OAuth client credentials
+const client_id = process.env.GOOGLE_CLIENT_ID;
+const client_secret = process.env.GOOGLE_CLIENT_SECRET;
 const REQUEST_TIMEOUT = 10000; // 10 seconds
 
 export async function get_YoutubeAccessToken(userId: string): Promise<string | null> {
@@ -44,7 +45,7 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
   }
 
   if (!client_id || !client_secret) {
-    console.error('Missing YouTube OAuth credentials in environment');
+    console.error('Missing Google OAuth credentials in environment');
     return { success: false, error: 'missing_credentials' };
   }
 
