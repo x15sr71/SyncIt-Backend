@@ -83,21 +83,18 @@ export async function validateOAuthState(
 
   const key = `${STATE_PREFIX}${state}`;
 
-  let raw: string | null;
-  try {
-    // Atomic get-and-delete: retrieve then delete
-    raw = await redis.get(key);
-    if (!raw) {
-      console.warn("[OAuth State] State not found in Redis (expired or replayed)");
-      return null;
-    }
-
-    // Delete immediately to prevent replay
-    await redis.del(key);
-  } catch (err) {
-    console.error("[OAuth State] Redis unavailable during state validation:", (err as Error).message);
+let raw: string | null;
+try {
+  // Atomic get-and-delete: single round-trip, replay-safe (Redis 6.2+)
+  raw = await (redis as any).getdel(key);
+  if (!raw) {
+    console.warn("[OAuth State] State not found in Redis (expired or replayed)");
     return null;
   }
+} catch (err) {
+  console.error("[OAuth State] Redis unavailable during state validation:", (err as Error).message);
+  return null;
+}
 
   try {
     const data: OAuthStateData = JSON.parse(raw);
