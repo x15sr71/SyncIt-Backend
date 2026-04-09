@@ -1,9 +1,8 @@
 import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
-
+import { SyncCronJob } from "../jobs/syncCronJobs";
 import redis from "../config/redis";
 import prisma from "../db/prisma";
 import { bootstrap } from "../startup/bootstrap";
@@ -33,8 +32,8 @@ import migrateYoutubeToSpotifyHandler from "./routes/migrateYoutubeToSpotify.rou
 import getNotFoundTracksRouter from "./routes/getNotFoundTracks.route";
 import spotifyActionsRouter from "./routes/routes/spotifyActions.routes";
 import youtubeactionrouter from "./routes/routes/youtubeActions.routes";
+import autoSyncRoutes from "./routes/autoSync.routes";
 
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3002;

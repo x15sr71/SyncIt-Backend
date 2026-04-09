@@ -1,4 +1,4 @@
-import { defineConfig } from '@prisma/config'  // ← @prisma/config, NOT prisma/config
+import { defineConfig } from '@prisma/config'
 import 'dotenv/config'
 
 export default defineConfig({
@@ -8,6 +8,6 @@ export default defineConfig({
     seed: 'ts-node prisma/seed.ts',
   },
   datasource: {
-    url: process.env.DATABASE_URL as string,
+    url: process.env.DIRECT_URL as string,
   },
 })
