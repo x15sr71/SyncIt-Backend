@@ -1,4 +1,4 @@
-import { getYouTubePlaylistContentService } from "../services/getPlaylistContent/getYoutubePlaylistContent";
+import { getYouTubePlaylistContentService } from '../services/getPlaylistContent/getYoutubePlaylistContent';
 
 export const getYouTubePlaylistContentHandler = async (req, res) => {
   const userId = req.session?.id;
@@ -7,8 +7,8 @@ export const getYouTubePlaylistContentHandler = async (req, res) => {
   if (!userId || !playlistIds || !Array.isArray(playlistIds) || playlistIds.length === 0) {
     return res.status(400).json({
       success: false,
-      error: "BAD_REQUEST",
-      message: "User session or playlistIds missing.",
+      error: 'BAD_REQUEST',
+      message: 'User session or playlistIds missing.',
     });
   }
 
@@ -22,7 +22,7 @@ export const getYouTubePlaylistContentHandler = async (req, res) => {
           playlistId,
           tracks: result.success && result.data ? result.data : [],
         };
-      })
+      }),
     );
 
     // Build a record mapping each playlistId to its respective tracks array

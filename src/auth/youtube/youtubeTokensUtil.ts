@@ -15,11 +15,11 @@ export async function get_YoutubeAccessToken(userId: string): Promise<string | n
   try {
     const accessTokenData = await prisma.youTubeData.findFirst({
       where: { userId },
-      select: { access_token: true }
+      select: { access_token: true },
     });
 
     if (!accessTokenData) {
-      console.error("Access token not found: No YouTube data for user");
+      console.error('Access token not found: No YouTube data for user');
       return null;
     }
     if (!accessTokenData.access_token) {
@@ -29,11 +29,10 @@ export async function get_YoutubeAccessToken(userId: string): Promise<string | n
 
     return accessTokenData.access_token;
   } catch (error) {
-    console.error("Error in fetching YouTube access_token:", error.message);
+    console.error('Error in fetching YouTube access_token:', error.message);
     return null;
   }
 }
-
 
 export async function refreshYoutubeAccessToken(userId: string): Promise<{
   success: boolean;
@@ -54,7 +53,7 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
     return await prisma.$transaction(async (tx) => {
       const tokenData = await tx.youTubeData.findFirst({
         where: { userId },
-        select: { id: true, refresh_token: true }
+        select: { id: true, refresh_token: true },
       });
 
       if (!tokenData) {
@@ -69,17 +68,13 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
         refresh_token: tokenData.refresh_token,
         client_id,
         client_secret,
-        grant_type: 'refresh_token'
+        grant_type: 'refresh_token',
       });
 
-      const response = await axios.post(
-        "https://oauth2.googleapis.com/token",
-        requestBody,
-        { 
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          timeout: REQUEST_TIMEOUT
-        }
-      );
+      const response = await axios.post('https://oauth2.googleapis.com/token', requestBody, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: REQUEST_TIMEOUT,
+      });
 
       if (!response.data?.access_token) {
         return { success: false, error: 'invalid_response' };
@@ -91,16 +86,15 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
         where: { id: tokenData.id },
         data: {
           access_token,
-          refresh_token: newRefreshToken || tokenData.refresh_token
-        }
+          refresh_token: newRefreshToken || tokenData.refresh_token,
+        },
       });
 
       return { success: true, newAccessToken: access_token };
     });
-
   } catch (error: any) {
     const apiError = error.response?.data;
-    console.error("Error refreshing YouTube token:", apiError || error.message);
+    console.error('Error refreshing YouTube token:', apiError || error.message);
 
     if (apiError?.error === 'invalid_grant') {
       return { success: false, error: 'invalid_grant' };

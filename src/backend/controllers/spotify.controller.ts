@@ -1,7 +1,7 @@
-import axios, { AxiosError } from "axios";
-import prisma from "../../db/prisma";
-import { get_SpotifyAccessToken, refreshSpotifyToken } from "../../auth/spotify/spotifyTokenUtil";
-import { hashId } from "../utility/encrypt";
+import axios, { AxiosError } from 'axios';
+import prisma from '../../db/prisma';
+import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../auth/spotify/spotifyTokenUtil';
+import { hashId } from '../utility/encrypt';
 
 const MAX_RETRIES = 3;
 const MAX_TRACKS = 100;
@@ -10,69 +10,66 @@ export const searchSpotifyTracks = async (req, res): Promise<void> => {
   const userId = req.session?.id;
   if (!userId) {
     return res.status(401).json({
-      error: "AUTH_ERROR",
-      message: "User session not found. Please log in again.",
+      error: 'AUTH_ERROR',
+      message: 'User session not found. Please log in again.',
     });
   }
 
   let retryCount = 0;
   let accessToken: string | null = null;
 
-while (retryCount < MAX_RETRIES) {
-  try {
-    if (!accessToken) {
-      accessToken = await get_SpotifyAccessToken(userId);
-    }
-
-    if (!accessToken) {
-      return res.status(401).json({
-        error: "AUTH_ERROR",
-        message: "Access token not found or expired. Please log in again.",
-      });
-    }
-
-    const tracks = await fetchSpotifyTracks(accessToken, userId);
-    return res.json({ success: true, data: tracks });
-
-  } catch (error) {
-    const isUnauthorized =
-      error instanceof AxiosError && error.response?.status === 401;
-
-    if (isUnauthorized) {
-      const refreshed = await refreshSpotifyToken(userId);
-
-      if (refreshed?.access_token) {
-        accessToken = refreshed.access_token; // use directly
-        retryCount++;
-        continue;
+  while (retryCount < MAX_RETRIES) {
+    try {
+      if (!accessToken) {
+        accessToken = await get_SpotifyAccessToken(userId);
       }
 
-      return res.status(401).json({
+      if (!accessToken) {
+        return res.status(401).json({
+          error: 'AUTH_ERROR',
+          message: 'Access token not found or expired. Please log in again.',
+        });
+      }
+
+      const tracks = await fetchSpotifyTracks(accessToken, userId);
+      return res.json({ success: true, data: tracks });
+    } catch (error) {
+      const isUnauthorized = error instanceof AxiosError && error.response?.status === 401;
+
+      if (isUnauthorized) {
+        const refreshed = await refreshSpotifyToken(userId);
+
+        if (refreshed?.access_token) {
+          accessToken = refreshed.access_token; // use directly
+          retryCount++;
+          continue;
+        }
+
+        return res.status(401).json({
+          success: false,
+          redirect: '/spotify/login',
+          error: 'AUTH_REFRESH_FAILED',
+          message: 'Failed to refresh access token. Please log in again.',
+        });
+      }
+
+      return res.status(500).json({
         success: false,
-        redirect: "/spotify/login",
-        error: "AUTH_REFRESH_FAILED",
-        message: "Failed to refresh access token. Please log in again.",
+        error: 'TRACK_FETCH_FAILED',
+        message: 'Failed to fetch tracks. Please try again later.',
       });
     }
-
-    return res.status(500).json({
-      success: false,
-      error: "TRACK_FETCH_FAILED",
-      message: "Failed to fetch tracks. Please try again later.",
-    });
   }
-}
-
 
   return res.status(429).json({
     success: false,
-    error: "MAX_RETRIES_EXCEEDED",
-    message: "Exceeded retry limit. Please try again later.",
+    error: 'MAX_RETRIES_EXCEEDED',
+    message: 'Exceeded retry limit. Please try again later.',
   });
 };
 
 const fetchSpotifyTracks = async (accessToken: string, userId: string) => {
-  let url: string | null = "https://api.spotify.com/v1/me/tracks";
+  let url: string | null = 'https://api.spotify.com/v1/me/tracks';
   let allTracks = [];
   let totalFetchedTracks = 0;
 

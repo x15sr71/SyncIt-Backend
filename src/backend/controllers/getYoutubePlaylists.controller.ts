@@ -1,5 +1,8 @@
 import axios from 'axios';
-import { get_YoutubeAccessToken, refreshYoutubeAccessToken } from '../../auth/youtube/youtubeTokensUtil';
+import {
+  get_YoutubeAccessToken,
+  refreshYoutubeAccessToken,
+} from '../../auth/youtube/youtubeTokensUtil';
 
 const YOUTUBE_PLAYLISTS_API = 'https://www.googleapis.com/youtube/v3/playlists';
 const MAX_RETRIES = 3; // Reduced from 10 to be more reasonable
@@ -51,22 +54,21 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
         timeout: REQUEST_TIMEOUT,
       });
 
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         data: response.data.items || [],
-        totalResults: response.data.pageInfo?.totalResults || 0
+        totalResults: response.data.pageInfo?.totalResults || 0,
       });
-
     } catch (error: any) {
       const status = error?.response?.status;
       const errorData = error?.response?.data;
 
       if (status === 401 && retryCount < MAX_RETRIES) {
         console.warn(`YouTube token expired. Attempting to refresh... (Attempt ${retryCount + 1})`);
-        
+
         try {
           const refreshResult = await refreshYoutubeAccessToken(userId);
-          
+
           if (refreshResult.success && refreshResult.newAccessToken) {
             accessToken = refreshResult.newAccessToken;
             retryCount++;
@@ -113,7 +115,7 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
         return res.status(429).json({
           success: false,
           //temporary error code for clarity
-          code: 429,  
+          code: 429,
           error: 'RATE_LIMIT_EXCEEDED',
           message: 'YouTube API rate limit exceeded. Please try again later.',
         });
@@ -137,6 +139,7 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
     //temporary error code for clarity
     code: 401,
     error: 'MAX_RETRIES_EXCEEDED',
-    message: 'YouTube token expired and could not be refreshed after multiple attempts. Please log in again.',
+    message:
+      'YouTube token expired and could not be refreshed after multiple attempts. Please log in again.',
   });
 };

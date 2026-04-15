@@ -1,8 +1,8 @@
 // controllers/autoSync.controller.ts
 
-import { Request, Response } from "express";
-import { ScheduledSyncService } from "../../backend/services/scheduleSync/scheduledSyncService";
-import prisma from "../../db"; // Add this import
+import { Request, Response } from 'express';
+import { ScheduledSyncService } from '../../backend/services/scheduleSync/scheduledSyncService';
+import prisma from '../../db'; // Add this import
 
 // Extend the Request type to include session
 interface AuthenticatedRequest extends Request {
@@ -13,26 +13,21 @@ interface AuthenticatedRequest extends Request {
 
 export async function enableAutoSyncHandler(req: AuthenticatedRequest, res: Response) {
   const userId = req.session?.id as string;
-  const {
-    playlistId,
-    sourcePlatform,
-    destinationPlatform,
-    intervalMinutes = 60,
-  } = req.body;
+  const { playlistId, sourcePlatform, destinationPlatform, intervalMinutes = 60 } = req.body;
 
   if (!userId) {
     return res.status(401).json({
       success: false,
-      error: "AUTH_ERROR",
-      message: "User session not found.",
+      error: 'AUTH_ERROR',
+      message: 'User session not found.',
     });
   }
 
   if (!playlistId || !sourcePlatform || !destinationPlatform) {
     return res.status(400).json({
       success: false,
-      error: "MISSING_PARAMETERS",
-      message: "playlistId, sourcePlatform, and destinationPlatform are required.",
+      error: 'MISSING_PARAMETERS',
+      message: 'playlistId, sourcePlatform, and destinationPlatform are required.',
     });
   }
 
@@ -42,7 +37,7 @@ export async function enableAutoSyncHandler(req: AuthenticatedRequest, res: Resp
       playlistId,
       sourcePlatform,
       destinationPlatform,
-      intervalMinutes
+      intervalMinutes,
     );
 
     res.json({
@@ -51,11 +46,11 @@ export async function enableAutoSyncHandler(req: AuthenticatedRequest, res: Resp
       message: `Auto sync enabled for playlist ${playlistId} (every ${intervalMinutes} minutes)`,
     });
   } catch (error: any) {
-    console.error("[Controller] Failed to enable auto sync:", error);
+    console.error('[Controller] Failed to enable auto sync:', error);
     res.status(500).json({
       success: false,
-      error: "ENABLE_AUTO_SYNC_FAILED",
-      message: error.message || "Failed to enable auto sync",
+      error: 'ENABLE_AUTO_SYNC_FAILED',
+      message: error.message || 'Failed to enable auto sync',
     });
   }
 }
@@ -67,8 +62,8 @@ export async function disableAutoSyncHandler(req: AuthenticatedRequest, res: Res
   if (!userId) {
     return res.status(401).json({
       success: false,
-      error: "AUTH_ERROR",
-      message: "User session not found.",
+      error: 'AUTH_ERROR',
+      message: 'User session not found.',
     });
   }
 
@@ -77,19 +72,19 @@ export async function disableAutoSyncHandler(req: AuthenticatedRequest, res: Res
       userId,
       playlistId,
       sourcePlatform,
-      destinationPlatform
+      destinationPlatform,
     );
 
     res.json({
       success: true,
-      message: "Auto sync disabled successfully",
+      message: 'Auto sync disabled successfully',
     });
   } catch (error: any) {
-    console.error("[Controller] Failed to disable auto sync:", error);
+    console.error('[Controller] Failed to disable auto sync:', error);
     res.status(500).json({
       success: false,
-      error: "DISABLE_AUTO_SYNC_FAILED",
-      message: error.message || "Failed to disable auto sync",
+      error: 'DISABLE_AUTO_SYNC_FAILED',
+      message: error.message || 'Failed to disable auto sync',
     });
   }
 }
@@ -100,8 +95,8 @@ export async function getSyncStatusHandler(req: AuthenticatedRequest, res: Respo
   if (!userId) {
     return res.status(401).json({
       success: false,
-      error: "AUTH_ERROR",
-      message: "User session not found.",
+      error: 'AUTH_ERROR',
+      message: 'User session not found.',
     });
   }
 
@@ -113,37 +108,32 @@ export async function getSyncStatusHandler(req: AuthenticatedRequest, res: Respo
       syncStatus,
     });
   } catch (error: any) {
-    console.error("[Controller] Failed to get sync status:", error);
+    console.error('[Controller] Failed to get sync status:', error);
     res.status(500).json({
       success: false,
-      error: "GET_SYNC_STATUS_FAILED",
-      message: error.message || "Failed to get sync status",
+      error: 'GET_SYNC_STATUS_FAILED',
+      message: error.message || 'Failed to get sync status',
     });
   }
 }
 
 export async function updateSyncIntervalHandler(req: AuthenticatedRequest, res: Response) {
   const userId = req.session?.id as string;
-  const {
-    playlistId,
-    sourcePlatform,
-    destinationPlatform,
-    intervalMinutes,
-  } = req.body;
+  const { playlistId, sourcePlatform, destinationPlatform, intervalMinutes } = req.body;
 
   if (!userId) {
     return res.status(401).json({
       success: false,
-      error: "AUTH_ERROR",
-      message: "User session not found.",
+      error: 'AUTH_ERROR',
+      message: 'User session not found.',
     });
   }
 
   if (!intervalMinutes || intervalMinutes < 10) {
     return res.status(400).json({
       success: false,
-      error: "INVALID_INTERVAL",
-      message: "Interval must be at least 10 minutes.",
+      error: 'INVALID_INTERVAL',
+      message: 'Interval must be at least 10 minutes.',
     });
   }
 
@@ -153,7 +143,7 @@ export async function updateSyncIntervalHandler(req: AuthenticatedRequest, res: 
       playlistId,
       sourcePlatform,
       destinationPlatform,
-      intervalMinutes
+      intervalMinutes,
     );
 
     res.json({
@@ -161,11 +151,11 @@ export async function updateSyncIntervalHandler(req: AuthenticatedRequest, res: 
       message: `Sync interval updated to ${intervalMinutes} minutes`,
     });
   } catch (error: any) {
-    console.error("[Controller] Failed to update sync interval:", error);
+    console.error('[Controller] Failed to update sync interval:', error);
     res.status(500).json({
       success: false,
-      error: "UPDATE_SYNC_INTERVAL_FAILED",
-      message: error.message || "Failed to update sync interval",
+      error: 'UPDATE_SYNC_INTERVAL_FAILED',
+      message: error.message || 'Failed to update sync interval',
     });
   }
 }
@@ -177,8 +167,8 @@ export async function triggerSyncNowHandler(req: AuthenticatedRequest, res: Resp
   if (!userId) {
     return res.status(401).json({
       success: false,
-      error: "AUTH_ERROR",
-      message: "User session not found.",
+      error: 'AUTH_ERROR',
+      message: 'User session not found.',
     });
   }
 
@@ -196,8 +186,8 @@ export async function triggerSyncNowHandler(req: AuthenticatedRequest, res: Resp
     if (!migration) {
       return res.status(404).json({
         success: false,
-        error: "MIGRATION_NOT_FOUND",
-        message: "Migration record not found",
+        error: 'MIGRATION_NOT_FOUND',
+        message: 'Migration record not found',
       });
     }
 
@@ -213,8 +203,8 @@ export async function triggerSyncNowHandler(req: AuthenticatedRequest, res: Resp
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: "USER_NOT_FOUND",
-        message: "User not found",
+        error: 'USER_NOT_FOUND',
+        message: 'User not found',
       });
     }
 
@@ -230,14 +220,14 @@ export async function triggerSyncNowHandler(req: AuthenticatedRequest, res: Resp
     res.json({
       success: true,
       result,
-      message: "Sync executed successfully",
+      message: 'Sync executed successfully',
     });
   } catch (error: any) {
-    console.error("[Controller] Failed to trigger sync:", error);
+    console.error('[Controller] Failed to trigger sync:', error);
     res.status(500).json({
       success: false,
-      error: "TRIGGER_SYNC_FAILED",
-      message: error.message || "Failed to trigger sync",
+      error: 'TRIGGER_SYNC_FAILED',
+      message: error.message || 'Failed to trigger sync',
     });
   }
 }

@@ -1,7 +1,7 @@
 // src/backend/services/migration/migrationCronService.ts
 
-import prisma from "../db/prisma";
-import { migrateYoutubeToSpotifyService } from "../backend/services/migration/youtubeToSpotify";
+import prisma from '../db/prisma';
+import { migrateYoutubeToSpotifyService } from '../backend/services/migration/youtubeToSpotify';
 
 interface MigrationData {
   id: string;
@@ -53,8 +53,8 @@ export class MigrationCronService {
       where: {
         sourcePlaylistId: { not: null },
         destinationPlaylistId: { not: null },
-        sourcePlatform: "YOUTUBE",
-        destinationPlatform: "SPOTIFY",
+        sourcePlatform: 'YOUTUBE',
+        destinationPlatform: 'SPOTIFY',
       },
       select: {
         id: true,
@@ -73,24 +73,26 @@ export class MigrationCronService {
     const startTime = Date.now();
     const { id, userId, sourcePlaylistId, destinationPlaylistId } = migration;
 
-    console.log(`[MigrationCron] ▶️ Starting migration for user ${userId}, playlist ${sourcePlaylistId}`);
+    console.log(
+      `[MigrationCron] ▶️ Starting migration for user ${userId}, playlist ${sourcePlaylistId}`,
+    );
 
     try {
-      const playlistName = "Migrated Playlist";
+      const playlistName = 'Migrated Playlist';
 
       const result = await migrateYoutubeToSpotifyService(
         userId,
         sourcePlaylistId,
         playlistName,
-        destinationPlaylistId
+        destinationPlaylistId,
       );
 
       const executionTime = Date.now() - startTime;
 
       console.log(
         `[MigrationCron] ✅ Completed migration for playlist ${sourcePlaylistId}. ` +
-        `Tracks added: ${result.numberOfTracksAdded}, Failed: ${result.failedTrackDetails?.length ?? 0}, ` +
-        `Time: ${executionTime}ms`
+          `Tracks added: ${result.numberOfTracksAdded}, Failed: ${result.failedTrackDetails?.length ?? 0}, ` +
+          `Time: ${executionTime}ms`,
       );
 
       return {
@@ -108,7 +110,7 @@ export class MigrationCronService {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       console.error(
-        `[MigrationCron] ❌ Migration failed for user ${migration.userId}, playlist ${migration.sourcePlaylistId}: ${errorMessage}`
+        `[MigrationCron] ❌ Migration failed for user ${migration.userId}, playlist ${migration.sourcePlaylistId}: ${errorMessage}`,
       );
 
       return {
@@ -126,7 +128,7 @@ export class MigrationCronService {
    * Executes all migrations for a given user.
    */
   static async executeMigrationForUser(
-    userId: string
+    userId: string,
   ): Promise<UserMigrationResults | { success: false; error: string; message: string }> {
     console.log(`[MigrationCron] 👤 Starting migrations for user ${userId}`);
 
@@ -135,8 +137,8 @@ export class MigrationCronService {
         userId,
         sourcePlaylistId: { not: null },
         destinationPlaylistId: { not: null },
-        sourcePlatform: "YOUTUBE",
-        destinationPlatform: "SPOTIFY",
+        sourcePlatform: 'YOUTUBE',
+        destinationPlatform: 'SPOTIFY',
       },
       select: {
         id: true,
@@ -151,8 +153,8 @@ export class MigrationCronService {
       console.warn(`[MigrationCron] ⚠️ No migrations found for user ${userId}`);
       return {
         success: false,
-        error: "NO_MIGRATIONS_FOUND",
-        message: "No migrations found for this user",
+        error: 'NO_MIGRATIONS_FOUND',
+        message: 'No migrations found for this user',
       };
     }
 
@@ -172,7 +174,7 @@ export class MigrationCronService {
 
     console.log(
       `[MigrationCron] ✅ Completed all migrations for user ${userId}. ` +
-      `Successful: ${results.successful}, Failed: ${results.failed}`
+        `Successful: ${results.successful}, Failed: ${results.failed}`,
     );
 
     return results;
@@ -183,7 +185,7 @@ export class MigrationCronService {
    */
   static async executeMigrationForPlaylist(
     userId: string,
-    playlistId: string
+    playlistId: string,
   ): Promise<MigrationResult | { success: false; error: string; message: string }> {
     console.log(`[MigrationCron] ▶️ Starting migration for user ${userId}, playlist ${playlistId}`);
 
@@ -192,8 +194,8 @@ export class MigrationCronService {
         userId,
         sourcePlaylistId: playlistId,
         destinationPlaylistId: { not: null },
-        sourcePlatform: "YOUTUBE",
-        destinationPlatform: "SPOTIFY",
+        sourcePlatform: 'YOUTUBE',
+        destinationPlatform: 'SPOTIFY',
       },
       select: {
         id: true,
@@ -205,11 +207,13 @@ export class MigrationCronService {
     });
 
     if (!migration) {
-      console.warn(`[MigrationCron] ⚠️ No migration found for user ${userId}, playlist ${playlistId}`);
+      console.warn(
+        `[MigrationCron] ⚠️ No migration found for user ${userId}, playlist ${playlistId}`,
+      );
       return {
         success: false,
-        error: "MIGRATION_NOT_FOUND",
-        message: "No migration found for this user and playlist combination",
+        error: 'MIGRATION_NOT_FOUND',
+        message: 'No migration found for this user and playlist combination',
       };
     }
 
@@ -227,13 +231,13 @@ export class MigrationCronService {
       console.log(`[MigrationCron] Found ${migrations.length} migrations to execute.`);
 
       if (migrations.length === 0) {
-        console.log("[MigrationCron] No migrations to process.");
+        console.log('[MigrationCron] No migrations to process.');
         return {
           totalMigrations: 0,
           successful: 0,
           failed: 0,
           details: [],
-          message: "No migrations to process",
+          message: 'No migrations to process',
         };
       }
 
@@ -256,7 +260,7 @@ export class MigrationCronService {
 
       console.log(
         `[MigrationCron] 🏁 Cron job completed. ` +
-        `Successful: ${results.successful}, Failed: ${results.failed}`
+          `Successful: ${results.successful}, Failed: ${results.failed}`,
       );
 
       return results;

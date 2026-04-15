@@ -1,6 +1,6 @@
 // src/cron/migrationCronService.ts
-import prisma from "../../db/prisma";
-import { migrateYoutubeToSpotifyService } from "../../backend/services/migration/youtubeToSpotify";
+import prisma from '../../db/prisma';
+import { migrateYoutubeToSpotifyService } from '../../backend/services/migration/youtubeToSpotify';
 
 export class MigrationCronService {
   // Get all migrations that need to run
@@ -9,8 +9,8 @@ export class MigrationCronService {
       where: {
         sourcePlaylistId: { not: null },
         destinationPlaylistId: { not: null },
-        sourcePlatform: "YOUTUBE",
-        destinationPlatform: "SPOTIFY",
+        sourcePlatform: 'YOUTUBE',
+        destinationPlatform: 'SPOTIFY',
       },
       select: {
         id: true,
@@ -27,21 +27,25 @@ export class MigrationCronService {
     const startTime = Date.now();
 
     try {
-      console.log(`[MigrationCron] Starting migration for playlist ${migration.playlistId}, user ${migration.userId}`);
+      console.log(
+        `[MigrationCron] Starting migration for playlist ${migration.playlistId}, user ${migration.userId}`,
+      );
 
-      const playlistName = "Migrated Playlist";
-      
+      const playlistName = 'Migrated Playlist';
+
       const result = await migrateYoutubeToSpotifyService(
         migration.userId,
         migration.playlistId,
         playlistName,
-        migration.destinationPlaylistId
+        migration.destinationPlaylistId,
       );
 
       const executionTime = Date.now() - startTime;
 
-      console.log(`[MigrationCron] Migration completed for playlist ${migration.playlistId}: added ${result.numberOfTracksAdded} tracks in ${executionTime}ms`);
-      
+      console.log(
+        `[MigrationCron] Migration completed for playlist ${migration.playlistId}: added ${result.numberOfTracksAdded} tracks in ${executionTime}ms`,
+      );
+
       return {
         success: true,
         migrationId: migration.id,
@@ -50,20 +54,23 @@ export class MigrationCronService {
         tracksAdded: result.numberOfTracksAdded,
         failedTracks: result.failedTrackDetails.length,
         executionTime,
-        result
+        result,
       };
     } catch (error: any) {
       const executionTime = Date.now() - startTime;
-      
-      console.error(`[MigrationCron] Migration failed for playlist ${migration.playlistId}, user ${migration.userId}:`, error);
-      
+
+      console.error(
+        `[MigrationCron] Migration failed for playlist ${migration.playlistId}, user ${migration.userId}:`,
+        error,
+      );
+
       return {
         success: false,
         migrationId: migration.id,
         playlistId: migration.playlistId,
         userId: migration.userId,
         error: error.message,
-        executionTime
+        executionTime,
       };
     }
   }
@@ -77,8 +84,8 @@ export class MigrationCronService {
         userId: userId,
         sourcePlaylistId: { not: null },
         destinationPlaylistId: { not: null },
-        sourcePlatform: "YOUTUBE",
-        destinationPlatform: "SPOTIFY",
+        sourcePlatform: 'YOUTUBE',
+        destinationPlatform: 'SPOTIFY',
       },
       select: {
         id: true,
@@ -92,8 +99,8 @@ export class MigrationCronService {
     if (migrations.length === 0) {
       return {
         success: false,
-        error: "NO_MIGRATIONS_FOUND",
-        message: "No migrations found for this user"
+        error: 'NO_MIGRATIONS_FOUND',
+        message: 'No migrations found for this user',
       };
     }
 
@@ -103,22 +110,24 @@ export class MigrationCronService {
       totalMigrations: migrations.length,
       successful: 0,
       failed: 0,
-      details: []
+      details: [],
     };
 
     for (const migration of migrations) {
       const migrationResult = await this.executeMigration(migration);
-      
+
       if (migrationResult.success) {
         results.successful++;
       } else {
         results.failed++;
       }
-      
+
       results.details.push(migrationResult);
     }
 
-    console.log(`[MigrationCron] User ${userId} migrations completed. Successful: ${results.successful}, Failed: ${results.failed}`);
+    console.log(
+      `[MigrationCron] User ${userId} migrations completed. Successful: ${results.successful}, Failed: ${results.failed}`,
+    );
     return results;
   }
 
@@ -131,8 +140,8 @@ export class MigrationCronService {
         userId: userId,
         sourcePlaylistId: playlistId,
         destinationPlaylistId: { not: null },
-        sourcePlatform: "YOUTUBE",
-        destinationPlatform: "SPOTIFY",
+        sourcePlatform: 'YOUTUBE',
+        destinationPlatform: 'SPOTIFY',
       },
       select: {
         id: true,
@@ -146,8 +155,8 @@ export class MigrationCronService {
     if (!migration) {
       return {
         success: false,
-        error: "MIGRATION_NOT_FOUND",
-        message: "No migration found for this user and playlist combination"
+        error: 'MIGRATION_NOT_FOUND',
+        message: 'No migration found for this user and playlist combination',
       };
     }
 
@@ -157,20 +166,20 @@ export class MigrationCronService {
   // Run the main cron job
   static async runCronJob() {
     console.log(`[MigrationCron] Running cron job at ${new Date().toISOString()}`);
-    
+
     try {
       const migrations = await this.getMigrationsToRun();
       console.log(`[MigrationCron] Found ${migrations.length} migrations to execute`);
 
       if (migrations.length === 0) {
-        console.log("[MigrationCron] No migrations to process");
+        console.log('[MigrationCron] No migrations to process');
         return {
           success: true, // ✅ Added success property
           totalMigrations: 0,
           successful: 0,
           failed: 0,
           details: [],
-          message: "No migrations to process"
+          message: 'No migrations to process',
         };
       }
 
@@ -179,32 +188,34 @@ export class MigrationCronService {
         totalMigrations: migrations.length,
         successful: 0,
         failed: 0,
-        details: []
+        details: [],
       };
 
       for (const migration of migrations) {
         const migrationResult = await this.executeMigration(migration);
-        
+
         if (migrationResult.success) {
           results.successful++;
         } else {
           results.failed++;
         }
-        
+
         results.details.push(migrationResult);
-        
+
         // Add small delay between migrations to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
-      console.log(`[MigrationCron] Cron job completed. Successful: ${results.successful}, Failed: ${results.failed}`);
+      console.log(
+        `[MigrationCron] Cron job completed. Successful: ${results.successful}, Failed: ${results.failed}`,
+      );
       return results;
     } catch (error: any) {
-      console.error("[MigrationCron] Cron job failed:", error);
+      console.error('[MigrationCron] Cron job failed:', error);
       return {
         success: false,
-        error: "CRON_JOB_FAILED",
-        message: error.message || "Cron job execution failed"
+        error: 'CRON_JOB_FAILED',
+        message: error.message || 'Cron job execution failed',
       };
     }
   }
