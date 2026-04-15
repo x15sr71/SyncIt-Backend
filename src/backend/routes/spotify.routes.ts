@@ -1,6 +1,6 @@
-import express from "express";
-import { searchSpotifyTracks } from "../controllers/spotify.controller";
-import sessionMiddleware from "../../middlewares/sessionMiddleware";
+import express from 'express';
+import { searchSpotifyTracks } from '../controllers/spotify.controller';
+import sessionMiddleware from '../../middlewares/sessionMiddleware';
 
 const router = express.Router();
 
@@ -31,6 +31,6 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized or session expired
  */
-router.get("/spotifyTracks", sessionMiddleware, searchSpotifyTracks);
+router.get('/spotifyTracks', sessionMiddleware, searchSpotifyTracks);
 
 export default router;

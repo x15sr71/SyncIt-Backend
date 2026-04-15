@@ -1,4 +1,4 @@
-import { clearLikedTracks } from "../services/emptyPlaylist/emptySpotifyPlaylist";
+import { clearLikedTracks } from '../services/emptyPlaylist/emptySpotifyPlaylist';
 
 export const emptySpotifyPlaylist = async (req, res) => {
   const userId = req.session?.id;
@@ -6,8 +6,8 @@ export const emptySpotifyPlaylist = async (req, res) => {
   if (!userId) {
     return res.status(401).json({
       success: false,
-      error: "AUTH_ERROR",
-      message: "User session not found. Please log in again.",
+      error: 'AUTH_ERROR',
+      message: 'User session not found. Please log in again.',
     });
   }
 
@@ -15,28 +15,28 @@ export const emptySpotifyPlaylist = async (req, res) => {
     const result = await clearLikedTracks(userId);
     return res.json(result);
   } catch (error) {
-    console.error("Error clearing playlist:", error.message);
-    const message = error.message || "Unknown error";
+    console.error('Error clearing playlist:', error.message);
+    const message = error.message || 'Unknown error';
 
-    if (message.includes("Authentication failed")) {
+    if (message.includes('Authentication failed')) {
       return res.status(401).json({
         success: false,
         code: 401,
-        error: "AUTH_ERROR",
+        error: 'AUTH_ERROR',
         message,
       });
-    } else if (message.includes("rate limit")) {
+    } else if (message.includes('rate limit')) {
       return res.status(429).json({
         success: false,
         code: 429,
-        error: "RATE_LIMIT_EXCEEDED",
+        error: 'RATE_LIMIT_EXCEEDED',
         message,
       });
-    } else if (message.includes("quota")) {
+    } else if (message.includes('quota')) {
       return res.status(403).json({
         success: false,
         code: 403,
-        error: "QUOTA_EXCEEDED",
+        error: 'QUOTA_EXCEEDED',
         message,
       });
     }
@@ -44,7 +44,7 @@ export const emptySpotifyPlaylist = async (req, res) => {
     return res.status(500).json({
       success: false,
       code: 500,
-      error: "CLEAR_FAILED",
+      error: 'CLEAR_FAILED',
       message,
     });
   }

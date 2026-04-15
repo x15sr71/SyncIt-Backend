@@ -1,11 +1,11 @@
 // services/migration/youtubeToSpotify.ts
 
-import { searchYoutubeTracks } from "../search/searchSpotify/searchYoutube";
-import { trimTrackDescriptions } from "../../utility/trim";
-import { searchTracksOnSpotify } from "../search/searchSpotify/searchSpotify";
-import { callOpenAIModel } from "../../openAI/getBestMatch";
-import { addToSptPlaylist } from "../addTo/addToSptPlaylist";
-import prisma from "../../../db/prisma";
+import { searchYoutubeTracks } from '../search/searchSpotify/searchYoutube';
+import { trimTrackDescriptions } from '../../utility/trim';
+import { searchTracksOnSpotify } from '../search/searchSpotify/searchSpotify';
+import { callOpenAIModel } from '../../openAI/getBestMatch';
+import { addToSptPlaylist } from '../addTo/addToSptPlaylist';
+import prisma from '../../../db/prisma';
 
 const MAX_LLM_CHUNK_CHARS = 10000;
 
@@ -13,16 +13,18 @@ const MAX_LLM_CHUNK_CHARS = 10000;
 export async function migrateYoutubePlaylistToSpotify(
   userId: string,
   spotifyPlaylistId: string,
-  youtubePlaylistId: string
+  youtubePlaylistId: string,
 ) {
-  console.log(`[YouTube→Spotify] Starting migration: YouTube playlist ${youtubePlaylistId} → Spotify playlist ${spotifyPlaylistId}`);
+  console.log(
+    `[YouTube→Spotify] Starting migration: YouTube playlist ${youtubePlaylistId} → Spotify playlist ${spotifyPlaylistId}`,
+  );
 
   try {
     // Use the existing service but with the playlist ID parameter structure expected by scheduled sync
     const result = await migrateYoutubeToSpotifyService(
       userId,
       youtubePlaylistId,
-      spotifyPlaylistId // Use as playlist name for now - you might want to fetch actual name
+      spotifyPlaylistId, // Use as playlist name for now - you might want to fetch actual name
     );
 
     // Transform the response to match the expected format for scheduled sync
@@ -38,8 +40,8 @@ export async function migrateYoutubePlaylistToSpotify(
     console.error(`[YouTube→Spotify] Migration failed:`, error);
     throw {
       success: false,
-      error: "YOUTUBE_TO_SPOTIFY_MIGRATION_FAILED",
-      message: error?.message || "Failed to migrate YouTube playlist to Spotify",
+      error: 'YOUTUBE_TO_SPOTIFY_MIGRATION_FAILED',
+      message: error?.message || 'Failed to migrate YouTube playlist to Spotify',
       statusCode: 502,
     };
   }
@@ -50,7 +52,7 @@ export const migrateYoutubeToSpotifyService = async (
   userId: string,
   playlistId: string,
   playlistName: string,
-  destinationPlaylistId?: string
+  destinationPlaylistId?: string,
 ) => {
   const youtubeUserId = await prisma.youTubeData.findFirst({
     where: { userId },
@@ -58,7 +60,7 @@ export const migrateYoutubeToSpotifyService = async (
   });
 
   if (!youtubeUserId) {
-    throw new Error("YouTube user not found in database.");
+    throw new Error('YouTube user not found in database.');
   }
 
   // 👇 Use playlistId in searchYoutubeTracks
@@ -66,25 +68,24 @@ export const migrateYoutubeToSpotifyService = async (
 
   // 🆕 Deduplicate YouTube tracks by trackId before processing
   const uniqueYoutubeTracks = allYoutubeTracks.data.filter(
-    (track, index, self) =>
-      index === self.findIndex((t) => t.trackId === track.trackId)
+    (track, index, self) => index === self.findIndex((t) => t.trackId === track.trackId),
   );
 
   console.log(
-    `[Service] Original tracks: ${allYoutubeTracks.data.length}, Unique tracks: ${uniqueYoutubeTracks.length}`
+    `[Service] Original tracks: ${allYoutubeTracks.data.length}, Unique tracks: ${uniqueYoutubeTracks.length}`,
   );
 
   const formattedYoutubeTracks = trimTrackDescriptions(
     uniqueYoutubeTracks, // 🆕 Use deduplicated tracks
-    750
+    750,
   );
 
   // 🆕 Extract YouTube track IDs from deduplicated tracks
   let youtubeTrackIds = uniqueYoutubeTracks.map((track) => track.trackId);
-  console.log("Youtube Track IDs:", youtubeTrackIds);
+  console.log('Youtube Track IDs:', youtubeTrackIds);
 
   if (!formattedYoutubeTracks.length) {
-    throw new Error("NO_YOUTUBE_TRACKS");
+    throw new Error('NO_YOUTUBE_TRACKS');
   }
 
   // 🆕 Check for existing tracks in playlistMigration
@@ -92,8 +93,8 @@ export const migrateYoutubeToSpotifyService = async (
     where: {
       userId: userId,
       sourcePlaylistId: playlistId,
-      sourcePlatform: "YOUTUBE",
-      destinationPlatform: "SPOTIFY",
+      sourcePlatform: 'YOUTUBE',
+      destinationPlatform: 'SPOTIFY',
     },
     select: {
       sourceTrackIds: true,
@@ -101,11 +102,11 @@ export const migrateYoutubeToSpotifyService = async (
   });
 
   const existingTrackIds = existingMigration?.sourceTrackIds || [];
-  console.log("Existing track IDs in migration:", existingTrackIds);
+  console.log('Existing track IDs in migration:', existingTrackIds);
 
   // 🆕 Filter out tracks that already exist in the migration
   const newTracksOnly = uniqueYoutubeTracks.filter(
-    (track) => !existingTrackIds.includes(track.trackId)
+    (track) => !existingTrackIds.includes(track.trackId),
   );
 
   const formattedNewTracksOnly = trimTrackDescriptions(newTracksOnly, 750);
@@ -116,16 +117,14 @@ export const migrateYoutubeToSpotifyService = async (
 
   // If no new tracks to process, skip the LLM processing
   if (!newTracksOnly.length) {
-    console.log(
-      "No new tracks to migrate. All tracks already exist in migration."
-    );
+    console.log('No new tracks to migrate. All tracks already exist in migration.');
     return {
       bestMatches: {},
       trackIdsToAdd: [],
-      done: "done",
+      done: 'done',
       numberOfTracksAdded: 0,
       failedTrackDetails: [],
-      message: "No new tracks to migrate",
+      message: 'No new tracks to migrate',
     };
   }
 
@@ -136,18 +135,14 @@ export const migrateYoutubeToSpotifyService = async (
   let failedTrackDetails = [];
 
   for (const chunk of searchChunks) {
-    const chunkResults = await searchTracksOnSpotify(
-      chunk,
-      globalTrackNumber,
-      userId
-    );
+    const chunkResults = await searchTracksOnSpotify(chunk, globalTrackNumber, userId);
     spotifySearchResults = spotifySearchResults.concat(chunkResults);
     globalTrackNumber += chunk.length;
   }
 
   const llmChunks = chunkTracksForLLM(
     spotifySearchResults,
-    newTracksOnly // 🆕 Use filtered tracks instead of all tracks
+    newTracksOnly, // 🆕 Use filtered tracks instead of all tracks
   );
 
   // 🆕 Initialize youtubeTrackIds with only new track IDs
@@ -156,7 +151,7 @@ export const migrateYoutubeToSpotifyService = async (
   for (const chunkText of llmChunks) {
     const messages = [
       {
-        role: "user",
+        role: 'user',
         content: `Please identify the best matching Spotify search result for each track in the following list based solely on the current input.
                     Do not consider any previous interactions or suggestions.
                     Use these criteria: title, YouTube channel name, YouTube video duration, artist relevance, and release date.
@@ -171,28 +166,28 @@ export const migrateYoutubeToSpotifyService = async (
     ];
 
     const bestResultsForChunk = await callOpenAIModel(messages);
-    console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-    console.log("LLM response for chunk:", bestResultsForChunk);
-    console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
+    console.log('LLM response for chunk:', bestResultsForChunk);
+    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
 
     let parsedBestResults: any;
     try {
       parsedBestResults = JSON.parse(bestResultsForChunk.content);
-      console.log("$$$$$$$$$$$$$$$$$$$$$$");
+      console.log('$$$$$$$$$$$$$$$$$$$$$$');
       console.log(parsedBestResults);
-      console.log("$$$$$$$$$$$$$$$$$$$$$$");
+      console.log('$$$$$$$$$$$$$$$$$$$$$$');
       // Filter newYoutubeTrackIds to keep only those with integer values in parsedBestResults
       newYoutubeTrackIds = newYoutubeTrackIds.filter((trackId, index) => {
         const resultKey = (index + 1).toString(); // Convert 0-based index to 1-based key
         const resultValue = parsedBestResults[resultKey];
 
         // Keep only if the value is a number (integer)
-        return typeof resultValue === "number" && Number.isInteger(resultValue);
+        return typeof resultValue === 'number' && Number.isInteger(resultValue);
       });
 
-      console.log("Filtered New YouTube Track IDs:", newYoutubeTrackIds);
+      console.log('Filtered New YouTube Track IDs:', newYoutubeTrackIds);
     } catch {
-      console.warn("Skipping chunk: could not parse LLM response");
+      console.warn('Skipping chunk: could not parse LLM response');
       continue;
     }
 
@@ -223,7 +218,7 @@ export const migrateYoutubeToSpotifyService = async (
     if (!match?.error) {
       const resultIndex = match;
       const correspondingTrack = spotifySearchResults.find(
-        (r) => r.trackNumber === parseInt(trackNumber)
+        (r) => r.trackNumber === parseInt(trackNumber),
       );
       if (correspondingTrack?.results?.[resultIndex - 1]?.id) {
         trackIdsToAdd.push(correspondingTrack.results[resultIndex - 1].id);
@@ -241,7 +236,7 @@ export const migrateYoutubeToSpotifyService = async (
     console.warn(
       `⚠️ Found ${
         trackIdsToAdd.length - uniqueSpotifyTrackIds.length
-      } duplicate Spotify track(s) - removing duplicates`
+      } duplicate Spotify track(s) - removing duplicates`,
     );
   }
 
@@ -253,8 +248,8 @@ export const migrateYoutubeToSpotifyService = async (
       userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {
         userId: userId,
         sourcePlaylistId: playlistId,
-        sourcePlatform: "YOUTUBE",
-        destinationPlatform: "SPOTIFY",
+        sourcePlatform: 'YOUTUBE',
+        destinationPlatform: 'SPOTIFY',
       },
     },
     update: {
@@ -265,33 +260,33 @@ export const migrateYoutubeToSpotifyService = async (
       updatedAt: new Date(),
       // Update sync fields for auto-sync compatibility
       lastSyncAt: new Date(),
-      lastSyncStatus: "SUCCESS",
+      lastSyncStatus: 'SUCCESS',
       lastSyncError: null,
     },
     create: {
       userId: userId,
       sourcePlaylistId: playlistId,
-      sourcePlatform: "YOUTUBE",
-      destinationPlatform: "SPOTIFY",
+      sourcePlatform: 'YOUTUBE',
+      destinationPlatform: 'SPOTIFY',
       sourceTrackIds: allSuccessfulTrackIds, // 🆕 Use combined track IDs
       migrationCounter: 1,
       // Initialize sync fields
       lastSyncAt: new Date(),
-      lastSyncStatus: "SUCCESS",
+      lastSyncStatus: 'SUCCESS',
       lastSyncError: null,
     },
   });
 
-  console.log("Migration data saved:", saveYoutubeTrackIds);
+  console.log('Migration data saved:', saveYoutubeTrackIds);
 
   const spotifyUserId = await prisma.spotifyData.findFirst({
     where: { userId },
     select: { id: true },
   });
-  console.log("**********************************");
-  console.log("Failed track details:", failedTrackDetails);
-  console.log("spotifyUserId:", spotifyUserId);
-  console.log("**********************************");
+  console.log('**********************************');
+  console.log('Failed track details:', failedTrackDetails);
+  console.log('spotifyUserId:', spotifyUserId);
+  console.log('**********************************');
 
   if (spotifyUserId) {
     await prisma.spotifyData.update({
@@ -302,7 +297,7 @@ export const migrateYoutubeToSpotifyService = async (
 
   // 🆕 Use uniqueSpotifyTrackIds instead of trackIdsToAdd for the rest
   const spotifyChunks = chunkArray(uniqueSpotifyTrackIds, 40, 10);
-  
+
   if (uniqueSpotifyTrackIds.length > 0) {
     await addToSptPlaylist(spotifyChunks, userId, playlistName);
   }
@@ -310,7 +305,7 @@ export const migrateYoutubeToSpotifyService = async (
   return {
     bestMatches,
     trackIdsToAdd: uniqueSpotifyTrackIds, // 🆕 Return deduplicated list
-    done: "done",
+    done: 'done',
     numberOfTracksAdded: uniqueSpotifyTrackIds.length, // 🆕 Use deduplicated count
     failedTrackDetails,
   };
@@ -319,7 +314,7 @@ export const migrateYoutubeToSpotifyService = async (
 function chunkArray(
   arr: string[],
   firstChunkSize: number,
-  subsequentChunkSize: number
+  subsequentChunkSize: number,
 ): string[][] {
   const chunks: string[][] = [];
   if (arr.length === 0) return chunks;
@@ -342,7 +337,7 @@ function chunkArray(
 
 function chunkTracksForLLM(spotifySearchResults, youtubeData): string[] {
   const allChunks: string[] = [];
-  let currentChunk = "";
+  let currentChunk = '';
 
   for (const item of spotifySearchResults) {
     const { title, trackNumber, youtubeChannelName, results } = item;
@@ -357,12 +352,8 @@ function chunkTracksForLLM(spotifySearchResults, youtubeData): string[] {
     formatted += `Results:\n`;
 
     results.forEach((r) => {
-      const artistNames = Array.isArray(r.artists)
-        ? r.artists
-        : [r.artists || "Unknown Artist"];
-      formatted += `  - Name: ${r.name}, Artist(s): ${artistNames.join(
-        ", "
-      )}\n`;
+      const artistNames = Array.isArray(r.artists) ? r.artists : [r.artists || 'Unknown Artist'];
+      formatted += `  - Name: ${r.name}, Artist(s): ${artistNames.join(', ')}\n`;
       formatted += `    Release Date: ${r.release_date}, Duration: ${r.duration}, Result Number: ${r.resultNumber}\n`;
     });
 
@@ -370,7 +361,7 @@ function chunkTracksForLLM(spotifySearchResults, youtubeData): string[] {
       allChunks.push(currentChunk);
       currentChunk = formatted;
     } else {
-      currentChunk += formatted + "\n";
+      currentChunk += formatted + '\n';
     }
   }
 

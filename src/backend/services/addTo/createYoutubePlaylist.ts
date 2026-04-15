@@ -1,9 +1,12 @@
-import { get_SpotifyAccessToken } from "../../../auth/spotify/spotifyTokenUtil";
-import axios from "axios";
+import { get_SpotifyAccessToken } from '../../../auth/spotify/spotifyTokenUtil';
+import axios from 'axios';
 
-export const createSpotifyPlaylist = async (userId: string, playlistName: string): Promise<string> => {
+export const createSpotifyPlaylist = async (
+  userId: string,
+  playlistName: string,
+): Promise<string> => {
   const accessToken = await get_SpotifyAccessToken(userId);
-  const userRes = await axios.get("https://api.spotify.com/v1/me", {
+  const userRes = await axios.get('https://api.spotify.com/v1/me', {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -15,14 +18,14 @@ export const createSpotifyPlaylist = async (userId: string, playlistName: string
     `https://api.spotify.com/v1/users/${userSpotifyId}/playlists`,
     {
       name: playlistName,
-      description: "Migrated from YouTube",
+      description: 'Migrated from YouTube',
       public: true,
     },
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-    }
+    },
   );
 
   return playlistRes.data.id;

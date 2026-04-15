@@ -1,4 +1,4 @@
-import prisma from "../../../db/prisma";
+import prisma from '../../../db/prisma';
 
 export const getNotFoundTracksFromSpotify = async (userId: string) => {
   try {
@@ -12,7 +12,7 @@ export const getNotFoundTracksFromSpotify = async (userId: string) => {
     if (tracks.length === 0) {
       return {
         success: true,
-        message: "No tracks are marked as not found. Nothing to retry.",
+        message: 'No tracks are marked as not found. Nothing to retry.',
         data: [],
       };
     }
@@ -22,12 +22,12 @@ export const getNotFoundTracksFromSpotify = async (userId: string) => {
       data: tracks,
     };
   } catch (error) {
-    console.error("Error fetching not found Spotify tracks:", error);
+    console.error('Error fetching not found Spotify tracks:', error);
 
     return {
       success: false,
-      error: "FETCH_FAILED",
-      message: "Failed to retrieve not found tracks from Spotify data.",
+      error: 'FETCH_FAILED',
+      message: 'Failed to retrieve not found tracks from Spotify data.',
     };
   }
 };

@@ -1,8 +1,8 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError } from 'axios';
 import {
   get_YoutubeAccessToken,
   refreshYoutubeAccessToken,
-} from "../../../../auth/youtube/youtubeTokensUtil";
+} from '../../../../auth/youtube/youtubeTokensUtil';
 
 const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 
@@ -18,7 +18,7 @@ const convertDurationToMinutesAndSeconds = (duration) => {
   const minutes = parseInt(match[2]) || 0;
   const seconds = parseInt(match[3]) || 0;
   const totalMinutes = hours * 60 + minutes;
-  return `${totalMinutes}:${String(seconds).padStart(2, "0")}`;
+  return `${totalMinutes}:${String(seconds).padStart(2, '0')}`;
 };
 
 /**
@@ -26,16 +26,13 @@ const convertDurationToMinutesAndSeconds = (duration) => {
  * @param userId - ID of the user in your system
  * @param playlistId - YouTube playlist ID to fetch
  */
-export const searchYoutubeTracks = async (
-  userId: string,
-  playlistId: string
-) => {
+export const searchYoutubeTracks = async (userId: string, playlistId: string) => {
   if (!playlistId) {
-    console.error("Missing playlistId");
+    console.error('Missing playlistId');
     return {
       success: false,
-      error: "MISSING_PLAYLIST_ID",
-      message: "No YouTube playlist ID provided.",
+      error: 'MISSING_PLAYLIST_ID',
+      message: 'No YouTube playlist ID provided.',
     };
   }
 
@@ -48,20 +45,16 @@ export const searchYoutubeTracks = async (
 
       return { success: true, data: fetchedTracks };
     } catch (error) {
-      if (error.message === "Access token not found") {
-        console.error("Access token not found, cannot proceed.");
+      if (error.message === 'Access token not found') {
+        console.error('Access token not found, cannot proceed.');
         return {
-          error: "AUTH_ERROR",
-          message: "Access token not found or expired. Please log in again.",
+          error: 'AUTH_ERROR',
+          message: 'Access token not found or expired. Please log in again.',
         };
       }
 
-      if (
-        error instanceof AxiosError &&
-        error.response &&
-        error.response.status === 401
-      ) {
-        console.log("Access token expired, refreshing token...");
+      if (error instanceof AxiosError && error.response && error.response.status === 401) {
+        console.log('Access token expired, refreshing token...');
         const response = await refreshYoutubeAccessToken(userId);
 
         if (response.success) {
@@ -69,38 +62,34 @@ export const searchYoutubeTracks = async (
           console.log(`Retrying... Attempt ${retryCount}/${MAX_RETRIES}`);
           continue;
         } else {
-          console.error("Error refreshing token");
+          console.error('Error refreshing token');
           return {
             success: false,
-            error: "AUTH_REFRESH_FAILED",
-            redirect: "/youtube/login",
-            message:
-              "Failed to refresh YouTube access token. Please log in again.",
+            error: 'AUTH_REFRESH_FAILED',
+            redirect: '/youtube/login',
+            message: 'Failed to refresh YouTube access token. Please log in again.',
           };
         }
       } else {
         console.error(
-          "Error fetching tracks:",
-          error.response ? error.response.data : error.message
+          'Error fetching tracks:',
+          error.response ? error.response.data : error.message,
         );
-        return { success: false, error: "Failed to fetch tracks" };
+        return { success: false, error: 'Failed to fetch tracks' };
       }
     }
   }
 
-  return { success: false, error: "Unexpected error occurred" };
+  return { success: false, error: 'Unexpected error occurred' };
 };
 
 /**
  * Fetch tracks from a YouTube playlist using the YouTube API.
  */
-const fetchYoutubeTracks = async (
-  accessToken: string,
-  playlistId: string
-) => {
-  let url = "https://www.googleapis.com/youtube/v3/playlistItems";
+const fetchYoutubeTracks = async (accessToken: string, playlistId: string) => {
+  let url = 'https://www.googleapis.com/youtube/v3/playlistItems';
   let allTracks = [];
-  let pageToken = "";
+  let pageToken = '';
   let trackCounter = 1;
   let totalTracksFetched = 0;
 
@@ -111,60 +100,49 @@ const fetchYoutubeTracks = async (
           Authorization: `Bearer ${accessToken}`,
         },
         params: {
-          part: "snippet",
+          part: 'snippet',
           playlistId: playlistId, // 👈 Use the provided playlistId here
           maxResults: 50,
           pageToken: pageToken,
         },
       });
 
-      const videoIds = response.data.items.map(
-        (item) => item.snippet.resourceId.videoId
-      );
+      const videoIds = response.data.items.map((item) => item.snippet.resourceId.videoId);
 
-      const videoDetailsResponse = await axios.get(
-        "https://www.googleapis.com/youtube/v3/videos",
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          params: {
-            part: "contentDetails",
-            id: videoIds.join(","),
-            key: youtube_Api_Key,
-          },
-        }
-      );
+      const videoDetailsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        params: {
+          part: 'contentDetails',
+          id: videoIds.join(','),
+          key: youtube_Api_Key,
+        },
+      });
 
       const remainingTracks = MAX_TRACKS - totalTracksFetched;
 
-      const newTracks = response.data.items
-        .slice(0, remainingTracks)
-        .map((item) => {
-          const description = item.snippet.description.split("\n").join(" ");
-          const videoDetail = videoDetailsResponse.data.items.find(
-            (video) => video.id === item.snippet.resourceId.videoId
-          );
-          const duration = videoDetail
-            ? convertDurationToMinutesAndSeconds(
-                videoDetail.contentDetails.duration
-              )
-            : null;
+      const newTracks = response.data.items.slice(0, remainingTracks).map((item) => {
+        const description = item.snippet.description.split('\n').join(' ');
+        const videoDetail = videoDetailsResponse.data.items.find(
+          (video) => video.id === item.snippet.resourceId.videoId,
+        );
+        const duration = videoDetail
+          ? convertDurationToMinutesAndSeconds(videoDetail.contentDetails.duration)
+          : null;
 
-          const publishedDate = new Date(item.snippet.publishedAt)
-            .toISOString()
-            .split("T")[0];
+        const publishedDate = new Date(item.snippet.publishedAt).toISOString().split('T')[0];
 
-          return {
-            trackNumber: trackCounter++,
-            trackId: item.snippet.resourceId.videoId,
-            title: item.snippet.title,
-            description: description,
-            videoChannelTitle: item.snippet.videoOwnerChannelTitle,
-            duration,
-            publishedDate,
-          };
-        });
+        return {
+          trackNumber: trackCounter++,
+          trackId: item.snippet.resourceId.videoId,
+          title: item.snippet.title,
+          description: description,
+          videoChannelTitle: item.snippet.videoOwnerChannelTitle,
+          duration,
+          publishedDate,
+        };
+      });
 
       allTracks = allTracks.concat(newTracks);
       totalTracksFetched += newTracks.length;
@@ -177,7 +155,7 @@ const fetchYoutubeTracks = async (
     }
 
     youtubeTrackArray = allTracks;
-    console.log("Request sent, total tracks fetched:", totalTracksFetched);
+    console.log('Request sent, total tracks fetched:', totalTracksFetched);
 
     return youtubeTrackArray;
   } catch (error) {

@@ -1,28 +1,28 @@
-import prisma from "../db/prisma";
-import redis from "../config/redis";
+import prisma from '../db/prisma';
+import redis from '../config/redis';
 
 export async function bootstrap() {
-  console.log("🔌 Running backend bootstrap...");
+  console.log('🔌 Running backend bootstrap...');
 
   // Redis
   try {
-    console.log("🔌 Waiting for Redis...");
+    console.log('🔌 Waiting for Redis...');
     await redis.ping(); // just verifies connection
-    console.log("🟢 Redis connected");
+    console.log('🟢 Redis connected');
   } catch (err) {
-    console.error("❌ Redis connection failed");
+    console.error('❌ Redis connection failed');
     console.error(err);
-    throw new Error("REDIS_CONNECTION_FAILED");
+    throw new Error('REDIS_CONNECTION_FAILED');
   }
 
   // Database (Prisma)
   try {
-    console.log("🔌 Connecting to PostgreSQL...");
+    console.log('🔌 Connecting to PostgreSQL...');
     await prisma.$queryRaw`SELECT 1`;
-    console.log("🟢 PostgreSQL connected");
+    console.log('🟢 PostgreSQL connected');
   } catch (err) {
-    console.error("❌ PostgreSQL connection failed");
+    console.error('❌ PostgreSQL connection failed');
     console.error(err);
-    throw new Error("DATABASE_CONNECTION_FAILED");
+    throw new Error('DATABASE_CONNECTION_FAILED');
   }
 }

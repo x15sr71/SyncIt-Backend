@@ -1,8 +1,8 @@
-import axios from "axios";
+import axios from 'axios';
 import {
   get_SpotifyAccessToken,
   refreshSpotifyToken,
-} from "../../../auth/spotify/spotifyTokenUtil";
+} from '../../../auth/spotify/spotifyTokenUtil';
 
 const MAX_RETRIES = 2;
 
@@ -22,7 +22,7 @@ export interface SpotifyTrackInfo {
 export async function getSpotifyPlaylistContent(
   userId: string,
   playlistId: string,
-  limit = 100
+  limit = 100,
 ): Promise<SpotifyTrackInfo[]> {
   const tokenData = await get_SpotifyAccessToken(userId);
   let token = tokenData;
@@ -35,13 +35,10 @@ export async function getSpotifyPlaylistContent(
     let retries = 0;
     while (retries <= MAX_RETRIES) {
       try {
-        const resp = await axios.get(
-          `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            params: { offset, limit: Math.min(100, limit - allTracks.length) },
-          }
-        );
+        const resp = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { offset, limit: Math.min(100, limit - allTracks.length) },
+        });
         total = resp.data.total;
         const chunk = resp.data.items
           .filter((item: any) => item.track)
@@ -58,7 +55,7 @@ export async function getSpotifyPlaylistContent(
       } catch (err: any) {
         if (err.response?.status === 401 && retries < MAX_RETRIES) {
           const refreshed = await refreshSpotifyToken(userId);
-          if (!refreshed?.access_token) throw new Error("Failed to refresh Spotify access token");
+          if (!refreshed?.access_token) throw new Error('Failed to refresh Spotify access token');
           token = refreshed.access_token;
           retries++;
           continue;
@@ -79,7 +76,7 @@ export async function getSpotifyPlaylistContent(
 export async function getSpotifyPlaylistContentMultiple(
   userId: string,
   playlistIds: string[],
-  limit = 100
+  limit = 100,
 ): Promise<Record<string, SpotifyTrackInfo[]>> {
   const result: Record<string, SpotifyTrackInfo[]> = {};
 
