@@ -2,9 +2,9 @@ import { clearYouTubePlaylist } from '../services/emptyPlaylist/emptyYoutubePlay
 
 export const emptyYouTubePlaylist = async (req, res) => {
   const userId = req.session?.id;
-  // const { playlistId } = req.body;
+  const { playlistId } = req.body;
 
-  if (!userId) {
+  if (!userId || !playlistId) {
     return res.status(400).json({
       success: false,
       error: 'MISSING_PARAMS',
@@ -13,7 +13,7 @@ export const emptyYouTubePlaylist = async (req, res) => {
   }
 
   try {
-    const result = await clearYouTubePlaylist(userId, 'PLY6KwKMkfULW2bGdfKhzHa8mEf9joJwXK');
+    const result = await clearYouTubePlaylist(userId, playlistId);
     return res.json(result);
   } catch (error) {
     const statusCode = error?.response?.status || 500;

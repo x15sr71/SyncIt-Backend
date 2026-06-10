@@ -35,7 +35,7 @@ export async function getSpotifyPlaylistContent(
     let retries = 0;
     while (retries <= MAX_RETRIES) {
       try {
-        const resp = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        const resp = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
           headers: { Authorization: `Bearer ${token}` },
           params: { offset, limit: Math.min(100, limit - allTracks.length) },
         });

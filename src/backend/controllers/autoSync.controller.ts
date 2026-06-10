@@ -177,7 +177,7 @@ export async function triggerSyncNowHandler(req: AuthenticatedRequest, res: Resp
     const migration = await prisma.playlistMigration.findFirst({
       where: {
         userId,
-        playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform,
         destinationPlatform,
       },

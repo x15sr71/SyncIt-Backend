@@ -51,43 +51,12 @@ export const renamePlaylistHandler = async (req, res) => {
 };
 
 export const deletePlaylistHandler = async (req, res) => {
-  const { playlistId } = req.body;
-  const userId = req.session?.id;
-
-  if (!userId || !playlistId) {
-    return res.status(400).json({ success: false, message: 'Missing playlist ID.' });
-  }
-
-  let retryCount = 0;
-  let accessToken = await get_SpotifyAccessToken(userId);
-
-  while (retryCount <= MAX_RETRIES) {
-    try {
-      // Note: Spotify does NOT fully delete playlists; it unfollows them
-      await axios.delete(`https://api.spotify.com/v1/playlists/${playlistId}/followers`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      return res.json({
-        success: true,
-        message: 'Playlist deleted (unfollowed).',
-      });
-    } catch (error: any) {
-      const status = error?.response?.status;
-      if (status === 401 && retryCount < MAX_RETRIES) {
-        const refreshed = await refreshSpotifyToken(userId);
-        if (refreshed?.access_token) {
-          accessToken = refreshed.access_token;
-          retryCount++;
-          continue;
-        }
-        return res.status(401).json({ success: false, message: 'Token refresh failed.' });
-      }
-      return res.status(500).json({ success: false, message: 'Failed to delete playlist.' });
-    }
-  }
+  // DELETE /playlists/{id}/followers was removed in the Spotify Feb-2026 dev-mode API update.
+  // Spotify does not expose a playlist-delete endpoint; users must unfollow via the Spotify app.
+  return res.status(501).json({
+    success: false,
+    message: 'Playlist deletion is not supported via the Spotify API. Please unfollow the playlist directly in Spotify.',
+  });
 };
 
 export const deleteSongHandler = async (req, res) => {

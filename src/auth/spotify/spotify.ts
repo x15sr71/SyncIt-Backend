@@ -15,7 +15,7 @@ export const handleSpotifyLogin = (req, res) => {
     client_id,
     scope,
     redirect_uri,
-    prompt: 'consent',
+    show_dialog: true,
   })}`;
 
   return res.redirect(authUrl);
@@ -106,7 +106,7 @@ export const handleSpotifyCallback = async (req, res) => {
 
     console.log('Spotify authentication successful for user:', userId);
 
-    res.redirect('http://localhost:3000/dashboard'); // Redirect to frontend sync page
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`);
   } catch (error) {
     console.error('Spotify OAuth Error:', error.response ? error.response.data : error.message);
     return res.status(400).json({

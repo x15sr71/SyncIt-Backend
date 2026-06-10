@@ -34,7 +34,7 @@ const PORT = process.env.PORT || 3002;
 app.use(cookieParser());
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'https://syncit-app-1.vercel.app/'],
+    origin: ['http://localhost:3000', 'https://syncit-app-1.vercel.app'],
     credentials: true,
   }),
 );
