@@ -63,10 +63,12 @@ export const migrateYoutubeToSpotifyService = async (
     throw new Error('YouTube user not found in database.');
   }
 
-  // 👇 Use playlistId in searchYoutubeTracks
   const allYoutubeTracks = await searchYoutubeTracks(userId, playlistId);
 
-  // 🆕 Deduplicate YouTube tracks by trackId before processing
+  if (!allYoutubeTracks.success) {
+    throw new Error(`Failed to fetch YouTube tracks: ${allYoutubeTracks.error}`);
+  }
+
   const uniqueYoutubeTracks = allYoutubeTracks.data.filter(
     (track, index, self) => index === self.findIndex((t) => t.trackId === track.trackId),
   );
