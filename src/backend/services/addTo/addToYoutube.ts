@@ -21,36 +21,19 @@ export async function addToYoutubePlaylist(
 
   while (retryCount < MAX_RETRIES) {
     try {
-      let accessToken = await get_YoutubeAccessToken(userId);
+      const accessToken = await get_YoutubeAccessToken(userId);
 
-      // Validate that the playlist exists before proceeding
-      const playlistExists = await validatePlaylistExists(youtubePlaylistId, accessToken);
-      if (!playlistExists) {
-        throw new Error(
-          `YouTube playlist ${youtubePlaylistId} does not exist or is not accessible`,
-        );
-      }
-
-      // Get current video IDs in the playlist
       const existingVideoIds = await fetchExistingVideoIds(youtubePlaylistId, accessToken);
 
-      // Filter out duplicates
       const uniqueVideoIds = videoIds.filter((id) => !existingVideoIds.has(id));
 
       if (uniqueVideoIds.length === 0) {
-        console.log('🚫 No new videos to add — all already exist in playlist.');
         return [];
       }
 
-      // Proceed to add unique videos
-      const actuallyAdded = await addVideosToPlaylist(
-        accessToken,
-        uniqueVideoIds,
-        youtubePlaylistId,
-      );
-      return actuallyAdded;
+      return await addVideosToPlaylist(accessToken, uniqueVideoIds, youtubePlaylistId);
     } catch (err: any) {
-      if (err instanceof AxiosError && err.response?.status === 401) {
+      if (err?.response?.status === 401) {
         console.warn(`YouTube access token expired (attempt ${retryCount + 1}), refreshing…`);
         await refreshYoutubeAccessToken(userId);
         retryCount++;

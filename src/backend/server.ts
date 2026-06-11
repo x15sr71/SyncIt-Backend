@@ -25,8 +25,8 @@ import getYoutubePlaylistContentHandler from './routes/youtubeContent.route';
 import migrateSpotifyToYoutubeHandler from './routes/migrateSpotifyToYoutube.router';
 import migrateYoutubeToSpotifyHandler from './routes/migrateYoutubeToSpotify.route';
 import getNotFoundTracksRouter from './routes/getNotFoundTracks.route';
-import spotifyActionsRouter from './routes/routes/spotifyActions.routes';
-import youtubeactionrouter from './routes/routes/youtubeActions.routes';
+import spotifyActionsRouter from './routes/spotifyActions.routes';
+import youtubeactionrouter from './routes/youtubeActions.routes';
 import autoSyncRoutes from './routes/autoSync.routes';
 import migrationRoutes from './routes/migration.routes';
 

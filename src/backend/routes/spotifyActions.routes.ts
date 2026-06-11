@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import sessionMiddleware from '../../../middlewares/sessionMiddleware';
+import sessionMiddleware from '../../middlewares/sessionMiddleware';
 import {
   renamePlaylistHandler,
   deletePlaylistHandler,
   deleteSongHandler,
-} from '../../controllers/spotifyActions.controller';
+} from '../controllers/spotifyActions.controller';
 
 const router = Router();
 

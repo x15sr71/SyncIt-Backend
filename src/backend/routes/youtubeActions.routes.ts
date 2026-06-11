@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import sessionMiddleware from '../../../middlewares/sessionMiddleware';
+import sessionMiddleware from '../../middlewares/sessionMiddleware';
 import {
   renameYouTubePlaylistHandler,
   deleteYouTubePlaylistHandler,
   deleteYouTubeSongHandler,
-} from '../../controllers/youtubeActions.controller';
+} from '../controllers/youtubeActions.controller';
 
 const router = Router();
 
