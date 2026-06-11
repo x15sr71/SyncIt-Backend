@@ -1,7 +1,9 @@
-// src/backend/services/migration/migrationCronService.ts
-
 import prisma from '../db/prisma';
+import redis from '../config/redis';
 import { migrateYoutubeToSpotifyService } from '../backend/services/migration/youtubeToSpotify';
+
+const LOCK_KEY = 'migration_cron_lock';
+const LOCK_TTL_SECONDS = 600; // 10 min max for a full cron run
 
 interface MigrationData {
   id: string;
@@ -51,6 +53,8 @@ export class MigrationCronService {
   static async getMigrationsToRun(): Promise<MigrationData[]> {
     return prisma.playlistMigration.findMany({
       where: {
+        autoSyncEnabled: true,
+        nextSyncAt: { lte: new Date() },
         sourcePlaylistId: { not: null },
         destinationPlaylistId: { not: null },
         sourcePlatform: 'YOUTUBE',
@@ -226,6 +230,21 @@ export class MigrationCronService {
   static async runCronJob(): Promise<CronJobResults> {
     console.log(`[MigrationCron] 🕒 Running cron job at ${new Date().toISOString()}`);
 
+    // Acquire a Redis lock to prevent overlapping runs
+    let locked = false;
+    try {
+      const result = await (redis as any).set(LOCK_KEY, '1', 'EX', LOCK_TTL_SECONDS, 'NX');
+      locked = result === 'OK';
+    } catch {
+      // Redis unavailable — skip lock, proceed anyway
+      locked = true;
+    }
+
+    if (!locked) {
+      console.warn('[MigrationCron] Previous job still running, skipping this tick');
+      return { totalMigrations: 0, successful: 0, failed: 0, details: [], message: 'Skipped: previous job still running' };
+    }
+
     try {
       const migrations = await this.getMigrationsToRun();
       console.log(`[MigrationCron] Found ${migrations.length} migrations to execute.`);
@@ -268,6 +287,8 @@ export class MigrationCronService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[MigrationCron] 💥 Cron job failed: ${errorMessage}`);
       throw error;
+    } finally {
+      try { await redis.del(LOCK_KEY); } catch { /* best-effort */ }
     }
   }
 }
