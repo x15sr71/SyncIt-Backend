@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import axios, { AxiosError } from 'axios';
 import {
   get_YoutubeAccessToken,
@@ -8,7 +9,7 @@ const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 const MAX_RETRIES = 5;
 const MAX_TRACKS = 40;
 
-export const searchYoutubeTracks = async (req, res) => {
+export const searchYoutubeTracks = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {
@@ -30,7 +31,7 @@ export const searchYoutubeTracks = async (req, res) => {
 
       const fetchedTracks = await fetchYoutubeTracks(accessToken);
       return res.json({ success: true, data: fetchedTracks });
-    } catch (error) {
+    } catch (error: any) {
       const isUnauthorized = error instanceof AxiosError && error.response?.status === 401;
 
       if (isUnauthorized) {
@@ -66,14 +67,14 @@ export const searchYoutubeTracks = async (req, res) => {
 };
 
 const fetchYoutubeTracks = async (accessToken: string) => {
-  let url = 'https://www.googleapis.com/youtube/v3/playlistItems';
-  let allTracks = [];
-  let pageToken = '';
+  let url: string | null = 'https://www.googleapis.com/youtube/v3/playlistItems';
+  let allTracks: any[] = [];
+  let pageToken: string | null = '';
   let trackCounter = 1;
   let totalTracksFetched = 0;
 
   while (url && totalTracksFetched < MAX_TRACKS) {
-    const response = await axios.get(url, {
+    const response: any = await axios.get(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
       params: {
         part: 'snippet',
@@ -83,7 +84,7 @@ const fetchYoutubeTracks = async (accessToken: string) => {
       },
     });
 
-    const videoIds = response.data.items.map((item) => item.snippet.resourceId.videoId);
+    const videoIds = response.data.items.map((item: any) => item.snippet.resourceId.videoId);
 
     const videoDetailsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -94,9 +95,9 @@ const fetchYoutubeTracks = async (accessToken: string) => {
       },
     });
 
-    const newTracks = response.data.items.map((item, index) => {
+    const newTracks = response.data.items.map((item: any, index: number) => {
       const videoId = item.snippet.resourceId.videoId;
-      const videoDetail = videoDetailsResponse.data.items.find((video) => video.id === videoId);
+      const videoDetail = videoDetailsResponse.data.items.find((video: any) => video.id === videoId);
       const duration = convertDurationToMinutesAndSeconds(
         videoDetail?.contentDetails?.duration || '',
       );

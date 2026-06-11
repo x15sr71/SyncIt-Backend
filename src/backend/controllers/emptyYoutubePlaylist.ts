@@ -1,6 +1,7 @@
+import { Request, Response, NextFunction } from 'express';
 import { clearYouTubePlaylist } from '../services/emptyPlaylist/emptyYoutubePlaylist';
 
-export const emptyYouTubePlaylist = async (req, res) => {
+export const emptyYouTubePlaylist = async (req: Request, res: Response) => {
   const userId = req.session?.id;
   const { playlistId } = req.body;
 
@@ -15,7 +16,7 @@ export const emptyYouTubePlaylist = async (req, res) => {
   try {
     const result = await clearYouTubePlaylist(userId, playlistId);
     return res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     const statusCode = error?.response?.status || 500;
     const isAuthError = statusCode === 401;
     const isRateLimit = statusCode === 429 || statusCode === 403;

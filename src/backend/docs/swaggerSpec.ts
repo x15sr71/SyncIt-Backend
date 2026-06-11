@@ -1,3 +1,4 @@
+// @ts-ignore — no @types/swagger-jsdoc available
 import swaggerJsdoc from 'swagger-jsdoc';
 import { swaggerDefinition } from './swaggerDef';
 

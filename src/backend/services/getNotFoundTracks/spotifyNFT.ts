@@ -21,7 +21,7 @@ export const getNotFoundTracksFromSpotify = async (userId: string) => {
       success: true,
       data: tracks,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching not found Spotify tracks:', error);
 
     return {

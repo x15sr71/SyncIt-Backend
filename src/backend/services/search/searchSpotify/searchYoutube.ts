@@ -10,8 +10,9 @@ const MAX_RETRIES = 5;
 const MAX_TRACKS = 40;
 
 // Convert ISO 8601 duration to "MM:SS"
-const convertDurationToMinutesAndSeconds = (duration) => {
+const convertDurationToMinutesAndSeconds = (duration: string) => {
   const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+  if (!match) return '0:00';
   const hours = parseInt(match[1]) || 0;
   const minutes = parseInt(match[2]) || 0;
   const seconds = parseInt(match[3]) || 0;
@@ -37,7 +38,7 @@ export const searchYoutubeTracks = async (userId: string, playlistId: string) =>
       const accessToken = await get_YoutubeAccessToken(userId);
       const fetchedTracks = await fetchYoutubeTracks(accessToken, playlistId);
       return { success: true, data: fetchedTracks };
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof AxiosError && error.response && error.response.status === 401) {
         const response = await refreshYoutubeAccessToken(userId);
         if (response.success) {
@@ -82,7 +83,7 @@ const fetchYoutubeTracks = async (accessToken: string, playlistId: string) => {
       },
     });
 
-    const videoIds = response.data.items.map((item) => item.snippet.resourceId.videoId);
+    const videoIds = response.data.items.map((item: any) => item.snippet.resourceId.videoId);
 
     const videoDetailsResponse = await axios.get(
       'https://www.googleapis.com/youtube/v3/videos',
@@ -98,10 +99,10 @@ const fetchYoutubeTracks = async (accessToken: string, playlistId: string) => {
 
     const remainingTracks = MAX_TRACKS - totalTracksFetched;
 
-    const newTracks = response.data.items.slice(0, remainingTracks).map((item) => {
+    const newTracks = response.data.items.slice(0, remainingTracks).map((item: any) => {
       const description = item.snippet.description.split('\n').join(' ');
       const videoDetail = videoDetailsResponse.data.items.find(
-        (video) => video.id === item.snippet.resourceId.videoId,
+        (video: any) => video.id === item.snippet.resourceId.videoId,
       );
       const duration = videoDetail
         ? convertDurationToMinutesAndSeconds(videoDetail.contentDetails.duration)

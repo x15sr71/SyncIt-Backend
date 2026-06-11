@@ -1,6 +1,7 @@
+import { Request, Response, NextFunction } from 'express';
 import { clearLikedTracks } from '../services/emptyPlaylist/emptySpotifyPlaylist';
 
-export const emptySpotifyPlaylist = async (req, res) => {
+export const emptySpotifyPlaylist = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {
@@ -14,7 +15,7 @@ export const emptySpotifyPlaylist = async (req, res) => {
   try {
     const result = await clearLikedTracks(userId);
     return res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error clearing playlist:', error.message);
     const message = error.message || 'Unknown error';
 

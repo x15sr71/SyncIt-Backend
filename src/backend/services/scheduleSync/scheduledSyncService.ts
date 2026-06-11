@@ -131,7 +131,7 @@ export class ScheduledSyncService {
           lastSyncStatus: result?.success ? 'SUCCESS' : 'PARTIAL',
           lastSyncError: null,
           migrationCounter: migration.migrationCounter + 1,
-          sourceTrackIds: result?.videoIds || result?.trackUris || migration.sourceTrackIds,
+          sourceTrackIds: result?.videoIds || migration.sourceTrackIds,
         },
       });
 
@@ -172,12 +172,12 @@ export class ScheduledSyncService {
       for (const migration of migrationsToRun) {
         try {
           await this.executeMigration(migration);
-        } catch (error) {
+        } catch (error: any) {
           console.error(`[ScheduledSync] Failed to execute migration ${migration.id}:`, error);
           // Continue with other migrations even if one fails
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[ScheduledSync] Cron job failed:', error);
     }
   }

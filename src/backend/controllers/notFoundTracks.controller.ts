@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { getNotFoundTracksFromSpotify } from '../services/getNotFoundTracks/spotifyNFT';
 import { getNotFoundTracksFromYoutube } from '../services/getNotFoundTracks/youtubeNFT';
 
-export const notFoundTracks = async (req, res) => {
+export const notFoundTracks = async (req: Request, res: Response) => {
   try {
     const userId = req.session?.id;
     const platform = ((req.query.platform as string) || (req.body.platform as string) || '').toLowerCase();
@@ -41,7 +41,7 @@ export const notFoundTracks = async (req, res) => {
           message: 'Unsupported platform',
         });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in notFoundTracks controller:', error);
     return res.status(500).json({
       success: false,

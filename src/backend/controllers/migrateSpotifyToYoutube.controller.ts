@@ -3,7 +3,7 @@ import axios from 'axios';
 import { migrateSpotifyPlaylistToYoutube } from '../services/migration/spotifyToYoutube';
 import { get_YoutubeAccessToken } from '../../auth/youtube/youtubeTokensUtil';
 
-export async function migrateSpotifyToYoutubeHandler(req, res) {
+export async function migrateSpotifyToYoutubeHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
   const { spotifyPlaylistId, youtubePlaylistId, playlistName } = req.body;
 

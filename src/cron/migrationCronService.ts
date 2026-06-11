@@ -9,7 +9,7 @@ interface MigrationData {
   id: string;
   userId: string;
   sourcePlaylistId: string;
-  destinationPlaylistId: string;
+  destinationPlaylistId: string | null;
   migrationCounter: number;
 }
 
@@ -51,12 +51,11 @@ export class MigrationCronService {
    * Fetches all pending migrations that need to run.
    */
   static async getMigrationsToRun(): Promise<MigrationData[]> {
-    return prisma.playlistMigration.findMany({
+    const rows = await prisma.playlistMigration.findMany({
       where: {
         autoSyncEnabled: true,
         nextSyncAt: { lte: new Date() },
-        sourcePlaylistId: { not: null },
-        destinationPlaylistId: { not: null },
+        destinationPlaylistId: { not: null as unknown as string },
         sourcePlatform: 'YOUTUBE',
         destinationPlatform: 'SPOTIFY',
       },
@@ -68,6 +67,8 @@ export class MigrationCronService {
         migrationCounter: true,
       },
     });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return rows as unknown as MigrationData[];
   }
 
   /**
@@ -88,7 +89,7 @@ export class MigrationCronService {
         userId,
         sourcePlaylistId,
         playlistName,
-        destinationPlaylistId,
+        destinationPlaylistId ?? undefined,
       );
 
       const executionTime = Date.now() - startTime;
@@ -109,7 +110,7 @@ export class MigrationCronService {
         executionTime,
         result,
       };
-    } catch (error) {
+    } catch (error: any) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -139,8 +140,7 @@ export class MigrationCronService {
     const migrations = await prisma.playlistMigration.findMany({
       where: {
         userId,
-        sourcePlaylistId: { not: null },
-        destinationPlaylistId: { not: null },
+        destinationPlaylistId: { not: null as unknown as string },
         sourcePlatform: 'YOUTUBE',
         destinationPlatform: 'SPOTIFY',
       },
@@ -283,7 +283,7 @@ export class MigrationCronService {
       );
 
       return results;
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[MigrationCron] 💥 Cron job failed: ${errorMessage}`);
       throw error;

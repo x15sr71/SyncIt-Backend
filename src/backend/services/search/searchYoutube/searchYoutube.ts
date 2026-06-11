@@ -51,7 +51,7 @@ const handleSearchError = async (
       try {
         await refreshYoutubeAccessToken(userId);
         return await get_YoutubeAccessToken(userId);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         console.error('Failed to refresh access token:', refreshError.message);
         return null;
       }
@@ -93,7 +93,7 @@ async function filterValidVideos(videoIds: string[], apiKey: string): Promise<Se
     }
 
     return validIds;
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to validate video statuses via videos.list:', err.message);
     return new Set(); // fallback to empty set = skip all
   }

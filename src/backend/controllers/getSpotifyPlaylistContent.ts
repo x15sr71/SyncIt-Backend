@@ -1,6 +1,7 @@
+import { Request, Response, NextFunction } from 'express';
 import { getSpotifyPlaylistContent } from '../services/getPlaylistContent/getSpotifyPlaylistContent';
 
-export const getSpotifyPlaylistContentHandler = async (req, res) => {
+export const getSpotifyPlaylistContentHandler = async (req: Request, res: Response) => {
   const userId = req.session?.id;
   const { playlistIds } = req.body; // read playlistIds from POST body
 
@@ -23,7 +24,7 @@ export const getSpotifyPlaylistContentHandler = async (req, res) => {
 
     console.log('Received playlistIds:', playlistIds);
     return res.json({ success: true, data: tracks });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Spotify content fetch error:', err.response?.data || err);
 
     const status = err.response?.status;

@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import prisma from '../../db/prisma';
 import axios from 'axios';
 import crypto from 'crypto';
@@ -12,7 +13,7 @@ const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
 const redirect_uri = process.env.GOOGLE_REDIRECT_URI;
 
-export const handleGoogleLogin = async (req, res) => {
+export const handleGoogleLogin = async (req: Request, res: Response) => {
   const sessionId = req.cookies?.sessionId;
 
   if (sessionId) {
@@ -31,7 +32,7 @@ export const handleGoogleLogin = async (req, res) => {
   res.cookie('oauth_temp', tempNonce, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
+    sameSite: 'lax',
     maxAge: 1000 * 60 * 10, // 10 minutes, matches state TTL
   });
 
@@ -53,8 +54,8 @@ export const handleGoogleLogin = async (req, res) => {
   return res.redirect(authUrl);
 };
 
-export const handleGoogleCallback = async (req, res) => {
-  const code = req.query.code || null;
+export const handleGoogleCallback = async (req: Request, res: Response) => {
+  const code = (req.query.code as string) || null;
   const stateParam = req.query.state as string | undefined;
 
   // Validate state before doing anything else
@@ -78,7 +79,7 @@ export const handleGoogleCallback = async (req, res) => {
   res.clearCookie('oauth_temp', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
+    sameSite: 'lax',
   });
 
   console.log(`OAuth ${stateData.flow} callback initiated`);
@@ -131,9 +132,7 @@ export const handleGoogleCallback = async (req, res) => {
           access_token,
           refresh_token: refresh_token || null,
           keepInSync: true,
-          primaryService: null,
           lastSyncTime: null,
-          lastSyncTracks: null,
         },
       });
     } else {
@@ -167,13 +166,13 @@ export const handleGoogleCallback = async (req, res) => {
     res.cookie('sessionId', session.session_id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
+      sameSite: 'lax',
       maxAge: sessionTtlMs,
     });
 
     // Redirect to frontend using the redirectAfter from state
     return res.redirect(buildRedirectUrl(stateData.redirectAfter));
-  } catch (error) {
+  } catch (error: any) {
     return res.status(400).json({
       error: 'Google authentication failed.',
       details: error.response?.data || error.message,

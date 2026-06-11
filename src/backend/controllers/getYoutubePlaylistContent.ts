@@ -1,6 +1,7 @@
+import { Request, Response, NextFunction } from 'express';
 import { getYouTubePlaylistContentService } from '../services/getPlaylistContent/getYoutubePlaylistContent';
 
-export const getYouTubePlaylistContentHandler = async (req, res) => {
+export const getYouTubePlaylistContentHandler = async (req: Request, res: Response) => {
   const userId = req.session?.id;
   const { playlistIds } = req.body; // Expecting an array of playlist IDs
 

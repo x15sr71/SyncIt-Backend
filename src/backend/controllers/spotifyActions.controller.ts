@@ -1,9 +1,10 @@
+import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../auth/spotify/spotifyTokenUtil';
 
 const MAX_RETRIES = 2;
 
-export const renamePlaylistHandler = async (req, res) => {
+export const renamePlaylistHandler = async (req: Request, res: Response) => {
   console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
   console.log('Renaming Spotify Playlist Handler Invoked');
   console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
@@ -50,7 +51,7 @@ export const renamePlaylistHandler = async (req, res) => {
   }
 };
 
-export const deletePlaylistHandler = async (req, res) => {
+export const deletePlaylistHandler = async (req: Request, res: Response) => {
   // DELETE /playlists/{id}/followers was removed in the Spotify Feb-2026 dev-mode API update.
   // Spotify does not expose a playlist-delete endpoint; users must unfollow via the Spotify app.
   return res.status(501).json({
@@ -59,7 +60,7 @@ export const deletePlaylistHandler = async (req, res) => {
   });
 };
 
-export const deleteSongHandler = async (req, res) => {
+export const deleteSongHandler = async (req: Request, res: Response) => {
   const { playlistId, trackUri } = req.body;
   const userId = req.session?.id;
 

@@ -4,14 +4,7 @@ import { Request, Response } from 'express';
 import { ScheduledSyncService } from '../../backend/services/scheduleSync/scheduledSyncService';
 import prisma from '../../db'; // Add this import
 
-// Extend the Request type to include session
-interface AuthenticatedRequest extends Request {
-  session?: {
-    id: string;
-  };
-}
-
-export async function enableAutoSyncHandler(req: AuthenticatedRequest, res: Response) {
+export async function enableAutoSyncHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
   const { playlistId, sourcePlatform, destinationPlatform, intervalMinutes = 60 } = req.body;
 
@@ -55,7 +48,7 @@ export async function enableAutoSyncHandler(req: AuthenticatedRequest, res: Resp
   }
 }
 
-export async function disableAutoSyncHandler(req: AuthenticatedRequest, res: Response) {
+export async function disableAutoSyncHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
   const { playlistId, sourcePlatform, destinationPlatform } = req.body;
 
@@ -89,7 +82,7 @@ export async function disableAutoSyncHandler(req: AuthenticatedRequest, res: Res
   }
 }
 
-export async function getSyncStatusHandler(req: AuthenticatedRequest, res: Response) {
+export async function getSyncStatusHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
 
   if (!userId) {
@@ -117,7 +110,7 @@ export async function getSyncStatusHandler(req: AuthenticatedRequest, res: Respo
   }
 }
 
-export async function updateSyncIntervalHandler(req: AuthenticatedRequest, res: Response) {
+export async function updateSyncIntervalHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
   const { playlistId, sourcePlatform, destinationPlatform, intervalMinutes } = req.body;
 
@@ -160,7 +153,7 @@ export async function updateSyncIntervalHandler(req: AuthenticatedRequest, res: 
   }
 }
 
-export async function triggerSyncNowHandler(req: AuthenticatedRequest, res: Response) {
+export async function triggerSyncNowHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
   const { playlistId, sourcePlatform, destinationPlatform } = req.body;
 

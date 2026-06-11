@@ -1,10 +1,11 @@
+import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../auth/spotify/spotifyTokenUtil';
 
 const SPOTIFY_PLAYLISTS_API = 'https://api.spotify.com/v1/me/playlists';
 const MAX_RETRIES = 2;
 
-export const getPlaylistsHandler = async (req, res) => {
+export const getPlaylistsHandler = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {

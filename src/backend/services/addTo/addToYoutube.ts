@@ -95,7 +95,7 @@ async function fetchExistingVideoIds(
   let nextPageToken: string | undefined = undefined;
 
   do {
-    const resp = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
+    const resp: any = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
       params: {
         part: 'contentDetails',
         playlistId,

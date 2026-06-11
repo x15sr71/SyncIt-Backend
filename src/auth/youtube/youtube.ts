@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import prisma from '../../db/prisma';
 import axios from 'axios';
 import querystring from 'querystring';
@@ -8,7 +9,7 @@ const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
 const redirect_uri = process.env.YOUTUBE_REDIRECT_URI;
 
-export const handleYouTubeLogin = async (req, res) => {
+export const handleYouTubeLogin = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {
@@ -53,8 +54,8 @@ export const handleYouTubeLogin = async (req, res) => {
   res.redirect(authUrl);
 };
 
-export const handleYouTubeCallback = async (req, res) => {
-  const code = req.query.code || null;
+export const handleYouTubeCallback = async (req: Request, res: Response) => {
+  const code = (req.query.code as string) || null;
   const stateParam = req.query.state as string | undefined;
 
   // Validate state before doing anything else
@@ -178,7 +179,7 @@ export const handleYouTubeCallback = async (req, res) => {
 
     // Redirect user to the frontend page specified in OAuth state
     return res.redirect(buildRedirectUrl(stateData.redirectAfter));
-  } catch (error) {
+  } catch (error: any) {
     console.error('YouTube OAuth Error:', error.response?.data || error.message);
     return res.status(400).json({
       error: 'YouTube authentication failed.',

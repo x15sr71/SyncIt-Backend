@@ -2,9 +2,8 @@ import axios from 'axios';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
-export const callOpenAIModel = async (messages) => {
+export const callOpenAIModel = async (messages: Array<{ role: string; content: string }>) => {
   try {
-    // Convert OpenAI message format to Gemini format
     const geminiContents = messages.map((msg) => {
       let role = msg.role;
       // Gemini uses 'user' and 'model' roles instead of 'user' and 'assistant'
@@ -60,7 +59,7 @@ export const callOpenAIModel = async (messages) => {
       content: content,
       usage: usage,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       'Error calling Gemini API:',
       error.response ? error.response.data : error.message,

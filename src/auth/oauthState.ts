@@ -49,7 +49,7 @@ export async function generateOAuthState(
 
   try {
     await redis.setex(`${STATE_PREFIX}${nonce}`, STATE_TTL_SECONDS, JSON.stringify(data));
-  } catch (err) {
+  } catch (err: any) {
     console.error(
       '[OAuth State] Redis unavailable during state generation:',
       (err as Error).message,
@@ -84,7 +84,7 @@ export async function validateOAuthState(
       console.warn('[OAuth State] State not found in Redis (expired or replayed)');
       return null;
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error(
       '[OAuth State] Redis unavailable during state validation:',
       (err as Error).message,
@@ -103,7 +103,7 @@ export async function validateOAuthState(
     }
 
     return data;
-  } catch (err) {
+  } catch (err: any) {
     console.warn('[OAuth State] Failed to parse state data from Redis');
     return null;
   }

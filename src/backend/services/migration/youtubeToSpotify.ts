@@ -131,10 +131,10 @@ export const migrateYoutubeToSpotifyService = async (
   }
 
   const searchChunks = chunkArray(formattedNewTracksOnly, 20, 10);
-  let spotifySearchResults = [];
+  let spotifySearchResults: any[] = [];
   let globalTrackNumber = 1;
-  let bestMatches = {};
-  let failedTrackDetails = [];
+  const bestMatches: Record<number, any> = {};
+  const failedTrackDetails: string[] = [];
 
   for (const chunk of searchChunks) {
     const chunkResults = await searchTracksOnSpotify(chunk, globalTrackNumber, userId);
@@ -282,12 +282,12 @@ export const migrateYoutubeToSpotifyService = async (
   };
 };
 
-function chunkArray(
-  arr: string[],
+function chunkArray<T>(
+  arr: T[],
   firstChunkSize: number,
   subsequentChunkSize: number,
-): string[][] {
-  const chunks: string[][] = [];
+): T[][] {
+  const chunks: T[][] = [];
   if (arr.length === 0) return chunks;
 
   let startIndex = 0;
@@ -307,8 +307,8 @@ function chunkArray(
 }
 
 function chunkTracksForLLM(
-  spotifySearchResults,
-  youtubeData,
+  spotifySearchResults: any[],
+  youtubeData: any[],
 ): Array<{ text: string; trackNumbers: number[] }> {
   const allChunks: Array<{ text: string; trackNumbers: number[] }> = [];
   let currentChunk = '';
@@ -326,7 +326,7 @@ function chunkTracksForLLM(
     formatted += `YouTube Video Published Date: ${youtubeTrack.publishedDate}\n`;
     formatted += `Results:\n`;
 
-    results.forEach((r) => {
+    results.forEach((r: any) => {
       const artistNames = Array.isArray(r.artists) ? r.artists : [r.artists || 'Unknown Artist'];
       formatted += `  - Name: ${r.name}, Artist(s): ${artistNames.join(', ')}\n`;
       formatted += `    Release Date: ${r.release_date}, Duration: ${r.duration}, Result Number: ${r.resultNumber}\n`;

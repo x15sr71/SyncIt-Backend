@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import redis from '../config/redis';
 import prisma from '../db/prisma';
 
@@ -7,7 +8,7 @@ export type SessionData = {
   expiresAt?: string;
 };
 
-const sessionMiddleware = async (req, res, next) => {
+const sessionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Prevent duplicate executions in a single request
     if (req._sessionChecked) return next();

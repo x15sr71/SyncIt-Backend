@@ -23,7 +23,7 @@ export const getNotFoundTracksFromYoutube = async (userId: string) => {
       success: true,
       data: tracks,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching not found YouTube tracks:', error);
 
     return {

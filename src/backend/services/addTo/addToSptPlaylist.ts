@@ -40,7 +40,7 @@ export const addToSptPlaylist = async function (
 
       await addToPlaylist(validTrackIds, playlistId, access_Token);
       return playlistId;
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof AxiosError && error.response?.status === 401) {
         await refreshSpotifyToken(userId);
         retryCount++;

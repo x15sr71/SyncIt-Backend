@@ -1,6 +1,7 @@
+import { Request, Response, NextFunction } from 'express';
 import { migrateYoutubeToSpotifyService } from '../../backend/services/migration/youtubeToSpotify';
 
-export const migrateYoutubeToSpotifyHandler = async (req, res) => {
+export const migrateYoutubeToSpotifyHandler = async (req: Request, res: Response) => {
   const userId = req.session?.id;
   if (!userId) {
     console.warn('[Controller] No session, rejecting request');

@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import prisma from '../../db/prisma';
 import axios from 'axios';
 import querystring from 'querystring';
@@ -7,7 +8,7 @@ const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirect_uri = process.env.SPOTIFY_REDIRECT_URI;
 
-export const handleSpotifyLogin = async (req, res) => {
+export const handleSpotifyLogin = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {
@@ -37,8 +38,8 @@ export const handleSpotifyLogin = async (req, res) => {
   return res.redirect(authUrl);
 };
 
-export const handleSpotifyCallback = async (req, res) => {
-  const code = req.query.code || null;
+export const handleSpotifyCallback = async (req: Request, res: Response) => {
+  const code = (req.query.code as string) || null;
   const stateParam = req.query.state as string | undefined;
 
   // Validate state before doing anything else (CSRF protection)

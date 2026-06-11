@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import {
   get_YoutubeAccessToken,
@@ -8,7 +9,7 @@ const YOUTUBE_PLAYLISTS_API = 'https://www.googleapis.com/youtube/v3/playlists';
 const MAX_RETRIES = 3; // Reduced from 10 to be more reasonable
 const REQUEST_TIMEOUT = 10000; // 10 seconds
 
-export const getYouTubePlaylistsHandler = async (req, res) => {
+export const getYouTubePlaylistsHandler = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {
@@ -31,7 +32,7 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
         message: 'YouTube access token not found. Please reconnect your account.',
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get YouTube access token:', error);
     return res.status(401).json({
       success: false,
@@ -91,7 +92,7 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
               message: errorMessage,
             });
           }
-        } catch (refreshError) {
+        } catch (refreshError: any) {
           console.error('Error during token refresh:', refreshError);
           return res.status(401).json({
             success: false,

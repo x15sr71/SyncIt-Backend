@@ -102,7 +102,7 @@ async function startServer() {
     server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('⛔ Server startup aborted');
     console.error('Reason:', err instanceof Error ? err.message : err);
     process.exit(1);
@@ -137,12 +137,12 @@ const cleanup = async (signal?: string) => {
     try {
       await redis.quit();
       console.log('Redis disconnected');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error disconnecting Redis:', err);
     }
 
     process.exit(0);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Cleanup error:', err);
     process.exit(1);
   }

@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import axios, { AxiosError } from 'axios';
 import prisma from '../../db/prisma';
 import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../auth/spotify/spotifyTokenUtil';
@@ -6,7 +7,7 @@ import { hashId } from '../utility/encrypt';
 const MAX_RETRIES = 3;
 const MAX_TRACKS = 100;
 
-export const searchSpotifyTracks = async (req, res): Promise<void> => {
+export const searchSpotifyTracks = async (req: Request, res: Response) => {
   const userId = req.session?.id;
   if (!userId) {
     return res.status(401).json({
@@ -33,7 +34,7 @@ export const searchSpotifyTracks = async (req, res): Promise<void> => {
 
       const tracks = await fetchSpotifyTracks(accessToken, userId);
       return res.json({ success: true, data: tracks });
-    } catch (error) {
+    } catch (error: any) {
       const isUnauthorized = error instanceof AxiosError && error.response?.status === 401;
 
       if (isUnauthorized) {
@@ -74,7 +75,7 @@ const fetchSpotifyTracks = async (accessToken: string, userId: string) => {
   let totalFetchedTracks = 0;
 
   while (url && totalFetchedTracks < MAX_TRACKS) {
-    const response = await axios.get(url, {
+    const response: any = await axios.get(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -84,10 +85,10 @@ const fetchSpotifyTracks = async (accessToken: string, userId: string) => {
       },
     });
 
-    const fetchedTracks = response.data.items.map((item) => ({
+    const fetchedTracks = response.data.items.map((item: any) => ({
       id: item.track.id,
       name: item.track.name,
-      artists: item.track.artists.map((a) => ({ name: a.name })),
+      artists: item.track.artists.map((a: any) => ({ name: a.name })),
       album: {
         name: item.track.album.name,
         album_type: item.track.album.album_type,
@@ -96,7 +97,7 @@ const fetchSpotifyTracks = async (accessToken: string, userId: string) => {
       duration_ms: item.track.duration_ms,
     }));
 
-    const trackIDs = response.data.items.map((item) => item.track.id);
+    const trackIDs = response.data.items.map((item: any) => item.track.id);
     const { hash } = hashId(response);
     const serializedTracks = JSON.stringify(trackIDs);
 

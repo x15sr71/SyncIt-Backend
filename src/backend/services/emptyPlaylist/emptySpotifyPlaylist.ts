@@ -34,7 +34,7 @@ const handleSpotifyError = async (error: any, retryCount: number, userId: string
         return { shouldRetry: false };
       }
       return { shouldRetry: true, newAccessToken: newToken };
-    } catch (refreshError) {
+    } catch (refreshError: any) {
       console.error('Token refresh failed:', refreshError.message);
       return { shouldRetry: false };
     }
@@ -83,7 +83,7 @@ const fetchLikedTracks = async (
       }
 
       return tracks;
-    } catch (error) {
+    } catch (error: any) {
       if (tracks.length > MAX_TRACKS_TO_PROCESS) {
         throw error; // Don't retry if it's a memory limit error
       }
@@ -141,7 +141,7 @@ const removeTracksFromLiked = async (
       try {
         await removeBatch(batch, currentToken);
         break; // Success, move to next batch
-      } catch (error) {
+      } catch (error: any) {
         const result = await handleSpotifyError(error, retryCount, userId);
         if (!result.shouldRetry || retryCount >= MAX_RETRIES) {
           throw new Error(`Failed to remove batch after ${MAX_RETRIES} retries: ${error.message}`);
@@ -201,7 +201,7 @@ export const clearLikedTracks = async (userId: string) => {
       removedCount: tracks.length,
       remainingTracks: updatedTracks,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in clearLikedTracks:', error.message);
 
     // Provide user-friendly error messages

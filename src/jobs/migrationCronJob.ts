@@ -23,7 +23,7 @@ export class MigrationCronJob {
         try {
           await MigrationCronService.runCronJob();
           console.log('[MigrationCronJob] Migration cron completed successfully');
-        } catch (error) {
+        } catch (error: any) {
           console.error('[MigrationCronJob] Cron execution failed:', error);
         }
       },
@@ -38,7 +38,7 @@ export class MigrationCronJob {
       try {
         await MigrationCronService.runCronJob();
         console.log('[MigrationCronJob] Initial migration completed successfully');
-      } catch (error) {
+      } catch (error: any) {
         console.error('[MigrationCronJob] Initial migration failed:', error);
       }
     }, 5000);

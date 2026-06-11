@@ -10,7 +10,7 @@ export async function bootstrap() {
     console.log('🔌 Checking Redis...');
     await redis.ping();
     console.log('🟢 Redis connected');
-  } catch (err) {
+  } catch (err: any) {
     console.warn('⚠️  Redis unavailable — continuing with degraded functionality');
     console.warn('   OAuth flows and session caching will not work until Redis recovers.');
   }
@@ -20,7 +20,7 @@ export async function bootstrap() {
     console.log('🔌 Connecting to PostgreSQL...');
     await prisma.$queryRaw`SELECT 1`;
     console.log('🟢 PostgreSQL connected');
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ PostgreSQL connection failed');
     console.error(err);
     throw new Error('DATABASE_CONNECTION_FAILED');
