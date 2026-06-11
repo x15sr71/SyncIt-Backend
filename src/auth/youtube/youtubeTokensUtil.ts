@@ -2,36 +2,41 @@ import axios from 'axios';
 import prisma from '../../db/prisma';
 import querystring from 'querystring';
 
-// Reuse the shared Google OAuth client credentials
 const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
-const REQUEST_TIMEOUT = 10000; // 10 seconds
+const REQUEST_TIMEOUT = 10000;
+const EXPIRY_BUFFER_MS = 60_000; // refresh if token expires within 60 s
 
-export async function get_YoutubeAccessToken(userId: string): Promise<string | null> {
+export async function get_YoutubeAccessToken(userId: string): Promise<string> {
   if (!userId || typeof userId !== 'string') {
     throw new Error('Invalid userId provided');
   }
 
-  try {
-    const accessTokenData = await prisma.youTubeData.findFirst({
-      where: { userId },
-      select: { access_token: true },
-    });
+  const tokenData = await prisma.youTubeData.findFirst({
+    where: { userId },
+    select: { access_token: true, token_expires_at: true },
+  });
 
-    if (!accessTokenData) {
-      console.error('Access token not found: No YouTube data for user');
-      return null;
-    }
-    if (!accessTokenData.access_token) {
-      console.error("Access token not found: Field 'access_token' empty for user");
-      return null;
-    }
-
-    return accessTokenData.access_token;
-  } catch (error) {
-    console.error('Error in fetching YouTube access_token:', error.message);
-    return null;
+  if (!tokenData) {
+    throw new Error('YouTube account not connected for this user');
   }
+  if (!tokenData.access_token) {
+    throw new Error('YouTube access token missing — please reconnect your YouTube account');
+  }
+
+  // Proactive expiry check: refresh before the token actually expires
+  if (
+    tokenData.token_expires_at &&
+    tokenData.token_expires_at.getTime() - Date.now() < EXPIRY_BUFFER_MS
+  ) {
+    const result = await refreshYoutubeAccessToken(userId);
+    if (!result.success || !result.newAccessToken) {
+      throw new Error('Failed to proactively refresh YouTube token');
+    }
+    return result.newAccessToken;
+  }
+
+  return tokenData.access_token;
 }
 
 export async function refreshYoutubeAccessToken(userId: string): Promise<{
@@ -49,7 +54,6 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
   }
 
   try {
-    // Use transaction to prevent race conditions
     return await prisma.$transaction(async (tx) => {
       const tokenData = await tx.youTubeData.findFirst({
         where: { userId },
@@ -80,13 +84,15 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
         return { success: false, error: 'invalid_response' };
       }
 
-      const { access_token, refresh_token: newRefreshToken } = response.data;
+      const { access_token, refresh_token: newRefreshToken, expires_in } = response.data;
+      const token_expires_at = new Date(Date.now() + (expires_in ?? 3600) * 1000);
 
       await tx.youTubeData.update({
         where: { id: tokenData.id },
         data: {
           access_token,
           refresh_token: newRefreshToken || tokenData.refresh_token,
+          token_expires_at,
         },
       });
 

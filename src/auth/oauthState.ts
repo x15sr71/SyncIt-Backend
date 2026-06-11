@@ -9,7 +9,7 @@ const STATE_PREFIX = 'oauth_state:';
 const FRONTEND_BASE = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 export interface OAuthStateData {
-  flow: 'login' | 'youtube_connect';
+  flow: 'login' | 'youtube_connect' | 'spotify_connect';
   userId?: string;
   sessionId?: string;
   redirectAfter?: string;
@@ -24,7 +24,7 @@ export interface OAuthStateData {
  * making it resistant to replay and CSRF.
  */
 export async function generateOAuthState(
-  flow: 'login' | 'youtube_connect',
+  flow: 'login' | 'youtube_connect' | 'spotify_connect',
   opts?: { userId?: string; sessionId?: string; redirectAfter?: string },
 ): Promise<string> {
   const nonce = crypto.randomBytes(32).toString('hex');

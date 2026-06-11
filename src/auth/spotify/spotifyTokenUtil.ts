@@ -4,33 +4,39 @@ import querystring from 'querystring';
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-const REQUEST_TIMEOUT = 10000; // 10 seconds for token requests
+const REQUEST_TIMEOUT = 10000;
+const EXPIRY_BUFFER_MS = 60_000; // refresh if token expires within 60 s
 
-export async function get_SpotifyAccessToken(userId: string): Promise<string | null> {
+export async function get_SpotifyAccessToken(userId: string): Promise<string> {
   if (!userId || typeof userId !== 'string') {
     throw new Error('Invalid userId provided');
   }
 
-  try {
-    const spotifyData = await prisma.spotifyData.findFirst({
-      where: { userId },
-      select: { access_token: true },
-    });
+  const spotifyData = await prisma.spotifyData.findFirst({
+    where: { userId },
+    select: { access_token: true, token_expires_at: true },
+  });
 
-    if (!spotifyData) {
-      console.error('Access token not found: No Spotify data for user');
-      return null;
-    }
-    if (!spotifyData.access_token) {
-      console.error("Access token not found: Field 'access_token' empty for user");
-      return null;
-    }
-
-    return spotifyData.access_token;
-  } catch (error) {
-    console.error('Error in Spotify access_token fetch:', error.message);
-    return null;
+  if (!spotifyData) {
+    throw new Error('Spotify account not connected for this user');
   }
+  if (!spotifyData.access_token) {
+    throw new Error('Spotify access token missing — please reconnect your Spotify account');
+  }
+
+  // Proactive expiry check: refresh before the token actually expires
+  if (
+    spotifyData.token_expires_at &&
+    spotifyData.token_expires_at.getTime() - Date.now() < EXPIRY_BUFFER_MS
+  ) {
+    const refreshed = await refreshSpotifyToken(userId);
+    if (!refreshed?.access_token) {
+      throw new Error('Failed to proactively refresh Spotify token');
+    }
+    return refreshed.access_token;
+  }
+
+  return spotifyData.access_token;
 }
 
 export const refreshSpotifyToken = async (userId: string) => {
@@ -43,14 +49,10 @@ export const refreshSpotifyToken = async (userId: string) => {
   }
 
   try {
-    // Use transaction to prevent race conditions
     return await prisma.$transaction(async (tx) => {
       const spotifyData = await tx.spotifyData.findFirst({
         where: { userId },
-        select: {
-          id: true,
-          refresh_token: true,
-        },
+        select: { id: true, refresh_token: true },
       });
 
       if (!spotifyData) {
@@ -69,7 +71,7 @@ export const refreshSpotifyToken = async (userId: string) => {
         'https://accounts.spotify.com/api/token',
         querystring.stringify({
           grant_type: 'refresh_token',
-          refresh_token: refresh_token,
+          refresh_token,
         }),
         {
           headers: {
@@ -80,26 +82,27 @@ export const refreshSpotifyToken = async (userId: string) => {
         },
       );
 
-      if (!response.data || !response.data.access_token) {
+      if (!response.data?.access_token) {
         throw new Error('Invalid response from Spotify token endpoint');
       }
 
-      const { access_token, refresh_token: newRefreshToken } = response.data;
+      const { access_token, refresh_token: newRefreshToken, expires_in } = response.data;
+      const token_expires_at = new Date(Date.now() + (expires_in ?? 3600) * 1000);
 
       await tx.spotifyData.update({
         where: { id },
         data: {
-          access_token: access_token,
+          access_token,
           refresh_token: newRefreshToken || refresh_token,
+          token_expires_at,
         },
       });
 
       return { access_token };
     });
-  } catch (error) {
-    console.error('Error refreshing token:', error.message);
+  } catch (error: any) {
+    console.error('Error refreshing Spotify token:', error.message);
 
-    // Provide more specific error information
     if (error.response) {
       const { status, data } = error.response;
       console.error(`Spotify token refresh failed with status ${status}:`, data);

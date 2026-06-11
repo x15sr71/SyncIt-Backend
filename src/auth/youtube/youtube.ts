@@ -113,7 +113,8 @@ export const handleYouTubeCallback = async (req, res) => {
       },
     );
 
-    const { access_token, refresh_token } = response.data;
+    const { access_token, refresh_token, expires_in } = response.data;
+    const token_expires_at = new Date(Date.now() + (expires_in ?? 3600) * 1000);
 
     // Fetch user profile data
     const profileResponse = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
@@ -144,8 +145,8 @@ export const handleYouTubeCallback = async (req, res) => {
         where: { id: existingYouTubeData.id },
         data: {
           access_token: access_token,
-          // Only overwrite refresh_token if a new one was provided
           refresh_token: refresh_token || existingYouTubeData.refresh_token,
+          token_expires_at,
           last_SyncedAt: new Date(),
         },
       });
@@ -163,11 +164,12 @@ export const handleYouTubeCallback = async (req, res) => {
       await prisma.youTubeData.create({
         data: {
           userId: user.id,
-          youtube_user_id: googleUserId, // Fix: was missing, required by schema
+          youtube_user_id: googleUserId,
           username: name,
           picture: picture,
           access_token: access_token,
           refresh_token: refresh_token,
+          token_expires_at,
           createdAt: new Date(),
         },
       });

@@ -61,6 +61,7 @@ model SpotifyData {
   picture                    String
   access_token               String
   refresh_token              String
+  token_expires_at           DateTime?
   last_SyncedAt              DateTime?
   last_playlistTrackIds_hash String?
   last_TrackIds              String?
@@ -76,11 +77,12 @@ model SpotifyData {
 // Model for storing YouTube access tokens
 model YouTubeData {
   id                         String    @id @default(uuid())
-  youtube_user_id            String    @unique 
+  youtube_user_id            String    @unique
   username                   String
   picture                    String
   access_token               String
   refresh_token              String
+  token_expires_at           DateTime?
   last_SyncedAt              DateTime?
   last_playlistTrackIds_hash String?
   last_TracksIds             String?
