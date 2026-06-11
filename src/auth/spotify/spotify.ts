@@ -108,6 +108,7 @@ export const handleSpotifyCallback = async (req, res) => {
 
     const existingSpotifyData = await prisma.spotifyData.findFirst({
       where: { userId },
+      select: { id: true, refresh_token: true },
     });
 
     if (existingSpotifyData) {

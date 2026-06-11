@@ -72,6 +72,8 @@ model SpotifyData {
   // Relation to User
   user   User   @relation(name: "UserSpotifyTokens", fields: [userId], references: [id])
   userId String
+
+  @@index([userId])
 }
 
 // Model for storing YouTube access tokens
@@ -93,6 +95,8 @@ model YouTubeData {
   // Relation to User
   user   User   @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
   userId String
+
+  @@index([userId])
 }
 
 model PlaylistMigration {
@@ -121,4 +125,6 @@ model PlaylistMigration {
   updatedAt             DateTime  @updatedAt
 
   @@unique([userId, sourcePlaylistId, sourcePlatform, destinationPlatform])
+  @@index([userId])
+  @@index([userId, sourcePlatform, destinationPlatform])
 }

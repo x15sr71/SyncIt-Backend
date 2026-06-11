@@ -137,6 +137,7 @@ export const handleYouTubeCallback = async (req, res) => {
 
     const existingYouTubeData = await prisma.youTubeData.findFirst({
       where: { userId: user.id },
+      select: { id: true, refresh_token: true },
     });
 
     if (existingYouTubeData) {
