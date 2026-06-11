@@ -163,12 +163,12 @@ export const handleGoogleCallback = async (req, res) => {
       JSON.stringify({ id: user.id, email: user.email }),
     );
 
-    // Set session cookie securely
+    const sessionTtlMs = parseInt(process.env.SESSION_TTL || '86400') * 1000;
     res.cookie('sessionId', session.session_id, {
       httpOnly: true,
-      secure: false, // Secure only in production
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'Lax',
-      maxAge: 1000 * 60 * 60 * 24 * 60, // 60 days expiration
+      maxAge: sessionTtlMs,
     });
 
     // Redirect to frontend using the redirectAfter from state

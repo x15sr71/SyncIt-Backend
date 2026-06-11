@@ -69,12 +69,18 @@ app.use('/youtube', youtubeactionrouter);
 app.get('/sessionmid', sessionMiddleware);
 app.use('/api/auto-sync', autoSyncRoutes);
 
-SyncCronJob.start();
-
-app.get('/sessionmid', sessionMiddleware);
-
-app.post('/sync-playlists', async (req, res) => {
-  res.json({ message: 'Playlists synced successfully!' });
+app.post('/auth/logout', sessionMiddleware, async (req, res) => {
+  const sessionId = req.cookies?.sessionId;
+  if (sessionId) {
+    try {
+      await redis.del(`session:${sessionId}`);
+      await prisma.session.deleteMany({ where: { session_id: sessionId } });
+    } catch {
+      // best-effort cleanup
+    }
+    res.clearCookie('sessionId');
+  }
+  return res.json({ success: true, message: 'Logged out' });
 });
 
 /* ================= SERVER START ================= */
