@@ -190,8 +190,10 @@ export async function migrateSpotifyPlaylistToYoutube(
   const bestMatches: Record<number, number> = {};
   const failedDetails: string[] = [];
 
-  // 🆕 Initialize newSpotifyTrackIds with only new track IDs
-  let newSpotifyTrackIds = newTracksOnly.map((track) => track.id);
+  // Accumulate globally-stable track numbers that got a successful LLM match.
+  // The LLM prompt instructs the model to use the exact Track Number from the input
+  // (global, 1-based). Each parsed key is therefore a global track number.
+  const successfulGlobalTrackNumbers = new Set<number>();
 
   console.log(`[Service] Processing ${llmChunks.length} LLM chunks for track matching`);
   for (const chunk of llmChunks) {
@@ -252,18 +254,10 @@ ${chunk}
       };
     }
 
-    // 🆕 Filter newSpotifyTrackIds to keep only those with number values in parsed results
-    newSpotifyTrackIds = newSpotifyTrackIds.filter((trackId, index) => {
-      const resultKey = (index + 1).toString();
-      const resultValue = parsed[resultKey];
-      return typeof resultValue === 'number';
-    });
-
-    console.log('Filtered New Spotify Track IDs:', newSpotifyTrackIds);
-
     for (const [numStr, pick] of Object.entries(parsed)) {
-      const num = Number(numStr);
+      const num = Number(numStr); // global track number
       if (typeof pick === 'number') {
+        successfulGlobalTrackNumbers.add(num);
         bestMatches[num] = pick;
       } else {
         const trackData = searchResults[num - 1];
@@ -272,6 +266,11 @@ ${chunk}
       }
     }
   }
+
+  // Derive successfully matched Spotify track IDs using globally-stable indices
+  const newSpotifyTrackIds = newTracksOnly
+    .filter((_, i) => successfulGlobalTrackNumbers.has(i + 1))
+    .map((track) => track.id);
 
   // 5. Collect video IDs to add
   const videoIdsToAdd = Object.entries(bestMatches)
@@ -286,76 +285,24 @@ ${chunk}
     `[Service] Selected ${videoIdsToAdd.length} videos to add, ${failedDetails.length} failed matches`,
   );
 
-  // 🆕 Combine existing track IDs with new successful ones
-  const allSuccessfulTrackIds = [...existingTrackIds, ...newSpotifyTrackIds];
-
-  // 🆕 Save migration state to database
-  const saveMigrationData = await prisma.playlistMigration.upsert({
-    where: {
-      userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {
-        userId: userId,
-        sourcePlaylistId: spotifyPlaylistId,
-        sourcePlatform: 'SPOTIFY',
-        destinationPlatform: 'YOUTUBE',
-      },
-    },
-    update: {
-      sourceTrackIds: allSuccessfulTrackIds,
-      migrationCounter: {
-        increment: 1,
-      },
-      updatedAt: new Date(),
-    },
-    create: {
-      userId: userId,
-      sourcePlaylistId: spotifyPlaylistId,
-      sourcePlatform: 'SPOTIFY',
-      destinationPlatform: 'YOUTUBE',
-      sourceTrackIds: allSuccessfulTrackIds,
-      migrationCounter: 1,
-    },
-  });
-
-  console.log('Migration data saved:', saveMigrationData);
-
-  // 6. Store failed tracks in database
+  // 6. Store failed tracks in database (non-critical, don't block migration)
   try {
     const youtubeUserId = await prisma.youTubeData.findFirst({
       where: { userId },
       select: { id: true },
     });
-
     if (youtubeUserId) {
       await prisma.youTubeData.update({
         where: { id: youtubeUserId.id },
         data: { retryToFindTracks: JSON.stringify(failedDetails) },
       });
-      console.log('[Service] Stored failed tracks in database');
     }
   } catch (prismaError: any) {
     console.warn('[Service] Failed to update database with failed tracks:', prismaError);
-    // Don't throw here, continue with migration
   }
 
-  // 7. Ensure YouTube token is fresh
-  try {
-    await get_YoutubeAccessToken(userId);
-  } catch {
-    try {
-      console.log('[Service] Refreshing YouTube access token');
-      await refreshYoutubeAccessToken(userId);
-    } catch (tokenError: any) {
-      console.error('[Service] YouTube token refresh failed:', tokenError);
-      throw {
-        success: false,
-        error: 'YOUTUBE_TOKEN_REFRESH_FAILED',
-        message: tokenError?.message || 'Failed to refresh YouTube access token',
-        statusCode: 401,
-      };
-    }
-  }
-
-  // 8. Add videos to YouTube playlist
+  // 7. Add videos to YouTube playlist FIRST, then persist state.
+  //    Persisting before the add would mark failed tracks as migrated forever.
   let actuallyAddedVideoIds: string[] = [];
   try {
     console.log(
@@ -375,8 +322,40 @@ ${chunk}
     };
   }
 
+  // 8. Persist migration state only after successful add
+  const allSuccessfulTrackIds = [...existingTrackIds, ...newSpotifyTrackIds];
+  await prisma.playlistMigration.upsert({
+    where: {
+      userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {
+        userId,
+        sourcePlaylistId: spotifyPlaylistId,
+        sourcePlatform: 'SPOTIFY',
+        destinationPlatform: 'YOUTUBE',
+      },
+    },
+    update: {
+      sourceTrackIds: allSuccessfulTrackIds,
+      migrationCounter: { increment: 1 },
+      updatedAt: new Date(),
+      lastSyncAt: new Date(),
+      lastSyncStatus: 'SUCCESS',
+      lastSyncError: null,
+    },
+    create: {
+      userId,
+      sourcePlaylistId: spotifyPlaylistId,
+      sourcePlatform: 'SPOTIFY',
+      destinationPlatform: 'YOUTUBE',
+      sourceTrackIds: allSuccessfulTrackIds,
+      migrationCounter: 1,
+      lastSyncAt: new Date(),
+      lastSyncStatus: 'SUCCESS',
+      lastSyncError: null,
+    },
+  });
+
   console.log(
-    `[Service] Migration completed successfully: ${actuallyAddedVideoIds.length} tracks added, ${failedDetails.length} failed`,
+    `[Service] Migration completed: ${actuallyAddedVideoIds.length} tracks added, ${failedDetails.length} failed`,
   );
   return {
     success: true,

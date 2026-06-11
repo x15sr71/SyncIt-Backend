@@ -94,10 +94,15 @@ export class ScheduledSyncService {
       let result;
 
       if (migration.sourcePlatform === 'SPOTIFY' && migration.destinationPlatform === 'YOUTUBE') {
+        if (!migration.destinationPlaylistId) {
+          throw new Error(
+            'No destination YouTube playlist set. Run a manual migration first to create the destination playlist.',
+          );
+        }
         result = await migrateSpotifyPlaylistToYoutube(
           migration.userId,
           migration.sourcePlaylistId,
-          'auto-create',
+          migration.destinationPlaylistId,
         );
       } else if (
         migration.sourcePlatform === 'YOUTUBE' &&
@@ -106,7 +111,7 @@ export class ScheduledSyncService {
         result = await migrateYoutubePlaylistToSpotify(
           migration.userId,
           migration.sourcePlaylistId,
-          migration.sourcePlaylistId,
+          migration.destinationPlaylistId || migration.sourcePlaylistId,
         );
       } else {
         throw new Error(

@@ -22,7 +22,6 @@ export interface SpotifyTrackInfo {
 export async function getSpotifyPlaylistContent(
   userId: string,
   playlistId: string,
-  limit = 100,
 ): Promise<SpotifyTrackInfo[]> {
   const tokenData = await get_SpotifyAccessToken(userId);
   let token = tokenData;
@@ -31,13 +30,13 @@ export async function getSpotifyPlaylistContent(
   let allTracks: SpotifyTrackInfo[] = [];
   let total = 1; // dummy to start
 
-  while (allTracks.length < limit && offset < total) {
+  while (offset < total) {
     let retries = 0;
     while (retries <= MAX_RETRIES) {
       try {
         const resp = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
           headers: { Authorization: `Bearer ${token}` },
-          params: { offset, limit: Math.min(100, limit - allTracks.length) },
+          params: { offset, limit: 100 },
         });
         total = resp.data.total;
         const chunk = resp.data.items
@@ -76,12 +75,11 @@ export async function getSpotifyPlaylistContent(
 export async function getSpotifyPlaylistContentMultiple(
   userId: string,
   playlistIds: string[],
-  limit = 100,
 ): Promise<Record<string, SpotifyTrackInfo[]>> {
   const result: Record<string, SpotifyTrackInfo[]> = {};
 
   for (const playlistId of playlistIds) {
-    result[playlistId] = await getSpotifyPlaylistContent(userId, playlistId, limit);
+    result[playlistId] = await getSpotifyPlaylistContent(userId, playlistId);
   }
 
   return result;

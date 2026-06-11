@@ -41,7 +41,12 @@ export const callOpenAIModel = async (messages) => {
     console.log('Gemini API response:', response.data);
 
     // Extract the content from Gemini's response format
-    const content = response.data.candidates[0].content.parts[0].text;
+    const rawContent: string = response.data.candidates[0].content.parts[0].text;
+    // Strip markdown code fences (```json ... ``` or ``` ... ```) that Gemini sometimes wraps JSON in
+    const content = rawContent
+      .replace(/^```(?:json)?\s*/im, '')
+      .replace(/\s*```\s*$/im, '')
+      .trim();
 
     // Extract usage information (Gemini provides token counts)
     const usage = {

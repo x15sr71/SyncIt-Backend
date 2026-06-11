@@ -142,153 +142,81 @@ export const migrateYoutubeToSpotifyService = async (
     globalTrackNumber += chunk.length;
   }
 
-  const llmChunks = chunkTracksForLLM(
-    spotifySearchResults,
-    newTracksOnly, // 🆕 Use filtered tracks instead of all tracks
-  );
+  const llmChunks = chunkTracksForLLM(spotifySearchResults, newTracksOnly);
 
-  // 🆕 Initialize youtubeTrackIds with only new track IDs
-  let newYoutubeTrackIds = newTracksOnly.map((track) => track.trackId);
+  // Accumulate globally-stable track numbers that got a successful LLM match.
+  // chunk-local 1-based keys from the LLM response are mapped to global track
+  // numbers via the chunk's trackNumbers list — fixes the chunk-local index bug.
+  const successfulGlobalTrackNumbers = new Set<number>();
 
-  for (const chunkText of llmChunks) {
+  for (const { text: chunkText, trackNumbers: chunkTrackNumbers } of llmChunks) {
     const messages = [
       {
         role: 'user',
         content: `Please identify the best matching Spotify search result for each track in the following list based solely on the current input.
                     Do not consider any previous interactions or suggestions.
                     Use these criteria: title, YouTube channel name, YouTube video duration, artist relevance, and release date.
-                    Return the results in this format: {
-                        "1": <resultNumber>,
-                        "2": <resultNumber>,
-                        ...
-                    }
-                    If a track does not have a match, respond with { "error": "Unable to find best match for track <trackNumber>" }.
+                    Return a JSON object whose keys are the 1-based position of each track within THIS list (not global track numbers).
+                    Format: { "1": <resultNumber>, "2": <resultNumber>, ... }
+                    If a track does not have a match, use the string "error" as the value.
                     \n\n${chunkText}`,
       },
     ];
 
     const bestResultsForChunk = await callOpenAIModel(messages);
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('LLM response for chunk:', bestResultsForChunk);
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
 
     let parsedBestResults: any;
     try {
       parsedBestResults = JSON.parse(bestResultsForChunk.content);
-      console.log('$$$$$$$$$$$$$$$$$$$$$$');
-      console.log(parsedBestResults);
-      console.log('$$$$$$$$$$$$$$$$$$$$$$');
-      // Filter newYoutubeTrackIds to keep only those with integer values in parsedBestResults
-      newYoutubeTrackIds = newYoutubeTrackIds.filter((trackId, index) => {
-        const resultKey = (index + 1).toString(); // Convert 0-based index to 1-based key
-        const resultValue = parsedBestResults[resultKey];
-
-        // Keep only if the value is a number (integer)
-        return typeof resultValue === 'number' && Number.isInteger(resultValue);
-      });
-
-      console.log('Filtered New YouTube Track IDs:', newYoutubeTrackIds);
     } catch {
       console.warn('Skipping chunk: could not parse LLM response');
       continue;
     }
 
-    for (const trackNumber in parsedBestResults) {
-      const result = parsedBestResults[trackNumber];
-      const youtubeTrack = newTracksOnly[Number(trackNumber) - 1]; // 🆕 Use newTracksOnly
+    for (const [chunkLocalKey, result] of Object.entries(parsedBestResults)) {
+      const chunkLocalIdx = Number(chunkLocalKey); // 1-based within this chunk
+      const globalTrackNumber = chunkTrackNumbers[chunkLocalIdx - 1];
+      if (globalTrackNumber === undefined) continue;
 
+      const youtubeTrack = newTracksOnly[globalTrackNumber - 1];
       if (!youtubeTrack) continue;
 
-      if (result?.error) {
-        bestMatches[trackNumber] = { error: result.error };
-        const details =
-          `Title: ${youtubeTrack.title}\n` +
-          `Channel: ${youtubeTrack.channelName}\n` +
-          `Duration: ${youtubeTrack.duration}\n` +
-          `Published: ${youtubeTrack.publishedDate}\n`;
-        failedTrackDetails.push(details);
+      if (typeof result === 'number' && Number.isInteger(result)) {
+        successfulGlobalTrackNumbers.add(globalTrackNumber);
+        bestMatches[globalTrackNumber] = result;
       } else {
-        bestMatches[trackNumber] = result;
+        bestMatches[globalTrackNumber] = { error: true };
+        failedTrackDetails.push(
+          `Title: ${youtubeTrack.title}\nChannel: ${youtubeTrack.channelName}\nDuration: ${youtubeTrack.duration}\n`,
+        );
       }
     }
   }
 
+  // Collect Spotify track IDs for successfully matched entries
   const trackIdsToAdd: string[] = [];
-
-  for (const trackNumber in bestMatches) {
-    const match = bestMatches[trackNumber];
-    if (!match?.error) {
-      const resultIndex = match;
-      const correspondingTrack = spotifySearchResults.find(
-        (r) => r.trackNumber === parseInt(trackNumber),
-      );
+  for (const [trackNumberStr, match] of Object.entries(bestMatches)) {
+    const globalNum = Number(trackNumberStr);
+    if (match && !(match as any).error) {
+      const resultIndex = match as number;
+      const correspondingTrack = spotifySearchResults.find((r) => r.trackNumber === globalNum);
       if (correspondingTrack?.results?.[resultIndex - 1]?.id) {
         trackIdsToAdd.push(correspondingTrack.results[resultIndex - 1].id);
       }
     }
   }
 
-  // 🆕 Add deduplication for Spotify track IDs before sending to playlist
   const uniqueSpotifyTrackIds = [...new Set(trackIdsToAdd)];
 
-  console.log(`Original Spotify tracks to add: ${trackIdsToAdd.length}`);
-  console.log(`Unique Spotify tracks to add: ${uniqueSpotifyTrackIds.length}`);
-
-  if (trackIdsToAdd.length !== uniqueSpotifyTrackIds.length) {
-    console.warn(
-      `⚠️ Found ${
-        trackIdsToAdd.length - uniqueSpotifyTrackIds.length
-      } duplicate Spotify track(s) - removing duplicates`,
-    );
-  }
-
-  // 🆕 Combine existing track IDs with new successful ones
-  const allSuccessfulTrackIds = [...existingTrackIds, ...newYoutubeTrackIds];
-
-  const saveYoutubeTrackIds = await prisma.playlistMigration.upsert({
-    where: {
-      userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {
-        userId: userId,
-        sourcePlaylistId: playlistId,
-        sourcePlatform: 'YOUTUBE',
-        destinationPlatform: 'SPOTIFY',
-      },
-    },
-    update: {
-      sourceTrackIds: allSuccessfulTrackIds, // 🆕 Use combined track IDs
-      migrationCounter: {
-        increment: 1,
-      },
-      updatedAt: new Date(),
-      // Update sync fields for auto-sync compatibility
-      lastSyncAt: new Date(),
-      lastSyncStatus: 'SUCCESS',
-      lastSyncError: null,
-    },
-    create: {
-      userId: userId,
-      sourcePlaylistId: playlistId,
-      sourcePlatform: 'YOUTUBE',
-      destinationPlatform: 'SPOTIFY',
-      sourceTrackIds: allSuccessfulTrackIds, // 🆕 Use combined track IDs
-      migrationCounter: 1,
-      // Initialize sync fields
-      lastSyncAt: new Date(),
-      lastSyncStatus: 'SUCCESS',
-      lastSyncError: null,
-    },
-  });
-
-  console.log('Migration data saved:', saveYoutubeTrackIds);
+  // Derive successfully matched YouTube track IDs using globally-stable indices
+  const newYoutubeTrackIds = newTracksOnly
+    .filter((_, i) => successfulGlobalTrackNumbers.has(i + 1))
+    .map((track) => track.trackId);
 
   const spotifyUserId = await prisma.spotifyData.findFirst({
     where: { userId },
     select: { id: true },
   });
-  console.log('**********************************');
-  console.log('Failed track details:', failedTrackDetails);
-  console.log('spotifyUserId:', spotifyUserId);
-  console.log('**********************************');
 
   if (spotifyUserId) {
     await prisma.spotifyData.update({
@@ -297,18 +225,59 @@ export const migrateYoutubeToSpotifyService = async (
     });
   }
 
-  // 🆕 Use uniqueSpotifyTrackIds instead of trackIdsToAdd for the rest
   const spotifyChunks = chunkArray(uniqueSpotifyTrackIds, 40, 10);
 
+  // Add tracks FIRST, then persist state so failed adds are not recorded as migrated
+  let usedDestinationPlaylistId: string | undefined = destinationPlaylistId;
   if (uniqueSpotifyTrackIds.length > 0) {
-    await addToSptPlaylist(spotifyChunks, userId, playlistName);
+    const returnedPlaylistId = await addToSptPlaylist(
+      spotifyChunks,
+      userId,
+      playlistName,
+      destinationPlaylistId,
+    );
+    if (returnedPlaylistId) usedDestinationPlaylistId = returnedPlaylistId;
   }
+
+  const allSuccessfulTrackIds = [...existingTrackIds, ...newYoutubeTrackIds];
+
+  await prisma.playlistMigration.upsert({
+    where: {
+      userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {
+        userId,
+        sourcePlaylistId: playlistId,
+        sourcePlatform: 'YOUTUBE',
+        destinationPlatform: 'SPOTIFY',
+      },
+    },
+    update: {
+      sourceTrackIds: allSuccessfulTrackIds,
+      destinationPlaylistId: usedDestinationPlaylistId,
+      migrationCounter: { increment: 1 },
+      updatedAt: new Date(),
+      lastSyncAt: new Date(),
+      lastSyncStatus: 'SUCCESS',
+      lastSyncError: null,
+    },
+    create: {
+      userId,
+      sourcePlaylistId: playlistId,
+      sourcePlatform: 'YOUTUBE',
+      destinationPlatform: 'SPOTIFY',
+      sourceTrackIds: allSuccessfulTrackIds,
+      destinationPlaylistId: usedDestinationPlaylistId,
+      migrationCounter: 1,
+      lastSyncAt: new Date(),
+      lastSyncStatus: 'SUCCESS',
+      lastSyncError: null,
+    },
+  });
 
   return {
     bestMatches,
-    trackIdsToAdd: uniqueSpotifyTrackIds, // 🆕 Return deduplicated list
+    trackIdsToAdd: uniqueSpotifyTrackIds,
     done: 'done',
-    numberOfTracksAdded: uniqueSpotifyTrackIds.length, // 🆕 Use deduplicated count
+    numberOfTracksAdded: uniqueSpotifyTrackIds.length,
     failedTrackDetails,
   };
 };
@@ -337,9 +306,13 @@ function chunkArray(
   return chunks;
 }
 
-function chunkTracksForLLM(spotifySearchResults, youtubeData): string[] {
-  const allChunks: string[] = [];
+function chunkTracksForLLM(
+  spotifySearchResults,
+  youtubeData,
+): Array<{ text: string; trackNumbers: number[] }> {
+  const allChunks: Array<{ text: string; trackNumbers: number[] }> = [];
   let currentChunk = '';
+  let currentTrackNumbers: number[] = [];
 
   for (const item of spotifySearchResults) {
     const { title, trackNumber, youtubeChannelName, results } = item;
@@ -360,13 +333,15 @@ function chunkTracksForLLM(spotifySearchResults, youtubeData): string[] {
     });
 
     if ((currentChunk + formatted).length > MAX_LLM_CHUNK_CHARS) {
-      allChunks.push(currentChunk);
+      allChunks.push({ text: currentChunk, trackNumbers: currentTrackNumbers });
       currentChunk = formatted;
+      currentTrackNumbers = [trackNumber];
     } else {
       currentChunk += formatted + '\n';
+      currentTrackNumbers.push(trackNumber);
     }
   }
 
-  if (currentChunk.length > 0) allChunks.push(currentChunk);
+  if (currentChunk.length > 0) allChunks.push({ text: currentChunk, trackNumbers: currentTrackNumbers });
   return allChunks;
 }
