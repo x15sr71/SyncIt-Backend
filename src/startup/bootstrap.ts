@@ -4,15 +4,15 @@ import redis from '../config/redis';
 export async function bootstrap() {
   console.log('🔌 Running backend bootstrap...');
 
-  // Redis
+  // Redis — non-fatal: the app degrades gracefully when Redis is unavailable.
+  // OAuth state flows and session caching will fail, but all other features work.
   try {
-    console.log('🔌 Waiting for Redis...');
-    await redis.ping(); // just verifies connection
+    console.log('🔌 Checking Redis...');
+    await redis.ping();
     console.log('🟢 Redis connected');
   } catch (err) {
-    console.error('❌ Redis connection failed');
-    console.error(err);
-    throw new Error('REDIS_CONNECTION_FAILED');
+    console.warn('⚠️  Redis unavailable — continuing with degraded functionality');
+    console.warn('   OAuth flows and session caching will not work until Redis recovers.');
   }
 
   // Database (Prisma)
