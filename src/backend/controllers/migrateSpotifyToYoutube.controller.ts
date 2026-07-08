@@ -6,7 +6,9 @@ import { acquireUserSyncLock, releaseUserSyncLock } from '../utility/syncMutex';
 
 export async function migrateSpotifyToYoutubeHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
-  const { spotifyPlaylistId, youtubePlaylistId, playlistName } = req.body;
+  const { spotifyPlaylistId, youtubePlaylistId } = req.body;
+  // The client sends the target name as youtubePlaylistName.
+  const playlistName = req.body.playlistName ?? req.body.youtubePlaylistName;
 
   if (!userId) {
     console.warn('[Controller] No session, rejecting request');

@@ -57,6 +57,7 @@
     "node-cron": "^4.2.1",
     "pg": "^8.20.0",
     "rate-limiter-flexible": "^11.2.0",
-    "swagger-jsdoc": "^6.2.8"
+    "swagger-jsdoc": "^6.2.8",
+    "zod": "^4.4.3"
   }
 }
