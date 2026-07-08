@@ -56,7 +56,7 @@ export const addToSptPlaylist = async function (
 
 const addToPlaylist = async (trackIdsToAdd: string[], playlistId: string, access_Token: string) => {
   const response = await axios.post(
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+    `https://api.spotify.com/v1/playlists/${playlistId}/items`,
     { uris: trackIdsToAdd.map((id) => `spotify:track:${id}`) },
     {
       headers: {
@@ -89,14 +89,10 @@ const findOrCreatePlaylist = async (
 };
 
 const createPlaylist = async (playlistName: string, access_Token: string): Promise<string> => {
-  const userProfile = await axios.get('https://api.spotify.com/v1/me', {
-    headers: { Authorization: `Bearer ${access_Token}` },
-  });
-
-  const userId = userProfile.data.id;
-
+  // Feb-2026 API: playlists are created via POST /me/playlists
+  // (POST /users/{id}/playlists was removed).
   const response = await axios.post(
-    `https://api.spotify.com/v1/users/${userId}/playlists`,
+    'https://api.spotify.com/v1/me/playlists',
     { name: playlistName, public: true, description: 'Migrated playlist' },
     {
       headers: {

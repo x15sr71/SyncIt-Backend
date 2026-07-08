@@ -73,15 +73,17 @@ export const deleteSongHandler = async (req: Request, res: Response) => {
 
   while (retryCount <= MAX_RETRIES) {
     try {
+      // Feb-2026 API: DELETE /playlists/{id}/items with body key `items`
+      // (was /tracks with body key `tracks`).
       await axios.request({
         method: 'DELETE',
-        url: `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+        url: `https://api.spotify.com/v1/playlists/${playlistId}/items`,
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         data: {
-          tracks: [{ uri: trackUri }],
+          items: [{ uri: trackUri }],
         },
       });
 

@@ -6,16 +6,11 @@ export const createSpotifyPlaylist = async (
   playlistName: string,
 ): Promise<string> => {
   const accessToken = await get_SpotifyAccessToken(userId);
-  const userRes = await axios.get('https://api.spotify.com/v1/me', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
 
-  const userSpotifyId = userRes.data.id;
-
+  // Feb-2026 API: playlists are created via POST /me/playlists
+  // (POST /users/{id}/playlists was removed).
   const playlistRes = await axios.post(
-    `https://api.spotify.com/v1/users/${userSpotifyId}/playlists`,
+    'https://api.spotify.com/v1/me/playlists',
     {
       name: playlistName,
       description: 'Migrated from YouTube',
