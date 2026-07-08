@@ -125,6 +125,7 @@ export const handleSpotifyCallback = async (req: Request, res: Response) => {
             ? encryptToken(refresh_token)
             : existingSpotifyData.refresh_token,
           token_expires_at,
+          needs_reconnect: false,
         },
       });
     } else {

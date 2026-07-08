@@ -152,6 +152,7 @@ export const handleYouTubeCallback = async (req: Request, res: Response) => {
             ? encryptToken(refresh_token)
             : existingYouTubeData.refresh_token,
           token_expires_at,
+          needs_reconnect: false,
           last_SyncedAt: new Date(),
         },
       });
