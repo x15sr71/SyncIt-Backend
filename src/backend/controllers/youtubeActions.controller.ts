@@ -83,35 +83,28 @@ export const deleteYouTubeSongHandler = async (req: Request, res: Response) => {
   try {
     const accessToken = await get_YoutubeAccessToken(userId);
 
-    // Step 1: Get the playlist item ID that matches the videoId
-
-    const listRes = await axios.get(`${YT_API}/playlistItems`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      params: {
-        part: 'id,snippet',
-        playlistId,
-        maxResults: 50,
-      },
-    });
-
-    const items = listRes.data.items;
-
-    // Debug: log all video IDs in the playlist
-    items.forEach((item: any, index: number) => {
-      console.log(`Item ${index}:`, {
-        id: item.id,
-        videoId: item.snippet?.resourceId?.videoId,
-        title: item.snippet?.title,
+    // Step 1: Find the playlist item matching the videoId, paginating past
+    // the first 50 — songs beyond position 50 were "not found" (P2-2).
+    let targetItem: any = null;
+    let pageToken: string | undefined;
+    do {
+      const listRes: any = await axios.get(`${YT_API}/playlistItems`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        params: {
+          part: 'id,snippet',
+          playlistId,
+          maxResults: 50,
+          ...(pageToken ? { pageToken } : {}),
+        },
       });
-    });
 
-    const targetItem = items.find((item: any) => item.snippet?.resourceId?.videoId === videoId);
+      targetItem = (listRes.data.items || []).find(
+        (item: any) => item.snippet?.resourceId?.videoId === videoId,
+      );
+      pageToken = listRes.data.nextPageToken;
+    } while (!targetItem && pageToken);
 
     if (!targetItem) {
-      console.log('Target item not found. Available video IDs:');
-      items.forEach((item: any) => {
-        console.log('- ', item.snippet?.resourceId?.videoId);
-      });
       return res.status(404).json({ success: false, message: 'Video not found in playlist.' });
     }
 

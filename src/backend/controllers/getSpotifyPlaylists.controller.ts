@@ -30,16 +30,27 @@ export const getPlaylistsHandler = async (req: Request, res: Response) => {
 
   while (retryCount <= MAX_RETRIES) {
     try {
-      const response = await axios.get(SPOTIFY_PLAYLISTS_API, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        params: {
-          limit: 50,
-        },
-      });
+      // Paginate fully — one page meant users with >50 playlists saw a
+      // truncated dashboard (P2-2).
+      const playlists: any[] = [];
+      let offset = 0;
+      let total = 1;
+      while (offset < total) {
+        const response = await axios.get(SPOTIFY_PLAYLISTS_API, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          params: {
+            limit: 50,
+            offset,
+          },
+        });
+        total = response.data.total ?? 0;
+        playlists.push(...(response.data.items ?? []));
+        offset += 50;
+      }
 
-      return res.json({ success: true, data: response.data.items });
+      return res.json({ success: true, data: playlists });
     } catch (error: any) {
       const status = error?.response?.status;
 

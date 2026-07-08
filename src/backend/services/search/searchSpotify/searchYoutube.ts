@@ -7,7 +7,10 @@ import {
 const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 
 const MAX_RETRIES = 5;
-const MAX_TRACKS = 40;
+// Deliberate migration cap (was a silent 40): one YouTube search costs 100
+// quota units, so N tracks ≈ N×150 units of the 10,000/day default budget.
+// Override with MIGRATION_MAX_TRACKS once a quota increase is granted.
+const MAX_TRACKS = Number(process.env.MIGRATION_MAX_TRACKS ?? 100);
 
 // Convert ISO 8601 duration to "MM:SS"
 const convertDurationToMinutesAndSeconds = (duration: string) => {
@@ -36,8 +39,11 @@ export const searchYoutubeTracks = async (userId: string, playlistId: string) =>
   while (retryCount < MAX_RETRIES) {
     try {
       const accessToken = await get_YoutubeAccessToken(userId);
-      const fetchedTracks = await fetchYoutubeTracks(accessToken, playlistId);
-      return { success: true, data: fetchedTracks };
+      const { tracks: fetchedTracks, truncated } = await fetchYoutubeTracks(
+        accessToken,
+        playlistId,
+      );
+      return { success: true, data: fetchedTracks, truncated };
     } catch (error: any) {
       if (error instanceof AxiosError && error.response && error.response.status === 401) {
         const response = await refreshYoutubeAccessToken(userId);
@@ -71,6 +77,7 @@ const fetchYoutubeTracks = async (accessToken: string, playlistId: string) => {
   let pageToken = '';
   let trackCounter = 1;
   let totalTracksFetched = 0;
+  let truncated = false;
 
   while (totalTracksFetched < MAX_TRACKS) {
     const response = await axios.get(url, {
@@ -124,9 +131,13 @@ const fetchYoutubeTracks = async (accessToken: string, playlistId: string) => {
     totalTracksFetched += newTracks.length;
 
     const nextPage = response.data.nextPageToken;
-    if (!nextPage || totalTracksFetched >= MAX_TRACKS) break;
+    if (!nextPage || totalTracksFetched >= MAX_TRACKS) {
+      // Surface the cap instead of silently dropping the rest (P2-1).
+      truncated = !!nextPage;
+      break;
+    }
     pageToken = nextPage;
   }
 
-  return allTracks;
+  return { tracks: allTracks, truncated };
 };

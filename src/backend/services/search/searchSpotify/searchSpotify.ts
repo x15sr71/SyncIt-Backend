@@ -4,8 +4,10 @@ import {
   refreshSpotifyToken,
 } from '../../../../auth/spotify/spotifyTokenUtil';
 import { convertDurationToFormattedString } from '../../../utility/convertDuration';
+import { mapWithConcurrency, withRetryAfter } from '../../../utility/upstream';
 
 const MAX_RETRIES = 10; // Maximum retries for failed requests
+const SEARCH_CONCURRENCY = 5;
 const SPOTIFY_API_URL = 'https://api.spotify.com/v1/search';
 
 // Validate that the tracks array is not empty or invalid
@@ -58,10 +60,12 @@ const performSearch = async (track: any, accessToken: string, userId: string, re
   }
 
   try {
-    const response = await axios.get(SPOTIFY_API_URL, {
-      params: { q: searchQuery, type: 'track', limit: 3 },
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const response = await withRetryAfter(() =>
+      axios.get(SPOTIFY_API_URL, {
+        params: { q: searchQuery, type: 'track', limit: 3 },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+    );
     return {
       title: track.title,
       youtubeChannelName: track.videoChannelTitle,
@@ -100,28 +104,27 @@ export const searchTracksOnSpotify = async (tracks: any[], globalTrackNumber: nu
   validateTracks(tracks); // Ensure valid tracks array
   let accessToken = await get_SpotifyAccessToken(userId); // Fetch initial access token
 
-  const searchPromises = tracks.map((track, index) =>
-    performSearch(track, accessToken, userId).then((result) => {
-      const trackNumber = globalTrackNumber + index;
+  // Bounded fan-out: firing all searches in parallel guaranteed 429s that
+  // were swallowed as "no results" (P2-3).
+  return mapWithConcurrency(tracks, SEARCH_CONCURRENCY, async (track, index) => {
+    const trackNumber = globalTrackNumber + index;
+    try {
+      const result = await performSearch(track, accessToken, userId);
       return {
         ...result,
         trackNumber,
         query: createSearchQuery(track),
         results: formatResults(result.results, trackNumber),
       };
-    }),
-  );
-
-  const results = await Promise.allSettled(searchPromises);
-  return results.map((result, index) =>
-    result.status === 'fulfilled'
-      ? result.value
-      : {
-          title: tracks[index].title,
-          trackNumber: globalTrackNumber + index,
-          youtubeChannelName: tracks[index].videoChannelTitle,
-          query: createSearchQuery(tracks[index]),
-          results: [],
-        },
-  );
+    } catch (err: any) {
+      console.error(`Spotify search failed for ${track.title}:`, err?.message);
+      return {
+        title: track.title,
+        trackNumber,
+        youtubeChannelName: track.videoChannelTitle,
+        query: createSearchQuery(track),
+        results: [],
+      };
+    }
+  });
 };

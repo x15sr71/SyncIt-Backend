@@ -353,6 +353,8 @@ export const migrateYoutubeToSpotifyService = async (
     done: 'done',
     numberOfTracksAdded: addResult.addedTrackIds.length,
     failedTrackDetails,
+    // True when the source fetch hit the MIGRATION_MAX_TRACKS cap (P2-1).
+    sourceTruncated: allYoutubeTracks.truncated === true,
   };
 };
 

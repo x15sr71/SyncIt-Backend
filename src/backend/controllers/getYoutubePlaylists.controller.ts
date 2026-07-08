@@ -43,22 +43,33 @@ export const getYouTubePlaylistsHandler = async (req: Request, res: Response) =>
 
   while (retryCount <= MAX_RETRIES) {
     try {
-      const response = await axios.get(YOUTUBE_PLAYLISTS_API, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        params: {
-          part: 'snippet,contentDetails',
-          mine: true,
-          maxResults: 50,
-        },
-        timeout: REQUEST_TIMEOUT,
-      });
+      // Paginate fully — one page meant users with >50 playlists saw a
+      // truncated dashboard (P2-2).
+      const playlists: any[] = [];
+      let totalResults = 0;
+      let pageToken: string | undefined;
+      do {
+        const response: any = await axios.get(YOUTUBE_PLAYLISTS_API, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          params: {
+            part: 'snippet,contentDetails',
+            mine: true,
+            maxResults: 50,
+            ...(pageToken ? { pageToken } : {}),
+          },
+          timeout: REQUEST_TIMEOUT,
+        });
+        playlists.push(...(response.data.items || []));
+        totalResults = response.data.pageInfo?.totalResults || playlists.length;
+        pageToken = response.data.nextPageToken;
+      } while (pageToken);
 
       return res.json({
         success: true,
-        data: response.data.items || [],
-        totalResults: response.data.pageInfo?.totalResults || 0,
+        data: playlists,
+        totalResults,
       });
     } catch (error: any) {
       const status = error?.response?.status;
