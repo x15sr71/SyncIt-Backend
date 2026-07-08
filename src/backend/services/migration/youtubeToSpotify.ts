@@ -1,6 +1,8 @@
 // services/migration/youtubeToSpotify.ts
 
+import axios from 'axios';
 import { searchYoutubeTracks } from '../search/searchSpotify/searchYoutube';
+import { get_YoutubeAccessToken } from '../../../auth/youtube/youtubeTokensUtil';
 import { trimTrackDescriptions } from '../../utility/trim';
 import { searchTracksOnSpotify } from '../search/searchSpotify/searchSpotify';
 import { callLlmJsonWithRetry } from '../../openAI/getBestMatch';
@@ -12,32 +14,57 @@ const MAX_LLM_CHUNK_CHARS = 10000;
 // the 2048-token output budget must always fit a full JSON answer (P2-5).
 const MAX_LLM_CHUNK_TRACKS = 25;
 
+/**
+ * Fetch the YouTube playlist title so the create-fallback names the Spotify
+ * playlist after the source, not after a raw playlist ID (P0-9).
+ */
+async function getYoutubePlaylistTitle(
+  userId: string,
+  youtubePlaylistId: string,
+): Promise<string | null> {
+  try {
+    const accessToken = await get_YoutubeAccessToken(userId);
+    const resp = await axios.get('https://www.googleapis.com/youtube/v3/playlists', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { part: 'snippet', id: youtubePlaylistId },
+    });
+    return resp.data?.items?.[0]?.snippet?.title ?? null;
+  } catch (err: any) {
+    console.warn(`[YouTube→Spotify] Could not fetch playlist title: ${err?.message}`);
+    return null;
+  }
+}
+
 // Main function for scheduled auto-sync (matching the interface expected by ScheduledSyncService)
 export async function migrateYoutubePlaylistToSpotify(
   userId: string,
-  spotifyPlaylistId: string,
   youtubePlaylistId: string,
+  destinationSpotifyPlaylistId?: string,
 ) {
   console.log(
-    `[YouTube→Spotify] Starting migration: YouTube playlist ${youtubePlaylistId} → Spotify playlist ${spotifyPlaylistId}`,
+    `[YouTube→Spotify] Starting migration: YouTube playlist ${youtubePlaylistId} → Spotify playlist ${destinationSpotifyPlaylistId ?? '(create by name)'}`,
   );
 
   try {
-    // Use the existing service but with the playlist ID parameter structure expected by scheduled sync
+    // Only needed when there is no destination ID yet (name-based find-or-create).
+    const playlistName = destinationSpotifyPlaylistId
+      ? 'Migrated from YouTube'
+      : (await getYoutubePlaylistTitle(userId, youtubePlaylistId)) ?? 'Migrated from YouTube';
+
     const result = await migrateYoutubeToSpotifyService(
       userId,
       youtubePlaylistId,
-      spotifyPlaylistId, // Use as playlist name for now - you might want to fetch actual name
+      playlistName,
+      destinationSpotifyPlaylistId,
     );
 
     // Transform the response to match the expected format for scheduled sync
     return {
-      success: true,
+      success: result.failedTrackDetails.length === 0,
       addedCount: result.numberOfTracksAdded,
       failedCount: result.failedTrackDetails.length,
       trackUris: result.trackIdsToAdd, // Note: these are actually Spotify track IDs, not URIs
       failedDetails: result.failedTrackDetails,
-      videoIds: result.trackIdsToAdd, // For compatibility with existing interface
     };
   } catch (error: any) {
     console.error(`[YouTube→Spotify] Migration failed:`, error);

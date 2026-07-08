@@ -111,7 +111,7 @@ export class ScheduledSyncService {
         result = await migrateYoutubePlaylistToSpotify(
           migration.userId,
           migration.sourcePlaylistId,
-          migration.destinationPlaylistId || migration.sourcePlaylistId,
+          migration.destinationPlaylistId ?? undefined,
         );
       } else {
         throw new Error(
