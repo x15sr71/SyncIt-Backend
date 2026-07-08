@@ -139,7 +139,7 @@ export const handleSpotifyCallback = async (req: Request, res: Response) => {
       });
     }
 
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://127.0.0.1:3000'}/dashboard`);
   } catch (error: any) {
     console.error('Spotify OAuth Error:', error.response ? error.response.data : error.message);
     return res.status(400).json({

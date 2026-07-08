@@ -6,7 +6,9 @@ const STATE_PREFIX = 'oauth_state:';
 
 // Allowed redirect paths must be relative (start with /)
 // and must not contain protocol or domain to prevent open redirect
-const FRONTEND_BASE = process.env.FRONTEND_URL || 'http://localhost:3000';
+// Dev default uses 127.0.0.1 (not localhost): Spotify only accepts loopback-IP
+// redirect URIs, and cookies are host-scoped, so every dev URL must agree (P0-6).
+const FRONTEND_BASE = process.env.FRONTEND_URL || 'http://127.0.0.1:3000';
 
 export interface OAuthStateData {
   flow: 'login' | 'youtube_connect' | 'spotify_connect';
