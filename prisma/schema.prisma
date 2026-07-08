@@ -47,7 +47,7 @@ model Session {
 
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  expires_at DateTime @default(dbgenerated("NOW() + INTERVAL '1 day'")) @map("expires_at")
+  expires_at DateTime @default(dbgenerated("(now() + '1 day'::interval)")) @map("expires_at")
 
   @@map("sessions")
   @@unique([user_id, session_id])
