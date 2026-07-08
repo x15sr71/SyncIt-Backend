@@ -14,6 +14,7 @@ import { handleYouTubeLogin, handleYouTubeCallback } from '../auth/youtube/youtu
 import { handleGoogleLogin, handleGoogleCallback } from '../auth/google/google';
 
 import sessionMiddleware from '../middlewares/sessionMiddleware';
+import { meHandler } from './controllers/me.controller';
 
 import youtubeRoutes from './routes/youtube.routes';
 import spotifyRoutes from './routes/spotify.routes';
@@ -85,7 +86,7 @@ app.use('/', getNotFoundTracksRouter);
 app.use('/spotify', spotifyActionsRouter);
 app.use('/youtube', youtubeactionrouter);
 
-app.get('/sessionmid', sessionMiddleware);
+app.get('/me', sessionMiddleware, meHandler);
 app.use('/api/auto-sync', autoSyncRoutes);
 
 app.post('/auth/logout', sessionMiddleware, async (req, res) => {

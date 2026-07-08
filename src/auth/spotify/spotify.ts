@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from '../../db/prisma';
 import axios from 'axios';
 import querystring from 'querystring';
-import { generateOAuthState, validateOAuthState } from '../oauthState';
+import { generateOAuthState, validateOAuthState, buildRedirectUrl } from '../oauthState';
 import { encryptToken } from '../../backend/utility/tokenCrypto';
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
@@ -19,9 +19,14 @@ export const handleSpotifyLogin = async (req: Request, res: Response) => {
     });
   }
 
+  // Honor redirect_after like the Google/YouTube flows do, so pages like
+  // /connect and /sync can round-trip the user back to themselves.
+  const redirectAfter = (req.query.redirect_after as string) || '/dashboard';
+
   const state = await generateOAuthState('spotify_connect', {
     userId,
     sessionId: req.cookies?.sessionId,
+    redirectAfter,
   });
 
   const scope =
@@ -143,7 +148,7 @@ export const handleSpotifyCallback = async (req: Request, res: Response) => {
       });
     }
 
-    res.redirect(`${process.env.FRONTEND_URL || 'http://127.0.0.1:3000'}/dashboard`);
+    res.redirect(buildRedirectUrl(stateData.redirectAfter));
   } catch (error: any) {
     console.error('Spotify OAuth Error:', error.response ? error.response.data : error.message);
     return res.status(400).json({
