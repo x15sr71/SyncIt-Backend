@@ -1,9 +1,13 @@
 import 'dotenv/config';
+import crypto from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { globalRateLimit, userSyncRateLimit } from '../middlewares/rateLimit';
+import pinoHttp from 'pino-http';
+import { logger } from '../config/logger';
+import { globalRateLimit } from '../middlewares/rateLimit';
+import { healthHandler } from './controllers/health.controller';
 import { SyncCronJob } from '../jobs/syncCronJobs';
 import redis from '../config/redis';
 import prisma from '../db/prisma';
@@ -49,6 +53,22 @@ const corsOrigins = (
 // CSP disabled: this is a JSON API, not an HTML origin; the Next.js app
 // owns browser-facing security headers.
 app.use(helmet({ contentSecurityPolicy: false }));
+
+// Health check before logging/rate limiting: orchestrator probes must not
+// consume rate-limit points or spam the request log.
+app.get('/health', healthHandler);
+
+// Structured request logging with request IDs (P2-12).
+app.use(
+  pinoHttp({
+    logger,
+    genReqId: (req) => (req.headers['x-request-id'] as string) ?? crypto.randomUUID(),
+    autoLogging: {
+      ignore: (req) => req.url === '/health',
+    },
+  }),
+);
+
 app.use(cookieParser());
 app.use(
   cors({

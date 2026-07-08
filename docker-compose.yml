@@ -1,0 +1,72 @@
+services:
+  backend:
+    build: .
+    ports:
+      - '${PORT:-3002}:3002'
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: postgresql://syncit:syncit@postgres:5432/syncit
+      DIRECT_URL: postgresql://syncit:syncit@postgres:5432/syncit
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SESSION_TTL: ${SESSION_TTL:-86400}
+      # Required: openssl rand -base64 32
+      TOKEN_ENC_KEY: ${TOKEN_ENC_KEY:?set TOKEN_ENC_KEY (openssl rand -base64 32)}
+      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      YOUTUBE_REDIRECT_URI: ${YOUTUBE_REDIRECT_URI:-}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    # unhandledRejection exits the process by design — restart it.
+    restart: unless-stopped
+
+  # One-shot: applies prisma/migrations before the backend starts.
+  # Uses the build stage, which still has the prisma CLI (dev dep).
+  migrate:
+    build:
+      context: .
+      target: build
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    environment:
+      DIRECT_URL: postgresql://syncit:syncit@postgres:5432/syncit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: syncit
+      POSTGRES_PASSWORD: syncit
+      POSTGRES_DB: syncit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U syncit -d syncit']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
