@@ -1,6 +1,7 @@
 import axios from 'axios';
 import prisma from '../../db/prisma';
 import querystring from 'querystring';
+import { encryptToken, decryptToken } from '../../backend/utility/tokenCrypto';
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
@@ -36,7 +37,7 @@ export async function get_SpotifyAccessToken(userId: string): Promise<string> {
     return refreshed.access_token;
   }
 
-  return spotifyData.access_token;
+  return decryptToken(spotifyData.access_token);
 }
 
 export const refreshSpotifyToken = async (userId: string) => {
@@ -59,11 +60,12 @@ export const refreshSpotifyToken = async (userId: string) => {
         throw new Error('Spotify data not found in the database');
       }
 
-      const { id, refresh_token } = spotifyData;
+      const { id, refresh_token: storedRefreshToken } = spotifyData;
 
-      if (!refresh_token) {
+      if (!storedRefreshToken) {
         throw new Error('Refresh token not found');
       }
+      const refresh_token = decryptToken(storedRefreshToken);
 
       const authHeader = `Basic ${Buffer.from(`${client_id}:${client_secret}`).toString('base64')}`;
 
@@ -92,8 +94,8 @@ export const refreshSpotifyToken = async (userId: string) => {
       await tx.spotifyData.update({
         where: { id },
         data: {
-          access_token,
-          refresh_token: newRefreshToken || refresh_token,
+          access_token: encryptToken(access_token),
+          refresh_token: encryptToken(newRefreshToken || refresh_token),
           token_expires_at,
         },
       });

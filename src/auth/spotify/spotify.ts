@@ -3,6 +3,7 @@ import prisma from '../../db/prisma';
 import axios from 'axios';
 import querystring from 'querystring';
 import { generateOAuthState, validateOAuthState } from '../oauthState';
+import { encryptToken } from '../../backend/utility/tokenCrypto';
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
@@ -119,8 +120,10 @@ export const handleSpotifyCallback = async (req: Request, res: Response) => {
           spotify_user_id: id,
           username: display_name,
           picture: profile_picture,
-          access_token,
-          refresh_token: refresh_token || existingSpotifyData.refresh_token,
+          access_token: encryptToken(access_token),
+          refresh_token: refresh_token
+            ? encryptToken(refresh_token)
+            : existingSpotifyData.refresh_token,
           token_expires_at,
         },
       });
@@ -131,8 +134,8 @@ export const handleSpotifyCallback = async (req: Request, res: Response) => {
           spotify_user_id: id,
           username: display_name,
           picture: profile_picture,
-          access_token,
-          refresh_token,
+          access_token: encryptToken(access_token),
+          refresh_token: encryptToken(refresh_token),
           token_expires_at,
           createdAt: new Date(),
         },

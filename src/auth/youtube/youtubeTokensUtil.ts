@@ -1,6 +1,7 @@
 import axios from 'axios';
 import prisma from '../../db/prisma';
 import querystring from 'querystring';
+import { encryptToken, decryptToken } from '../../backend/utility/tokenCrypto';
 
 const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
@@ -36,7 +37,7 @@ export async function get_YoutubeAccessToken(userId: string): Promise<string> {
     return result.newAccessToken;
   }
 
-  return tokenData.access_token;
+  return decryptToken(tokenData.access_token);
 }
 
 export async function refreshYoutubeAccessToken(userId: string): Promise<{
@@ -67,9 +68,10 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
       if (!tokenData.refresh_token) {
         return { success: false, error: 'no_refresh_token' };
       }
+      const refreshToken = decryptToken(tokenData.refresh_token);
 
       const requestBody = querystring.stringify({
-        refresh_token: tokenData.refresh_token,
+        refresh_token: refreshToken,
         client_id,
         client_secret,
         grant_type: 'refresh_token',
@@ -90,8 +92,10 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
       await tx.youTubeData.update({
         where: { id: tokenData.id },
         data: {
-          access_token,
-          refresh_token: newRefreshToken || tokenData.refresh_token,
+          access_token: encryptToken(access_token),
+          refresh_token: newRefreshToken
+            ? encryptToken(newRefreshToken)
+            : encryptToken(refreshToken),
           token_expires_at,
         },
       });

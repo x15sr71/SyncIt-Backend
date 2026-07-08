@@ -4,6 +4,11 @@ import redis from '../config/redis';
 export async function bootstrap() {
   console.log('🔌 Running backend bootstrap...');
 
+  // Refuse to store plaintext OAuth tokens in production (P1-1).
+  if (process.env.NODE_ENV === 'production' && !process.env.TOKEN_ENC_KEY) {
+    throw new Error('TOKEN_ENC_KEY is required in production (openssl rand -base64 32)');
+  }
+
   // Redis — non-fatal: the app degrades gracefully when Redis is unavailable.
   // OAuth state flows and session caching will fail, but all other features work.
   try {

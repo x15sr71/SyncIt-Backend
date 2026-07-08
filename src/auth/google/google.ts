@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import querystring from 'querystring';
 import redis from '../../config/redis';
 import { generateOAuthState, validateOAuthState, buildRedirectUrl } from '../oauthState';
+import { encryptToken } from '../../backend/utility/tokenCrypto';
 
 const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
@@ -126,8 +127,8 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
           email,
           username: name,
           profilePicture: picture,
-          access_token,
-          refresh_token: refresh_token || null,
+          access_token: encryptToken(access_token),
+          refresh_token: refresh_token ? encryptToken(refresh_token) : null,
           keepInSync: true,
           lastSyncTime: null,
         },
@@ -135,7 +136,7 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
     } else {
       await prisma.user.update({
         where: { email },
-        data: { access_token },
+        data: { access_token: encryptToken(access_token) },
       });
     }
 

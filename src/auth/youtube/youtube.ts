@@ -3,6 +3,7 @@ import prisma from '../../db/prisma';
 import axios from 'axios';
 import querystring from 'querystring';
 import { generateOAuthState, validateOAuthState, buildRedirectUrl } from '../oauthState';
+import { encryptToken } from '../../backend/utility/tokenCrypto';
 
 // Reuse the same Google OAuth client credentials
 const client_id = process.env.GOOGLE_CLIENT_ID;
@@ -146,8 +147,10 @@ export const handleYouTubeCallback = async (req: Request, res: Response) => {
       await prisma.youTubeData.update({
         where: { id: existingYouTubeData.id },
         data: {
-          access_token: access_token,
-          refresh_token: refresh_token || existingYouTubeData.refresh_token,
+          access_token: encryptToken(access_token),
+          refresh_token: refresh_token
+            ? encryptToken(refresh_token)
+            : existingYouTubeData.refresh_token,
           token_expires_at,
           last_SyncedAt: new Date(),
         },
@@ -169,8 +172,8 @@ export const handleYouTubeCallback = async (req: Request, res: Response) => {
           youtube_user_id: googleUserId,
           username: name,
           picture: picture,
-          access_token: access_token,
-          refresh_token: refresh_token,
+          access_token: encryptToken(access_token),
+          refresh_token: encryptToken(refresh_token),
           token_expires_at,
           createdAt: new Date(),
         },
