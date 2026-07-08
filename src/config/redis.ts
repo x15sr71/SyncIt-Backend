@@ -1,6 +1,4 @@
 import { Redis } from 'ioredis';
-import * as dotenv from 'dotenv';
-dotenv.config();
 
 const MAX_RECONNECT_ATTEMPTS = 10;
 

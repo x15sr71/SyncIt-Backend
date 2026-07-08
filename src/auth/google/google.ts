@@ -3,11 +3,8 @@ import prisma from '../../db/prisma';
 import axios from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';
-import dotenv from 'dotenv';
 import redis from '../../config/redis';
 import { generateOAuthState, validateOAuthState, buildRedirectUrl } from '../oauthState';
-
-dotenv.config();
 
 const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
