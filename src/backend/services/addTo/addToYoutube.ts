@@ -69,8 +69,10 @@ async function validatePlaylistExists(playlistId: string, accessToken: string): 
 
 /**
  * Helper: fetches all existing video IDs in the given playlist.
+ * Exported so migration services can classify "already present" videos
+ * when computing what actually reached the destination (P1-8).
  */
-async function fetchExistingVideoIds(
+export async function fetchExistingVideoIds(
   playlistId: string,
   accessToken: string,
 ): Promise<Set<string>> {

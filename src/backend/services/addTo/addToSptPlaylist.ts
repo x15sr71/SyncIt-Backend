@@ -4,69 +4,146 @@ import {
   refreshSpotifyToken,
 } from '../../../auth/spotify/spotifyTokenUtil';
 
-const MAX_RETRIES = 5;
+const MAX_AUTH_RETRIES = 2;
+// Spotify caps 100 URIs per add request; larger bodies fail wholesale.
+const ADD_BATCH_SIZE = 100;
+const PAGE_SIZE = 50;
+
+export interface AddToSpotifyResult {
+  playlistId: string;
+  /** Track IDs actually accepted by Spotify in this call. */
+  addedTrackIds: string[];
+  /** Track IDs skipped because the destination already contains them. */
+  alreadyPresentTrackIds: string[];
+  /** Track IDs whose add batch failed after retries. */
+  failedTrackIds: string[];
+}
+
+/**
+ * Run a Spotify call, refreshing the token and retrying on 401.
+ */
+async function withAuthRetry<T>(userId: string, fn: (token: string) => Promise<T>): Promise<T> {
+  let token = await get_SpotifyAccessToken(userId);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn(token);
+    } catch (error: any) {
+      if (
+        error instanceof AxiosError &&
+        error.response?.status === 401 &&
+        attempt < MAX_AUTH_RETRIES
+      ) {
+        const refreshed = await refreshSpotifyToken(userId);
+        if (!refreshed?.access_token) {
+          throw new Error('Spotify token refresh failed while adding tracks');
+        }
+        token = refreshed.access_token;
+        continue;
+      }
+      throw error;
+    }
+  }
+}
 
 /**
  * Add tracks to a Spotify playlist.
- * Returns the Spotify playlist ID that was used (created or found).
+ *
+ * Callers must persist ONLY the returned addedTrackIds (plus
+ * alreadyPresentTrackIds) to their migration ledger — anything else marks
+ * tracks migrated that never reached the destination (P1-8).
+ *
+ * Throws when the playlist cannot be resolved/created or when no track
+ * could be added at all; partial batch failures are reported in
+ * failedTrackIds instead of throwing away the successful batches.
  */
 export const addToSptPlaylist = async function (
-  trackIdsToAdd: string[][],
+  trackIdsToAdd: string[],
   userId: string,
   playlistName: string,
   destinationPlaylistId?: string,
-): Promise<string | undefined> {
-  let retryCount = 0;
-  const flatTrackIds = trackIdsToAdd.flat();
+): Promise<AddToSpotifyResult> {
+  const validTrackIds = [
+    ...new Set(trackIdsToAdd.filter((id) => id && typeof id === 'string' && id.length === 22)),
+  ];
 
-  const validTrackIds = flatTrackIds.filter(
-    (id) => id && typeof id === 'string' && id.length === 22,
-  );
+  const playlistId =
+    destinationPlaylistId ??
+    (await withAuthRetry(userId, (token) => findOrCreatePlaylist(playlistName, token)));
 
   if (validTrackIds.length === 0) {
-    console.error('No valid track IDs provided.');
-    return undefined;
+    return { playlistId, addedTrackIds: [], alreadyPresentTrackIds: [], failedTrackIds: [] };
   }
 
-  while (retryCount < MAX_RETRIES) {
+  // Destination dedup: without this, every re-run appended duplicates
+  // because Spotify (unlike the YouTube path) was never checked (P1-8).
+  const existingTrackIds = await withAuthRetry(userId, (token) =>
+    fetchExistingPlaylistTrackIds(playlistId, token),
+  );
+
+  const alreadyPresentTrackIds = validTrackIds.filter((id) => existingTrackIds.has(id));
+  const newTrackIds = validTrackIds.filter((id) => !existingTrackIds.has(id));
+
+  const addedTrackIds: string[] = [];
+  const failedTrackIds: string[] = [];
+
+  for (let i = 0; i < newTrackIds.length; i += ADD_BATCH_SIZE) {
+    const batch = newTrackIds.slice(i, i + ADD_BATCH_SIZE);
     try {
-      const access_Token = await get_SpotifyAccessToken(userId);
-
-      // Use the provided destination playlist ID directly; only fall back to
-      // name-based lookup/creation when no ID is stored yet.
-      const playlistId = destinationPlaylistId
-        ? destinationPlaylistId
-        : await findOrCreatePlaylist(playlistName, access_Token);
-
-      await addToPlaylist(validTrackIds, playlistId, access_Token);
-      return playlistId;
+      await withAuthRetry(userId, (token) =>
+        axios.post(
+          `https://api.spotify.com/v1/playlists/${playlistId}/items`,
+          { uris: batch.map((id) => `spotify:track:${id}`) },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+      addedTrackIds.push(...batch);
     } catch (error: any) {
-      if (error instanceof AxiosError && error.response?.status === 401) {
-        await refreshSpotifyToken(userId);
-        retryCount++;
-        continue;
-      }
-      console.error('Error adding tracks:', error.response?.data || error.message);
-      return undefined;
+      console.error(
+        `[addToSptPlaylist] Batch of ${batch.length} tracks failed:`,
+        error.response?.data || error.message,
+      );
+      failedTrackIds.push(...batch);
     }
   }
 
-  return undefined;
+  if (newTrackIds.length > 0 && addedTrackIds.length === 0 && alreadyPresentTrackIds.length === 0) {
+    throw new Error('ADD_TO_SPOTIFY_FAILED: no tracks could be added to the playlist');
+  }
+
+  return { playlistId, addedTrackIds, alreadyPresentTrackIds, failedTrackIds };
 };
 
-const addToPlaylist = async (trackIdsToAdd: string[], playlistId: string, access_Token: string) => {
-  const response = await axios.post(
-    `https://api.spotify.com/v1/playlists/${playlistId}/items`,
-    { uris: trackIdsToAdd.map((id) => `spotify:track:${id}`) },
-    {
-      headers: {
-        Authorization: `Bearer ${access_Token}`,
-        'Content-Type': 'application/json',
-      },
-    },
-  );
-  console.log('Tracks added to the playlist:', response.data);
-};
+/**
+ * Fetch all track IDs currently in the playlist (paginated, limit 50).
+ */
+async function fetchExistingPlaylistTrackIds(
+  playlistId: string,
+  accessToken: string,
+): Promise<Set<string>> {
+  const existing = new Set<string>();
+  let offset = 0;
+  let total = 1;
+
+  while (offset < total) {
+    const resp = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { offset, limit: PAGE_SIZE, fields: 'total,items(track(id))' },
+    });
+    total = resp.data.total ?? 0;
+    for (const item of resp.data.items ?? []) {
+      const id = item?.track?.id;
+      if (id) existing.add(id);
+    }
+    offset += PAGE_SIZE;
+  }
+
+  return existing;
+}
 
 const findOrCreatePlaylist = async (
   playlistName: string,

@@ -6,7 +6,7 @@ import { get_YoutubeAccessToken } from '../../../auth/youtube/youtubeTokensUtil'
 import { trimTrackDescriptions } from '../../utility/trim';
 import { searchTracksOnSpotify } from '../search/searchSpotify/searchSpotify';
 import { callLlmJsonWithRetry } from '../../openAI/getBestMatch';
-import { addToSptPlaylist } from '../addTo/addToSptPlaylist';
+import { addToSptPlaylist, AddToSpotifyResult } from '../addTo/addToSptPlaylist';
 import prisma from '../../../db/prisma';
 
 const MAX_LLM_CHUNK_CHARS = 10000;
@@ -174,11 +174,6 @@ export const migrateYoutubeToSpotifyService = async (
 
   const llmChunks = chunkTracksForLLM(spotifySearchResults, newTracksOnly);
 
-  // Accumulate globally-stable track numbers that got a successful LLM match.
-  // chunk-local 1-based keys from the LLM response are mapped to global track
-  // numbers via the chunk's trackNumbers list — fixes the chunk-local index bug.
-  const successfulGlobalTrackNumbers = new Set<number>();
-
   for (const { text: chunkText, trackNumbers: chunkTrackNumbers } of llmChunks) {
     const messages = [
       {
@@ -220,7 +215,6 @@ export const migrateYoutubeToSpotifyService = async (
       if (!youtubeTrack) continue;
 
       if (typeof result === 'number' && Number.isInteger(result)) {
-        successfulGlobalTrackNumbers.add(globalTrackNumber);
         bestMatches[globalTrackNumber] = result;
       } else {
         bestMatches[globalTrackNumber] = { error: true };
@@ -231,25 +225,83 @@ export const migrateYoutubeToSpotifyService = async (
     }
   }
 
-  // Collect Spotify track IDs for successfully matched entries
-  const trackIdsToAdd: string[] = [];
+  // Pair each successful match with its source YouTube track so the ledger
+  // can record exactly what reached the destination (P1-8).
+  const matchedPairs: Array<{
+    youtubeTrackId: string;
+    spotifyTrackId: string;
+    title: string;
+    channelName: string;
+    duration: string;
+  }> = [];
+
   for (const [trackNumberStr, match] of Object.entries(bestMatches)) {
     const globalNum = Number(trackNumberStr);
-    if (match && !(match as any).error) {
-      const resultIndex = match as number;
-      const correspondingTrack = spotifySearchResults.find((r) => r.trackNumber === globalNum);
-      if (correspondingTrack?.results?.[resultIndex - 1]?.id) {
-        trackIdsToAdd.push(correspondingTrack.results[resultIndex - 1].id);
-      }
+    if (!match || (match as any).error) continue;
+
+    const youtubeTrack = newTracksOnly[globalNum - 1];
+    if (!youtubeTrack) continue;
+
+    const resultIndex = match as number;
+    const correspondingTrack = spotifySearchResults.find((r) => r.trackNumber === globalNum);
+    const spotifyTrackId = correspondingTrack?.results?.[resultIndex - 1]?.id;
+
+    if (spotifyTrackId) {
+      matchedPairs.push({
+        youtubeTrackId: youtubeTrack.trackId,
+        spotifyTrackId,
+        title: youtubeTrack.title,
+        channelName: youtubeTrack.channelName ?? youtubeTrack.videoChannelTitle,
+        duration: youtubeTrack.duration,
+      });
+    } else {
+      // LLM pointed at a result index that doesn't exist — not migrated.
+      failedTrackDetails.push(
+        `Title: ${youtubeTrack.title}\nChannel: ${youtubeTrack.channelName ?? youtubeTrack.videoChannelTitle}\nDuration: ${youtubeTrack.duration}\n`,
+      );
     }
   }
 
-  const uniqueSpotifyTrackIds = [...new Set(trackIdsToAdd)];
+  const uniqueSpotifyTrackIds = [...new Set(matchedPairs.map((p) => p.spotifyTrackId))];
 
-  // Derive successfully matched YouTube track IDs using globally-stable indices
-  const newYoutubeTrackIds = newTracksOnly
-    .filter((_, i) => successfulGlobalTrackNumbers.has(i + 1))
-    .map((track) => track.trackId);
+  // Add tracks FIRST, then persist state so failed adds are not recorded as migrated
+  let addResult: AddToSpotifyResult = {
+    playlistId: destinationPlaylistId ?? '',
+    addedTrackIds: [],
+    alreadyPresentTrackIds: [],
+    failedTrackIds: [],
+  };
+  if (uniqueSpotifyTrackIds.length > 0) {
+    addResult = await addToSptPlaylist(
+      uniqueSpotifyTrackIds,
+      userId,
+      playlistName,
+      destinationPlaylistId,
+    );
+  }
+  const usedDestinationPlaylistId = addResult.playlistId || destinationPlaylistId;
+
+  // A source track counts as migrated only if its matched Spotify track is
+  // now in the destination (added just now, or already there).
+  const inDestination = new Set([
+    ...addResult.addedTrackIds,
+    ...addResult.alreadyPresentTrackIds,
+  ]);
+  const failedAddSet = new Set(addResult.failedTrackIds);
+  const newYoutubeTrackIds = [
+    ...new Set(
+      matchedPairs
+        .filter((p) => inDestination.has(p.spotifyTrackId))
+        .map((p) => p.youtubeTrackId),
+    ),
+  ];
+  for (const pair of matchedPairs) {
+    if (failedAddSet.has(pair.spotifyTrackId)) {
+      failedTrackDetails.push(
+        `Title: ${pair.title}\nChannel: ${pair.channelName}\nDuration: ${pair.duration}\n`,
+      );
+    }
+  }
 
   const spotifyUserId = await prisma.spotifyData.findFirst({
     where: { userId },
@@ -263,21 +315,8 @@ export const migrateYoutubeToSpotifyService = async (
     });
   }
 
-  const spotifyChunks = chunkArray(uniqueSpotifyTrackIds, 40, 10);
-
-  // Add tracks FIRST, then persist state so failed adds are not recorded as migrated
-  let usedDestinationPlaylistId: string | undefined = destinationPlaylistId;
-  if (uniqueSpotifyTrackIds.length > 0) {
-    const returnedPlaylistId = await addToSptPlaylist(
-      spotifyChunks,
-      userId,
-      playlistName,
-      destinationPlaylistId,
-    );
-    if (returnedPlaylistId) usedDestinationPlaylistId = returnedPlaylistId;
-  }
-
   const allSuccessfulTrackIds = [...existingTrackIds, ...newYoutubeTrackIds];
+  const lastSyncStatus = failedTrackDetails.length > 0 ? 'PARTIAL' : 'SUCCESS';
 
   await prisma.playlistMigration.upsert({
     where: {
@@ -294,7 +333,7 @@ export const migrateYoutubeToSpotifyService = async (
       migrationCounter: { increment: 1 },
       updatedAt: new Date(),
       lastSyncAt: new Date(),
-      lastSyncStatus: 'SUCCESS',
+      lastSyncStatus,
       lastSyncError: null,
     },
     create: {
@@ -306,7 +345,7 @@ export const migrateYoutubeToSpotifyService = async (
       destinationPlaylistId: usedDestinationPlaylistId,
       migrationCounter: 1,
       lastSyncAt: new Date(),
-      lastSyncStatus: 'SUCCESS',
+      lastSyncStatus,
       lastSyncError: null,
     },
   });
@@ -315,7 +354,7 @@ export const migrateYoutubeToSpotifyService = async (
     bestMatches,
     trackIdsToAdd: uniqueSpotifyTrackIds,
     done: 'done',
-    numberOfTracksAdded: uniqueSpotifyTrackIds.length,
+    numberOfTracksAdded: addResult.addedTrackIds.length,
     failedTrackDetails,
   };
 };
