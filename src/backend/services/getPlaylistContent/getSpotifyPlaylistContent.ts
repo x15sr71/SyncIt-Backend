@@ -5,6 +5,9 @@ import {
 } from '../../../auth/spotify/spotifyTokenUtil';
 
 const MAX_RETRIES = 2;
+// Spotify Get Playlist Items caps `limit` at 50 (Feb-2026 API); the page
+// stride must match or every other page is silently skipped.
+const PAGE_SIZE = 50;
 
 export interface SpotifyTrackInfo {
   id: string;
@@ -36,7 +39,7 @@ export async function getSpotifyPlaylistContent(
       try {
         const resp = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
           headers: { Authorization: `Bearer ${token}` },
-          params: { offset, limit: 100 },
+          params: { offset, limit: PAGE_SIZE },
         });
         total = resp.data.total;
         const chunk = resp.data.items
@@ -62,7 +65,7 @@ export async function getSpotifyPlaylistContent(
         throw err;
       }
     }
-    offset += 100;
+    offset += PAGE_SIZE;
   }
 
   return allTracks;
