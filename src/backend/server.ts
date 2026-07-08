@@ -125,6 +125,11 @@ app.post('/auth/logout', sessionMiddleware, async (req, res) => {
 
 /* ================= SERVER START ================= */
 
+// Exported for supertest: importing this module must not listen, start
+// cron jobs, or register exit handlers — that only happens when run as
+// the entrypoint (see require.main check at the bottom).
+export { app };
+
 let server: any;
 let isShuttingDown = false;
 
@@ -144,8 +149,6 @@ async function startServer() {
     process.exit(1);
   }
 }
-
-startServer();
 
 /* ================= CLEANUP ================= */
 
@@ -184,16 +187,22 @@ const cleanup = async (signal?: string) => {
   }
 };
 
-['SIGINT', 'SIGTERM'].forEach((sig) => {
-  process.on(sig, () => cleanup(sig));
-});
+if (require.main === module) {
+  startServer();
 
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  cleanup('uncaughtException');
-});
+  ['SIGINT', 'SIGTERM'].forEach((sig) => {
+    process.on(sig, () => cleanup(sig));
+  });
 
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason);
-  cleanup('unhandledRejection');
-});
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    cleanup('uncaughtException');
+  });
+
+  // Exits on purpose — run under a supervisor with restart (docker-compose
+  // sets restart: unless-stopped).
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled Rejection:', reason);
+    cleanup('unhandledRejection');
+  });
+}
