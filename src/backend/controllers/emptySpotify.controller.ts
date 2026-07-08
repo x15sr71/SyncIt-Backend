@@ -1,52 +1,18 @@
-import { Request, Response, NextFunction } from 'express';
-import { clearLikedTracks } from '../services/emptyPlaylist/emptySpotifyPlaylist';
+import { Request, Response } from 'express';
 
-export const emptySpotifyPlaylist = async (req: Request, res: Response) => {
-  const userId = req.session?.id;
-
-  if (!userId) {
-    return res.status(401).json({
-      success: false,
-      error: 'AUTH_ERROR',
-      message: 'User session not found. Please log in again.',
-    });
-  }
-
-  try {
-    const result = await clearLikedTracks(userId);
-    return res.json(result);
-  } catch (error: any) {
-    console.error('Error clearing playlist:', error.message);
-    const message = error.message || 'Unknown error';
-
-    if (message.includes('Authentication failed')) {
-      return res.status(401).json({
-        success: false,
-        code: 401,
-        error: 'AUTH_ERROR',
-        message,
-      });
-    } else if (message.includes('rate limit')) {
-      return res.status(429).json({
-        success: false,
-        code: 429,
-        error: 'RATE_LIMIT_EXCEEDED',
-        message,
-      });
-    } else if (message.includes('quota')) {
-      return res.status(403).json({
-        success: false,
-        code: 403,
-        error: 'QUOTA_EXCEEDED',
-        message,
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      code: 500,
-      error: 'CLEAR_FAILED',
-      message,
-    });
-  }
+/**
+ * Empty-liked-songs action.
+ *
+ * The Spotify Feb-2026 API update removed GET/DELETE /me/tracks, which
+ * this feature was built on. Until it is rebuilt on the new library
+ * semantics (DELETE /me/library), respond 501 like the delete-playlist
+ * action does. TODO(owner): rebuild on /me/library or drop the feature.
+ */
+export const emptySpotifyPlaylist = async (_req: Request, res: Response) => {
+  return res.status(501).json({
+    success: false,
+    error: 'NOT_IMPLEMENTED',
+    message:
+      'Emptying liked songs is unavailable: Spotify removed the /me/tracks API in February 2026.',
+  });
 };
