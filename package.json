@@ -51,10 +51,12 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "helmet": "^8.2.0",
     "ioredis": "^5.5.0",
     "iso8601-duration": "^2.1.2",
     "node-cron": "^4.2.1",
     "pg": "^8.20.0",
+    "rate-limiter-flexible": "^11.2.0",
     "swagger-jsdoc": "^6.2.8"
   }
 }

@@ -9,6 +9,7 @@ import {
   triggerSyncNowHandler,
 } from '../controllers/autoSync.controller';
 import sessionMiddleware from '../../middlewares/sessionMiddleware';
+import { userSyncRateLimit } from '../../middlewares/rateLimit';
 
 const router = Router();
 
@@ -25,6 +26,6 @@ router.get('/status', sessionMiddleware, getSyncStatusHandler);
 router.post('/update-interval', sessionMiddleware, updateSyncIntervalHandler);
 
 // Trigger sync immediately
-router.post('/sync-now', sessionMiddleware, triggerSyncNowHandler);
+router.post('/sync-now', sessionMiddleware, userSyncRateLimit, triggerSyncNowHandler);
 
 export default router;

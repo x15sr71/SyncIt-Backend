@@ -1,7 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { globalRateLimit, userSyncRateLimit } from '../middlewares/rateLimit';
 import { SyncCronJob } from '../jobs/syncCronJobs';
 import redis from '../config/redis';
 import prisma from '../db/prisma';
@@ -43,6 +45,9 @@ const corsOrigins = (
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+// CSP disabled: this is a JSON API, not an HTML origin; the Next.js app
+// owns browser-facing security headers.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cookieParser());
 app.use(
   cors({
@@ -50,6 +55,8 @@ app.use(
     credentials: true,
   }),
 );
+// After cors so preflights don't consume points; before all routes.
+app.use(globalRateLimit);
 app.use(express.json());
 
 /* ================= ROUTES ================= */
