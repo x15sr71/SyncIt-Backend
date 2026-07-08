@@ -9,15 +9,20 @@ export async function bootstrap() {
     throw new Error('TOKEN_ENC_KEY is required in production (openssl rand -base64 32)');
   }
 
-  // Redis — non-fatal: the app degrades gracefully when Redis is unavailable.
-  // OAuth state flows and session caching will fail, but all other features work.
+  // Redis: required in production — it backs OAuth state (login), session
+  // caching, sync locks, and rate limiting. Dev degrades: authenticated
+  // reads fall back to the DB, but login will not work until Redis is up.
   try {
     console.log('🔌 Checking Redis...');
     await redis.ping();
     console.log('🟢 Redis connected');
   } catch (err: any) {
-    console.warn('⚠️  Redis unavailable — continuing with degraded functionality');
-    console.warn('   OAuth flows and session caching will not work until Redis recovers.');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ Redis connection failed (required in production)');
+      throw new Error('REDIS_CONNECTION_FAILED');
+    }
+    console.warn('⚠️  Redis unavailable — continuing with degraded functionality (dev only)');
+    console.warn('   OAuth login will not work until Redis recovers.');
   }
 
   // Database (Prisma)

@@ -22,21 +22,28 @@ const sessionMiddleware = async (req: Request, res: Response, next: NextFunction
 
     let sessionData: SessionData | null = null;
 
-    // Check Redis first
-    const redisSession = await redis.get(`session:${sessionId}`);
+    // Check Redis first — in its own try/catch so a Redis outage falls
+    // through to the DB path instead of 500ing every authenticated
+    // route (P1-4).
+    let redisSession: string | null = null;
+    try {
+      redisSession = await redis.get(`session:${sessionId}`);
+    } catch (redisError: any) {
+      console.warn('[SESSION] Redis unavailable, falling back to DB:', redisError?.message);
+    }
 
     if (redisSession) {
       try {
         const parsed = JSON.parse(redisSession);
 
         if (parsed?.expiresAt && new Date() > new Date(parsed.expiresAt)) {
-          await redis.del(`session:${sessionId}`);
+          await redis.del(`session:${sessionId}`).catch(() => {});
           res.clearCookie('sessionId');
         } else {
           sessionData = parsed;
         }
       } catch {
-        await redis.del(`session:${sessionId}`);
+        await redis.del(`session:${sessionId}`).catch(() => {});
       }
     }
 
@@ -57,7 +64,7 @@ const sessionMiddleware = async (req: Request, res: Response, next: NextFunction
           } catch {
             // ignore — may already be deleted
           }
-          await redis.del(`session:${sessionId}`);
+          await redis.del(`session:${sessionId}`).catch(() => {});
           res.clearCookie('sessionId');
           return res.status(401).json({ message: 'Session expired' });
         }
@@ -76,11 +83,15 @@ const sessionMiddleware = async (req: Request, res: Response, next: NextFunction
 
           const ttlSeconds = Math.max(0, Math.floor((expiresAt - now) / 1000));
 
-          await redis.setex(
-            `session:${sessionId}`,
-            ttlSeconds || parseInt(process.env.SESSION_TTL || '86400'),
-            JSON.stringify(sessionData),
-          );
+          // Best-effort cache backfill — a Redis outage must not fail the
+          // request after the DB already authenticated it (P1-4).
+          await redis
+            .setex(
+              `session:${sessionId}`,
+              ttlSeconds || parseInt(process.env.SESSION_TTL || '86400'),
+              JSON.stringify(sessionData),
+            )
+            .catch(() => {});
         }
       }
     }

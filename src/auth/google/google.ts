@@ -142,6 +142,14 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
 
     console.log('created:', user.id);
 
+    // Capture old session IDs first: their Redis copies are keyed by
+    // session_id, and the previous cleanup deleted `session:${user.id}` —
+    // a key that never existed — leaving stale sessions valid until TTL (P1-6).
+    const oldSessions = await prisma.session.findMany({
+      where: { user_id: user.id },
+      select: { session_id: true },
+    });
+
     // Delete previous session & create a new one
     const session = await prisma.$transaction(async (tx) => {
       await tx.session.deleteMany({ where: { user_id: user.id } });
@@ -150,8 +158,9 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
 
     console.log('New session ID:', session.session_id);
 
-    // Remove old Redis session (Only user's session)
-    await redis.del(`session:${user.id}`);
+    for (const oldSession of oldSessions) {
+      await redis.del(`session:${oldSession.session_id}`).catch(() => {});
+    }
 
     // Store session in Redis
     await redis.setex(
