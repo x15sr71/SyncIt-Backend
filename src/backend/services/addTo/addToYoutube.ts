@@ -47,27 +47,6 @@ export async function addToYoutubePlaylist(
 }
 
 /**
- * Validate that a playlist exists and is accessible
- */
-async function validatePlaylistExists(playlistId: string, accessToken: string): Promise<boolean> {
-  try {
-    const response = await axios.get(
-      `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-    );
-
-    return response.data.items && response.data.items.length > 0;
-  } catch (error: any) {
-    console.error(`Failed to validate playlist ${playlistId}:`, error.message);
-    return false;
-  }
-}
-
-/**
  * Helper: fetches all existing video IDs in the given playlist.
  * Exported so migration services can classify "already present" videos
  * when computing what actually reached the destination (P1-8).

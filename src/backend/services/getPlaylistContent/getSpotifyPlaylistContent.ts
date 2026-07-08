@@ -70,20 +70,3 @@ export async function getSpotifyPlaylistContent(
 
   return allTracks;
 }
-
-/**
- * Legacy function that handles multiple playlists - kept for backward compatibility
- * @deprecated Use the single playlist version above for new code
- */
-export async function getSpotifyPlaylistContentMultiple(
-  userId: string,
-  playlistIds: string[],
-): Promise<Record<string, SpotifyTrackInfo[]>> {
-  const result: Record<string, SpotifyTrackInfo[]> = {};
-
-  for (const playlistId of playlistIds) {
-    result[playlistId] = await getSpotifyPlaylistContent(userId, playlistId);
-  }
-
-  return result;
-}

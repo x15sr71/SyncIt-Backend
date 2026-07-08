@@ -1,7 +1,6 @@
 {
   "name": "sync_it",
   "version": "1.0.0",
-  "main": "index.js",
   "type": "commonjs",
   "scripts": {
     "build": "esbuild src/backend/server.ts --bundle --outdir=dist/backend --platform=node --external:@prisma/adapter-pg",

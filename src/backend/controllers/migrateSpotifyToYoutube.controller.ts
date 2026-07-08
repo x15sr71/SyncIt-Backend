@@ -250,28 +250,3 @@ async function findOrCreateYouTubePlaylist(
     };
   }
 }
-
-// Optional: Helper function to get user's existing playlists
-export async function getUserYouTubePlaylists(userId: string) {
-  try {
-    const accessToken = await get_YoutubeAccessToken(userId);
-
-    const response = await axios.get(
-      'https://www.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&maxResults=50',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-    );
-
-    return response.data.items.map((item: any) => ({
-      id: item.id,
-      title: item.snippet.title,
-      description: item.snippet.description,
-    }));
-  } catch (error: any) {
-    console.error('[Controller] Failed to fetch user playlists:', error);
-    throw error;
-  }
-}

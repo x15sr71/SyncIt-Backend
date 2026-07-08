@@ -17,9 +17,80 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - name: Prettier — check formatting
         run: npm run format:check
-        
+
+  typecheck:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: tsc — no emit
+        run: npx tsc --noEmit
+
+  test:
+    name: Jest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Unit tests
+        run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: esbuild bundle
+        run: npm run build
+
+  migrations:
+    name: Migration drift check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: syncit
+          POSTGRES_PASSWORD: syncit
+          POSTGRES_DB: syncit
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U syncit"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: migrate deploy on empty DB
+        run: npx prisma migrate deploy
+        env:
+          DIRECT_URL: postgresql://syncit:syncit@localhost:5432/syncit
+      - name: schema matches migrations
+        run: npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema ./prisma/schema.prisma --exit-code
+        env:
+          DIRECT_URL: postgresql://syncit:syncit@localhost:5432/syncit
+          SHADOW_DATABASE_URL: postgresql://syncit:syncit@localhost:5432/postgres

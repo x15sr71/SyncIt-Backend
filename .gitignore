@@ -12,3 +12,5 @@ openapi-syncit.json
 tree.txt
 structure.txtsrc/generated
 src/generated/
+dump.rdb
+tree.txt

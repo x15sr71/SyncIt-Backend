@@ -14,14 +14,15 @@ const globalLimiter = new RateLimiterRedis({
   insuranceLimiter: new RateLimiterMemory({ points: 100, duration: 60 }),
 });
 
-// Strict: 3 migration/sync triggers per hour per user — these fan out into
-// hundreds of quota-expensive provider calls (P1-3).
+// Strict: 10 migration/sync triggers per hour per user — these fan out into
+// hundreds of quota-expensive provider calls (P1-3). High enough for a
+// legitimate multi-select batch, low enough to stop quota-burning abuse.
 const syncLimiter = new RateLimiterRedis({
   storeClient: redis,
   keyPrefix: 'rl:sync',
-  points: 3,
+  points: 10,
   duration: 3600,
-  insuranceLimiter: new RateLimiterMemory({ points: 3, duration: 3600 }),
+  insuranceLimiter: new RateLimiterMemory({ points: 10, duration: 3600 }),
 });
 
 function reject429(res: Response, rejection: unknown, error: string, message: string) {
@@ -56,7 +57,7 @@ export async function userSyncRateLimit(req: Request, res: Response, next: NextF
       res,
       rejection,
       'SYNC_RATE_LIMIT_EXCEEDED',
-      'Too many sync requests. You can trigger up to 3 syncs per hour.',
+      'Too many sync requests. You can trigger up to 10 syncs per hour.',
     );
   }
 }
