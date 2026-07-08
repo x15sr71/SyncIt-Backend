@@ -32,10 +32,22 @@ import autoSyncRoutes from './routes/autoSync.routes';
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Production traffic arrives through the Next.js rewrite proxy (and any
+// platform load balancer); trust the first hop so req.ip and secure-cookie
+// detection see the real client.
+app.set('trust proxy', 1);
+
+const corsOrigins = (
+  process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://127.0.0.1:3000'
+)
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cookieParser());
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://syncit-app-1.vercel.app'],
+    origin: corsOrigins,
     credentials: true,
   }),
 );
