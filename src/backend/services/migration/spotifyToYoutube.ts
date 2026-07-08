@@ -132,10 +132,14 @@ export async function migrateSpotifyPlaylistToYoutube(
     },
     select: {
       sourceTrackIds: true,
+      failedTracks: true,
     },
   });
 
   const existingTrackIds = existingMigration?.sourceTrackIds || [];
+  const existingFailedTracks: string[] = Array.isArray(existingMigration?.failedTracks)
+    ? (existingMigration?.failedTracks as string[])
+    : [];
   console.log('Existing track IDs in migration:', existingTrackIds);
 
   // 🆕 Filter out tracks that already exist in the migration
@@ -279,22 +283,6 @@ ${chunkText}
     `[Service] Selected ${videoIdsToAdd.length} videos to add, ${failedDetails.length} failed matches`,
   );
 
-  // 6. Store failed tracks in database (non-critical, don't block migration)
-  try {
-    const youtubeUserId = await prisma.youTubeData.findFirst({
-      where: { userId },
-      select: { id: true },
-    });
-    if (youtubeUserId) {
-      await prisma.youTubeData.update({
-        where: { id: youtubeUserId.id },
-        data: { retryToFindTracks: JSON.stringify(failedDetails) },
-      });
-    }
-  } catch (prismaError: any) {
-    console.warn('[Service] Failed to update database with failed tracks:', prismaError);
-  }
-
   // 7. Add videos to YouTube playlist FIRST, then persist state.
   //    Persisting before the add would mark failed tracks as migrated forever.
   //    Snapshot the playlist beforehand so matched videos that are already
@@ -348,6 +336,9 @@ ${chunkText}
   }
 
   const allSuccessfulTrackIds = [...existingTrackIds, ...newSpotifyTrackIds];
+  // Per-playlist and append-only: the old per-account retryToFindTracks
+  // column was overwritten every run, losing other playlists' history (P2-6).
+  const allFailedTracks = [...new Set([...existingFailedTracks, ...failedDetails])];
   const lastSyncStatus = failedDetails.length > 0 ? 'PARTIAL' : 'SUCCESS';
   await prisma.playlistMigration.upsert({
     where: {
@@ -360,6 +351,7 @@ ${chunkText}
     },
     update: {
       sourceTrackIds: allSuccessfulTrackIds,
+      failedTracks: allFailedTracks,
       migrationCounter: { increment: 1 },
       updatedAt: new Date(),
       lastSyncAt: new Date(),
@@ -372,6 +364,7 @@ ${chunkText}
       sourcePlatform: 'SPOTIFY',
       destinationPlatform: 'YOUTUBE',
       sourceTrackIds: allSuccessfulTrackIds,
+      failedTracks: allFailedTracks,
       migrationCounter: 1,
       lastSyncAt: new Date(),
       lastSyncStatus,

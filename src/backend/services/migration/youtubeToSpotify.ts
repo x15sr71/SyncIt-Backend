@@ -130,10 +130,14 @@ export const migrateYoutubeToSpotifyService = async (
     },
     select: {
       sourceTrackIds: true,
+      failedTracks: true,
     },
   });
 
   const existingTrackIds = existingMigration?.sourceTrackIds || [];
+  const existingFailedTracks: string[] = Array.isArray(existingMigration?.failedTracks)
+    ? (existingMigration?.failedTracks as string[])
+    : [];
   console.log('Existing track IDs in migration:', existingTrackIds);
 
   // 🆕 Filter out tracks that already exist in the migration
@@ -303,19 +307,10 @@ export const migrateYoutubeToSpotifyService = async (
     }
   }
 
-  const spotifyUserId = await prisma.spotifyData.findFirst({
-    where: { userId },
-    select: { id: true },
-  });
-
-  if (spotifyUserId) {
-    await prisma.spotifyData.update({
-      where: { id: spotifyUserId.id },
-      data: { retryToFindTracks: JSON.stringify(failedTrackDetails) },
-    });
-  }
-
   const allSuccessfulTrackIds = [...existingTrackIds, ...newYoutubeTrackIds];
+  // Per-playlist and append-only: the old per-account retryToFindTracks
+  // column was overwritten every run, losing other playlists' history (P2-6).
+  const allFailedTracks = [...new Set([...existingFailedTracks, ...failedTrackDetails])];
   const lastSyncStatus = failedTrackDetails.length > 0 ? 'PARTIAL' : 'SUCCESS';
 
   await prisma.playlistMigration.upsert({
@@ -329,6 +324,7 @@ export const migrateYoutubeToSpotifyService = async (
     },
     update: {
       sourceTrackIds: allSuccessfulTrackIds,
+      failedTracks: allFailedTracks,
       destinationPlaylistId: usedDestinationPlaylistId,
       migrationCounter: { increment: 1 },
       updatedAt: new Date(),
@@ -342,6 +338,7 @@ export const migrateYoutubeToSpotifyService = async (
       sourcePlatform: 'YOUTUBE',
       destinationPlatform: 'SPOTIFY',
       sourceTrackIds: allSuccessfulTrackIds,
+      failedTracks: allFailedTracks,
       destinationPlaylistId: usedDestinationPlaylistId,
       migrationCounter: 1,
       lastSyncAt: new Date(),

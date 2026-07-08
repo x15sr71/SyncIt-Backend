@@ -114,6 +114,9 @@ model PlaylistMigration {
   destinationPlatform   String
 
   sourceTrackIds        String[]
+  // Per-playlist, append-only record of tracks that failed to migrate
+  // (match failures and add failures) — powers /getNotFoundTracks (P2-6).
+  failedTracks          Json      @default("[]")
   migrationCounter      Int       @default(0)
 
   autoSyncEnabled       Boolean   @default(false)

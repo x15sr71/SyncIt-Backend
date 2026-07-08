@@ -121,9 +121,8 @@ describe('migrateYoutubeToSpotifyService', () => {
     // Ledger holds SOURCE-platform IDs, and only for tracks in the destination
     expect(upsert.update.sourceTrackIds).toEqual(['ytTrack1']);
     expect(upsert.update.lastSyncStatus).toBe('PARTIAL');
-    // The failed track is reported for retry
-    const report = JSON.parse(mockPrisma.spotifyData.update.mock.calls[0][0].data.retryToFindTracks);
-    expect(report.join('\n')).toContain('Song 2');
+    // The failed track is recorded per-playlist for the missing-tracks page
+    expect((upsert.update.failedTracks as string[]).join('\n')).toContain('Song 2');
   });
 
   it('counts destination-dedup skips as migrated (no duplicate adds, no retry loop)', async () => {
