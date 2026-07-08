@@ -122,7 +122,11 @@ export class ScheduledSyncService {
       // Calculate next run time
       const nextSyncAt = new Date(Date.now() + (migration.syncIntervalMinutes || 60) * 60 * 1000);
 
-      // Update migration record with success
+      // Update migration record with success.
+      // The inner migration services own the sourceTrackIds ledger and the
+      // migrationCounter — writing result.videoIds here replaced the ledger
+      // of SOURCE-platform IDs with DESTINATION-platform IDs after every
+      // scheduled run, so each tick reprocessed everything (P0-8).
       await prisma.playlistMigration.update({
         where: { id: migration.id },
         data: {
@@ -130,8 +134,6 @@ export class ScheduledSyncService {
           nextSyncAt,
           lastSyncStatus: result?.success ? 'SUCCESS' : 'PARTIAL',
           lastSyncError: null,
-          migrationCounter: migration.migrationCounter + 1,
-          sourceTrackIds: result?.videoIds || migration.sourceTrackIds,
         },
       });
 
