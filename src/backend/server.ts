@@ -4,7 +4,6 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { SyncCronJob } from '../jobs/syncCronJobs';
-import { MigrationCronJob } from '../jobs/migrationCronJob';
 import redis from '../config/redis';
 import prisma from '../db/prisma';
 import { bootstrap } from '../startup/bootstrap';
@@ -29,7 +28,6 @@ import getNotFoundTracksRouter from './routes/getNotFoundTracks.route';
 import spotifyActionsRouter from './routes/spotifyActions.routes';
 import youtubeactionrouter from './routes/youtubeActions.routes';
 import autoSyncRoutes from './routes/autoSync.routes';
-import migrationRoutes from './routes/migration.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -71,7 +69,6 @@ app.use('/youtube', youtubeactionrouter);
 
 app.get('/sessionmid', sessionMiddleware);
 app.use('/api/auto-sync', autoSyncRoutes);
-app.use('/api/migration', migrationRoutes);
 
 app.post('/auth/logout', sessionMiddleware, async (req, res) => {
   const sessionId = req.cookies?.sessionId;
@@ -98,7 +95,6 @@ async function startServer() {
 
     // Start cron jobs only after infrastructure is validated
     SyncCronJob.start();
-    MigrationCronJob.start();
 
     server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
