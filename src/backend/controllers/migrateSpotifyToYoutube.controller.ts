@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import { migrateSpotifyPlaylistToYoutube } from '../services/migration/spotifyToYoutube';
 import { get_YoutubeAccessToken } from '../../auth/youtube/youtubeTokensUtil';
+import { acquireUserSyncLock, releaseUserSyncLock } from '../utility/syncMutex';
 
 export async function migrateSpotifyToYoutubeHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
@@ -22,6 +23,17 @@ export async function migrateSpotifyToYoutubeHandler(req: Request, res: Response
       success: false,
       error: 'MISSING_PLAYLIST_INFO',
       message: 'Spotify playlist ID is required for migration.',
+    });
+  }
+
+  // One migration at a time per user: guards double-clicks and overlap
+  // with scheduled runs (P1-3 idempotency guard).
+  const locked = await acquireUserSyncLock(userId);
+  if (!locked) {
+    return res.status(409).json({
+      success: false,
+      error: 'SYNC_IN_PROGRESS',
+      message: 'Another sync is already running for your account. Please try again shortly.',
     });
   }
 
@@ -108,6 +120,8 @@ export async function migrateSpotifyToYoutubeHandler(req: Request, res: Response
       error: 'MIGRATION_FAILED',
       message: err.message || 'An unexpected error occurred during migration.',
     });
+  } finally {
+    await releaseUserSyncLock(userId);
   }
 }
 

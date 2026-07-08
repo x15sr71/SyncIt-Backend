@@ -3,6 +3,7 @@
 import prisma from '../../../db';
 import { migrateSpotifyPlaylistToYoutube } from '../migration/spotifyToYoutube';
 import { migrateYoutubePlaylistToSpotify } from '../migration/youtubeToSpotify';
+import { acquireUserSyncLock, releaseUserSyncLock } from '../../utility/syncMutex';
 
 export class ScheduledSyncService {
   // Enable auto sync for a playlist migration
@@ -86,8 +87,49 @@ export class ScheduledSyncService {
     });
   }
 
+  /**
+   * Atomically claim a due migration by advancing nextSyncAt BEFORE executing.
+   * The row-match on `nextSyncAt <= now` means exactly one concurrent claimer
+   * wins the UPDATE — the guard against double execution (P0-10). A crashed
+   * run self-heals: the row simply becomes due again after its interval.
+   */
+  static async claimMigration(migration: any): Promise<boolean> {
+    const provisionalNextSyncAt = new Date(
+      Date.now() + (migration.syncIntervalMinutes || 60) * 60 * 1000,
+    );
+    const claimed = await prisma.playlistMigration.updateMany({
+      where: {
+        id: migration.id,
+        autoSyncEnabled: true,
+        nextSyncAt: { lte: new Date() },
+      },
+      data: {
+        nextSyncAt: provisionalNextSyncAt,
+        lastSyncStatus: 'RUNNING',
+      },
+    });
+    return claimed.count === 1;
+  }
+
   // Execute a scheduled migration - FINAL PRODUCTION VERSION
   static async executeMigration(migration: any) {
+    const locked = await acquireUserSyncLock(migration.userId);
+    if (!locked) {
+      console.warn(
+        `[ScheduledSync] Skipping migration ${migration.id}: another sync is running for user ${migration.userId}`,
+      );
+      await prisma.playlistMigration
+        .update({
+          where: { id: migration.id },
+          data: {
+            lastSyncStatus: 'SKIPPED',
+            lastSyncError: 'Another sync was already running for this user',
+          },
+        })
+        .catch(() => {});
+      return { success: false, skipped: true };
+    }
+
     try {
       console.log(`[ScheduledSync] Starting migration for playlist ${migration.sourcePlaylistId}`);
 
@@ -160,6 +202,8 @@ export class ScheduledSyncService {
       });
 
       throw error;
+    } finally {
+      await releaseUserSyncLock(migration.userId);
     }
   }
 
@@ -173,6 +217,11 @@ export class ScheduledSyncService {
 
       for (const migration of migrationsToRun) {
         try {
+          const claimed = await this.claimMigration(migration);
+          if (!claimed) {
+            console.log(`[ScheduledSync] Migration ${migration.id} already claimed, skipping`);
+            continue;
+          }
           await this.executeMigration(migration);
         } catch (error: any) {
           console.error(`[ScheduledSync] Failed to execute migration ${migration.id}:`, error);

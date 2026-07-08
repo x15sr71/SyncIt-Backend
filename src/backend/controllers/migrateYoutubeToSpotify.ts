@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { migrateYoutubeToSpotifyService } from '../../backend/services/migration/youtubeToSpotify';
+import { acquireUserSyncLock, releaseUserSyncLock } from '../utility/syncMutex';
 
 export const migrateYoutubeToSpotifyHandler = async (req: Request, res: Response) => {
   const userId = req.session?.id;
@@ -17,6 +18,17 @@ export const migrateYoutubeToSpotifyHandler = async (req: Request, res: Response
     return res.status(400).json({
       error: 'MISSING_PLAYLIST_INFO',
       message: 'YouTube playlist ID and name are required for migration.',
+    });
+  }
+
+  // One migration at a time per user: guards double-clicks and overlap
+  // with scheduled runs (P1-3 idempotency guard).
+  const locked = await acquireUserSyncLock(userId);
+  if (!locked) {
+    return res.status(409).json({
+      success: false,
+      error: 'SYNC_IN_PROGRESS',
+      message: 'Another sync is already running for your account. Please try again shortly.',
     });
   }
 
@@ -53,5 +65,7 @@ export const migrateYoutubeToSpotifyHandler = async (req: Request, res: Response
       code: 500,
       message: 'An unexpected error occurred during migration.',
     });
+  } finally {
+    await releaseUserSyncLock(userId);
   }
 };
