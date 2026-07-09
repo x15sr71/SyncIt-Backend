@@ -19,18 +19,15 @@ export const getYouTubePlaylistContentService = async (userId: string, playlistI
       let pageToken: string | undefined;
 
       do {
-        const response = await axios.get(
-          'https://www.googleapis.com/youtube/v3/playlistItems',
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            params: {
-              part: 'snippet,contentDetails',
-              maxResults: PAGE_SIZE,
-              playlistId,
-              ...(pageToken ? { pageToken } : {}),
-            },
+        const response = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          params: {
+            part: 'snippet,contentDetails',
+            maxResults: PAGE_SIZE,
+            playlistId,
+            ...(pageToken ? { pageToken } : {}),
           },
-        );
+        });
         rawItems.push(...response.data.items);
         pageToken = response.data.nextPageToken;
       } while (pageToken);
@@ -50,13 +47,10 @@ export const getYouTubePlaylistContentService = async (userId: string, playlistI
         const durationMap: Record<string, string> = {};
         for (let i = 0; i < videoIdsArray.length; i += PAGE_SIZE) {
           const batch = videoIdsArray.slice(i, i + PAGE_SIZE);
-          const videoDetailsRes = await axios.get(
-            'https://www.googleapis.com/youtube/v3/videos',
-            {
-              headers: { Authorization: `Bearer ${accessToken}` },
-              params: { part: 'contentDetails', id: batch.join(',') },
-            },
-          );
+          const videoDetailsRes = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            params: { part: 'contentDetails', id: batch.join(',') },
+          });
           for (const video of videoDetailsRes.data.items) {
             const parsed = iso8601Duration.parse(video.contentDetails.duration);
             const minutes = parsed.minutes || 0;

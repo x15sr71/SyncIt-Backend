@@ -97,7 +97,9 @@ const fetchYoutubeTracks = async (accessToken: string) => {
 
     const newTracks = response.data.items.map((item: any, index: number) => {
       const videoId = item.snippet.resourceId.videoId;
-      const videoDetail = videoDetailsResponse.data.items.find((video: any) => video.id === videoId);
+      const videoDetail = videoDetailsResponse.data.items.find(
+        (video: any) => video.id === videoId,
+      );
       const duration = convertDurationToMinutesAndSeconds(
         videoDetail?.contentDetails?.duration || '',
       );

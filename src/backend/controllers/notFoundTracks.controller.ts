@@ -5,7 +5,11 @@ import { getNotFoundTracksFromYoutube } from '../services/getNotFoundTracks/yout
 export const notFoundTracks = async (req: Request, res: Response) => {
   try {
     const userId = req.session?.id;
-    const platform = ((req.query.platform as string) || (req.body.platform as string) || '').toLowerCase();
+    const platform = (
+      (req.query.platform as string) ||
+      (req.body.platform as string) ||
+      ''
+    ).toLowerCase();
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
