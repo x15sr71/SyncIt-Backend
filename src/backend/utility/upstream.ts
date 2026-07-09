@@ -40,9 +40,7 @@ export async function withRetryAfter<T>(fn: () => Promise<T>, maxRetries = 3): P
       const header = error.response?.headers?.['retry-after'];
       const parsed = Number(header);
       let delayMs =
-        Number.isFinite(parsed) && parsed >= 0
-          ? parsed * 1000
-          : 1000 * Math.pow(2, attempt); // no header — exponential fallback
+        Number.isFinite(parsed) && parsed >= 0 ? parsed * 1000 : 1000 * Math.pow(2, attempt); // no header — exponential fallback
       delayMs = Math.min(delayMs, MAX_RETRY_DELAY_MS);
 
       console.warn(`[Upstream] 429 rate limited; retrying in ${delayMs}ms`);

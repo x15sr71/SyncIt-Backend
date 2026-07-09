@@ -37,12 +37,7 @@ export async function globalRateLimit(req: Request, res: Response, next: NextFun
     await globalLimiter.consume(req.ip ?? 'unknown');
     return next();
   } catch (rejection) {
-    return reject429(
-      res,
-      rejection,
-      'RATE_LIMIT_EXCEEDED',
-      'Too many requests. Please slow down.',
-    );
+    return reject429(res, rejection, 'RATE_LIMIT_EXCEEDED', 'Too many requests. Please slow down.');
   }
 }
 

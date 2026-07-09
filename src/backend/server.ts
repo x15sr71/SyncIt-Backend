@@ -43,9 +43,7 @@ const PORT = process.env.PORT || 3002;
 // detection see the real client.
 app.set('trust proxy', 1);
 
-const corsOrigins = (
-  process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://127.0.0.1:3000'
-)
+const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://127.0.0.1:3000')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);

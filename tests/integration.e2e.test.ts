@@ -140,9 +140,7 @@ describeIf('client↔backend integration (supertest + nock)', () => {
   it('GET /health reports db + redis up', async () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(
-      expect.objectContaining({ status: 'ok', db: true, redis: true }),
-    );
+    expect(res.body).toEqual(expect.objectContaining({ status: 'ok', db: true, redis: true }));
   });
 
   it('GET /me returns the seeded session and both connections', async () => {
@@ -266,9 +264,7 @@ describeIf('client↔backend integration (supertest + nock)', () => {
       where: { userId, sourcePlaylistId: SP_SOURCE_PLAYLIST, sourcePlatform: 'SPOTIFY' },
     });
     expect(row).toBeTruthy();
-    expect([...row.sourceTrackIds].sort()).toEqual(
-      [spId('1'), spId('2'), spId('3')].sort(),
-    );
+    expect([...row.sourceTrackIds].sort()).toEqual([spId('1'), spId('2'), spId('3')].sort());
     expect(row.migrationCounter).toBe(1);
     expect(row.lastSyncStatus).toBe('SUCCESS');
   });
@@ -327,9 +323,7 @@ describeIf('client↔backend integration (supertest + nock)', () => {
       .reply(200, (uri) => {
         const idsParam = new URL('https://x' + uri).searchParams.get('id') ?? '';
         return {
-          items: idsParam
-            .split(',')
-            .map((id) => ({ id, contentDetails: { duration: 'PT3M20S' } })),
+          items: idsParam.split(',').map((id) => ({ id, contentDetails: { duration: 'PT3M20S' } })),
         };
       });
 

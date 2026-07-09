@@ -49,7 +49,7 @@ export async function migrateYoutubePlaylistToSpotify(
     // Only needed when there is no destination ID yet (name-based find-or-create).
     const playlistName = destinationSpotifyPlaylistId
       ? 'Migrated from YouTube'
-      : (await getYoutubePlaylistTitle(userId, youtubePlaylistId)) ?? 'Migrated from YouTube';
+      : ((await getYoutubePlaylistTitle(userId, youtubePlaylistId)) ?? 'Migrated from YouTube');
 
     const result = await migrateYoutubeToSpotifyService(
       userId,
@@ -287,16 +287,11 @@ export const migrateYoutubeToSpotifyService = async (
 
   // A source track counts as migrated only if its matched Spotify track is
   // now in the destination (added just now, or already there).
-  const inDestination = new Set([
-    ...addResult.addedTrackIds,
-    ...addResult.alreadyPresentTrackIds,
-  ]);
+  const inDestination = new Set([...addResult.addedTrackIds, ...addResult.alreadyPresentTrackIds]);
   const failedAddSet = new Set(addResult.failedTrackIds);
   const newYoutubeTrackIds = [
     ...new Set(
-      matchedPairs
-        .filter((p) => inDestination.has(p.spotifyTrackId))
-        .map((p) => p.youtubeTrackId),
+      matchedPairs.filter((p) => inDestination.has(p.spotifyTrackId)).map((p) => p.youtubeTrackId),
     ),
   ];
   for (const pair of matchedPairs) {
@@ -358,11 +353,7 @@ export const migrateYoutubeToSpotifyService = async (
   };
 };
 
-function chunkArray<T>(
-  arr: T[],
-  firstChunkSize: number,
-  subsequentChunkSize: number,
-): T[][] {
+function chunkArray<T>(arr: T[], firstChunkSize: number, subsequentChunkSize: number): T[][] {
   const chunks: T[][] = [];
   if (arr.length === 0) return chunks;
 
@@ -422,6 +413,7 @@ function chunkTracksForLLM(
     }
   }
 
-  if (currentChunk.length > 0) allChunks.push({ text: currentChunk, trackNumbers: currentTrackNumbers });
+  if (currentChunk.length > 0)
+    allChunks.push({ text: currentChunk, trackNumbers: currentTrackNumbers });
   return allChunks;
 }

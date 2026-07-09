@@ -274,7 +274,9 @@ ${chunkText}
       matchedPairs.push({ videoId, spotifyTrackId: sourceTrack.id, title: sourceTrack.name });
     } else {
       // LLM pointed at a result index that doesn't exist — not migrated.
-      failedDetails.push(`Track ${num}: ${entry?.title || sourceTrack.name} (invalid result index)`);
+      failedDetails.push(
+        `Track ${num}: ${entry?.title || sourceTrack.name} (invalid result index)`,
+      );
     }
   }
   const videoIdsToAdd = matchedPairs.map((p) => p.videoId);
@@ -324,9 +326,7 @@ ${chunkText}
   ]);
   const newSpotifyTrackIds = [
     ...new Set(
-      matchedPairs
-        .filter((p) => inDestinationVideos.has(p.videoId))
-        .map((p) => p.spotifyTrackId),
+      matchedPairs.filter((p) => inDestinationVideos.has(p.videoId)).map((p) => p.spotifyTrackId),
     ),
   ];
   for (const pair of matchedPairs) {

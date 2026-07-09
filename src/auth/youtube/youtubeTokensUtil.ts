@@ -121,9 +121,7 @@ export async function refreshYoutubeAccessToken(userId: string): Promise<{
       where: { id: tokenData.id },
       data: {
         access_token: encryptToken(access_token),
-        refresh_token: newRefreshToken
-          ? encryptToken(newRefreshToken)
-          : encryptToken(refreshToken),
+        refresh_token: newRefreshToken ? encryptToken(newRefreshToken) : encryptToken(refreshToken),
         token_expires_at,
         needs_reconnect: false,
       },

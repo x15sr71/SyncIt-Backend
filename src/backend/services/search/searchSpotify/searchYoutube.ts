@@ -59,10 +59,7 @@ export const searchYoutubeTracks = async (userId: string, playlistId: string) =>
         };
       }
 
-      console.error(
-        'Error fetching tracks:',
-        error.response ? error.response.data : error.message,
-      );
+      console.error('Error fetching tracks:', error.response ? error.response.data : error.message);
       return { success: false, data: [], error: 'FETCH_FAILED', message: error.message };
     }
   }
@@ -92,17 +89,14 @@ const fetchYoutubeTracks = async (accessToken: string, playlistId: string) => {
 
     const videoIds = response.data.items.map((item: any) => item.snippet.resourceId.videoId);
 
-    const videoDetailsResponse = await axios.get(
-      'https://www.googleapis.com/youtube/v3/videos',
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        params: {
-          part: 'contentDetails',
-          id: videoIds.join(','),
-          key: youtube_Api_Key,
-        },
+    const videoDetailsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: {
+        part: 'contentDetails',
+        id: videoIds.join(','),
+        key: youtube_Api_Key,
       },
-    );
+    });
 
     const remainingTracks = MAX_TRACKS - totalTracksFetched;
 

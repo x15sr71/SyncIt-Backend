@@ -56,7 +56,8 @@ export const deletePlaylistHandler = async (req: Request, res: Response) => {
   // Spotify does not expose a playlist-delete endpoint; users must unfollow via the Spotify app.
   return res.status(501).json({
     success: false,
-    message: 'Playlist deletion is not supported via the Spotify API. Please unfollow the playlist directly in Spotify.',
+    message:
+      'Playlist deletion is not supported via the Spotify API. Please unfollow the playlist directly in Spotify.',
   });
 };
 

@@ -18,7 +18,13 @@ const validateTracks = (tracks: any[]) => {
 };
 
 // Create the search query string for Spotify
-const createSearchQuery = ({ title, videoChannelTitle }: { title: string; videoChannelTitle: string }) => `${title} ${videoChannelTitle}`.trim();
+const createSearchQuery = ({
+  title,
+  videoChannelTitle,
+}: {
+  title: string;
+  videoChannelTitle: string;
+}) => `${title} ${videoChannelTitle}`.trim();
 
 // Handle errors, refresh token if necessary, and retry if applicable
 const handleSearchError = async (error: any, userId: string) => {
@@ -100,7 +106,11 @@ const formatResults = (searchResults: any[], trackNumber: number) =>
   }));
 
 // Main function to search for tracks on Spotify
-export const searchTracksOnSpotify = async (tracks: any[], globalTrackNumber: number, userId: string) => {
+export const searchTracksOnSpotify = async (
+  tracks: any[],
+  globalTrackNumber: number,
+  userId: string,
+) => {
   validateTracks(tracks); // Ensure valid tracks array
   let accessToken = await get_SpotifyAccessToken(userId); // Fetch initial access token
 
