@@ -1,14 +1,16 @@
+import { Request, Response, NextFunction } from 'express';
 import prisma from '../../db/prisma';
 import axios from 'axios';
 import querystring from 'querystring';
 import { generateOAuthState, validateOAuthState, buildRedirectUrl } from '../oauthState';
+import { encryptToken } from '../../backend/utility/tokenCrypto';
 
 // Reuse the same Google OAuth client credentials
 const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
 const redirect_uri = process.env.YOUTUBE_REDIRECT_URI;
 
-export const handleYouTubeLogin = async (req, res) => {
+export const handleYouTubeLogin = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {
@@ -53,8 +55,8 @@ export const handleYouTubeLogin = async (req, res) => {
   res.redirect(authUrl);
 };
 
-export const handleYouTubeCallback = async (req, res) => {
-  const code = req.query.code || null;
+export const handleYouTubeCallback = async (req: Request, res: Response) => {
+  const code = (req.query.code as string) || null;
   const stateParam = req.query.state as string | undefined;
 
   // Validate state before doing anything else
@@ -113,7 +115,8 @@ export const handleYouTubeCallback = async (req, res) => {
       },
     );
 
-    const { access_token, refresh_token } = response.data;
+    const { access_token, refresh_token, expires_in } = response.data;
+    const token_expires_at = new Date(Date.now() + (expires_in ?? 3600) * 1000);
 
     // Fetch user profile data
     const profileResponse = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
@@ -136,6 +139,7 @@ export const handleYouTubeCallback = async (req, res) => {
 
     const existingYouTubeData = await prisma.youTubeData.findFirst({
       where: { userId: user.id },
+      select: { id: true, refresh_token: true },
     });
 
     if (existingYouTubeData) {
@@ -143,9 +147,12 @@ export const handleYouTubeCallback = async (req, res) => {
       await prisma.youTubeData.update({
         where: { id: existingYouTubeData.id },
         data: {
-          access_token: access_token,
-          // Only overwrite refresh_token if a new one was provided
-          refresh_token: refresh_token || existingYouTubeData.refresh_token,
+          access_token: encryptToken(access_token),
+          refresh_token: refresh_token
+            ? encryptToken(refresh_token)
+            : existingYouTubeData.refresh_token,
+          token_expires_at,
+          needs_reconnect: false,
           last_SyncedAt: new Date(),
         },
       });
@@ -163,11 +170,12 @@ export const handleYouTubeCallback = async (req, res) => {
       await prisma.youTubeData.create({
         data: {
           userId: user.id,
-          youtube_user_id: googleUserId, // Fix: was missing, required by schema
+          youtube_user_id: googleUserId,
           username: name,
           picture: picture,
-          access_token: access_token,
-          refresh_token: refresh_token,
+          access_token: encryptToken(access_token),
+          refresh_token: encryptToken(refresh_token),
+          token_expires_at,
           createdAt: new Date(),
         },
       });
@@ -175,7 +183,7 @@ export const handleYouTubeCallback = async (req, res) => {
 
     // Redirect user to the frontend page specified in OAuth state
     return res.redirect(buildRedirectUrl(stateData.redirectAfter));
-  } catch (error) {
+  } catch (error: any) {
     console.error('YouTube OAuth Error:', error.response?.data || error.message);
     return res.status(400).json({
       error: 'YouTube authentication failed.',

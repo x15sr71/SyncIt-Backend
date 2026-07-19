@@ -1,10 +1,16 @@
 import express from 'express';
 import sessionMiddleware from '../../middlewares/sessionMiddleware';
+import { validate } from '../../middlewares/validate';
+import { emptyYoutubePlaylistBody } from '../validation/schemas';
 import { emptyYouTubePlaylist } from '../controllers/emptyYoutubePlaylist';
 
 const router = express.Router();
 
-// POST is preferred here because we're modifying data and expecting playlistId in body
-router.get('/emptyYouTubePlaylist', sessionMiddleware, emptyYouTubePlaylist);
+router.delete(
+  '/emptyYouTubePlaylist',
+  sessionMiddleware,
+  validate({ body: emptyYoutubePlaylistBody }),
+  emptyYouTubePlaylist,
+);
 
 export default router;

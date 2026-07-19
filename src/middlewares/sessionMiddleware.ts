@@ -1,78 +1,70 @@
+import { Request, Response, NextFunction } from 'express';
 import redis from '../config/redis';
 import prisma from '../db/prisma';
 
-type SessionData = {
+export type SessionData = {
   id: string;
   email: string;
-  expiresAt?: string; // ✅ optional field to store expiry in Redis
-} | null;
+  expiresAt?: string;
+};
 
-const sessionMiddleware = async (req, res, next) => {
+const sessionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // ✅ Prevent duplicate executions in a single request
+    // Prevent duplicate executions in a single request
     if (req._sessionChecked) return next();
     req._sessionChecked = true;
 
-    let sessionId = req.cookies?.sessionId || req.headers?.authorization;
-    console.log('[SESSION] Extracted session ID:', sessionId);
+    const sessionId = req.cookies?.sessionId;
 
     if (!sessionId) {
-      console.log('[SESSION] No session ID found, unauthorized request');
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    let sessionData: SessionData = null;
+    let sessionData: SessionData | null = null;
 
-    // Check Redis for session
-    const redisSession = await redis.get(`session:${sessionId}`);
-    console.log('[SESSION] Redis session data:', redisSession);
+    // Check Redis first — in its own try/catch so a Redis outage falls
+    // through to the DB path instead of 500ing every authenticated
+    // route (P1-4).
+    let redisSession: string | null = null;
+    try {
+      redisSession = await redis.get(`session:${sessionId}`);
+    } catch (redisError: any) {
+      console.warn('[SESSION] Redis unavailable, falling back to DB:', redisError?.message);
+    }
 
     if (redisSession) {
       try {
         const parsed = JSON.parse(redisSession);
 
-        // ✅ Ensure type correctness
         if (parsed?.expiresAt && new Date() > new Date(parsed.expiresAt)) {
-          console.log('[SESSION] Redis session expired, removing...');
-          await redis.del(`session:${sessionId}`);
+          await redis.del(`session:${sessionId}`).catch(() => {});
           res.clearCookie('sessionId');
         } else {
           sessionData = parsed;
-          console.log('[SESSION] Parsed Redis session data:', sessionData);
         }
-      } catch (err) {
-        console.warn('[SESSION] Failed to parse Redis session. Removing corrupt data...');
-        await redis.del(`session:${sessionId}`);
+      } catch {
+        await redis.del(`session:${sessionId}`).catch(() => {});
       }
     }
 
-    // If not in Redis, check DB
+    // Fall back to DB
     if (!sessionData) {
-      console.log('[SESSION] Session not found in Redis, checking PostgreSQL...');
-
       const dbSession = await prisma.session.findUnique({
         where: { session_id: sessionId },
         select: { session_id: true, user_id: true, expires_at: true },
       });
 
-      console.log('[SESSION] DB session:', dbSession);
-
       if (dbSession?.user_id) {
-        // ✅ Proper expiry validation (UTC safe)
         const now = Date.now();
         const expiresAt = new Date(dbSession.expires_at).getTime();
 
         if (now > expiresAt) {
-          console.log('[SESSION] DB session expired, deleting...');
           try {
-            await prisma.session.delete({
-              where: { session_id: sessionId },
-            });
-          } catch (err: any) {
-            console.warn('[SESSION] Failed to delete expired session:', err?.message);
+            await prisma.session.delete({ where: { session_id: sessionId } });
+          } catch {
+            // ignore — may already be deleted
           }
-
-          await redis.del(`session:${sessionId}`);
+          await redis.del(`session:${sessionId}`).catch(() => {});
           res.clearCookie('sessionId');
           return res.status(401).json({ message: 'Session expired' });
         }
@@ -82,41 +74,37 @@ const sessionMiddleware = async (req, res, next) => {
           select: { email: true },
         });
 
-        console.log('[SESSION] User info from DB:', userInfo);
-
         if (userInfo) {
           sessionData = {
             id: dbSession.user_id,
             email: userInfo.email,
-            expiresAt: new Date(expiresAt).toISOString(), // ✅ store expiry as string for Redis
+            expiresAt: new Date(expiresAt).toISOString(),
           };
 
-          console.log('[SESSION] Restoring session in Redis...');
-
-          // ✅ TTL based on DB expiry (type-safe)
           const ttlSeconds = Math.max(0, Math.floor((expiresAt - now) / 1000));
 
-          await redis.setex(
-            `session:${sessionId}`,
-            ttlSeconds || parseInt(process.env.SESSION_TTL || '86400'),
-            JSON.stringify(sessionData),
-          );
+          // Best-effort cache backfill — a Redis outage must not fail the
+          // request after the DB already authenticated it (P1-4).
+          await redis
+            .setex(
+              `session:${sessionId}`,
+              ttlSeconds || parseInt(process.env.SESSION_TTL || '86400'),
+              JSON.stringify(sessionData),
+            )
+            .catch(() => {});
         }
       }
     }
 
     if (!sessionData) {
-      console.log('[SESSION] No session data found after DB check. Unauthorized.');
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    console.log('[SESSION] Session validated successfully:', sessionData);
     req.session = sessionData;
     next();
   } catch (error: any) {
     console.error('[SESSION] Middleware error:', error);
 
-    // After bootstrap, infra errors should be rare — fail gracefully
     if (error?.name?.includes('Prisma')) {
       return res.status(503).json({ message: 'Service temporarily unavailable' });
     }

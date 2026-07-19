@@ -1,6 +1,6 @@
 
 # SyncIt Backend
-The SyncIt Backend is a robust and scalable Express.js application that powers SyncIt, a next-generation music synchronization platform. It seamlessly syncs playlists and liked songs across multiple streaming services, including Spotify and YouTube Music, while also supporting effortless playlist migration between platforms.
+The SyncIt Backend is a robust and scalable Express.js application that powers SyncIt, a next-generation music synchronization platform. It migrates and auto-syncs playlists between Spotify and YouTube Music. (Liked-songs sync is currently unavailable: Spotify removed the `/me/tracks` API in February 2026; the endpoints return 501 until rebuilt on the new library API.)
 
 Built with a modular design, the backend ensures seamless extensibility, making it easy to integrate additional platforms like Apple Music, Deezer, and more. As the core engine of the SyncIt ecosystem, it efficiently handles cation, API requests, data processing, and synchronization tasks with high performance and reliability. Designed for scalability and future enhancements, SyncIt provides a flexible foundation for cross-platform music management and future platforms integrations.
 
@@ -63,7 +63,7 @@ SyncIt Backend is built with modern technologies for performance, scalability, a
 
 ⚡ Performance & Optimization
 
-- Redis (ioredis) (Planned) – Used for caching frequently accessed data, reducing API calls, and improving performance.
+- Redis (ioredis) (Required) – Backs session caching, one-time OAuth state nonces, per-user sync locks, and rate limiting. Login does not work without it.
 - esbuild – High-performance bundler for efficient TypeScript compilation.
 
 🔐 Security 
@@ -129,24 +129,50 @@ Install Dependencies
 npm install 
 ```
 
-create a .env similar to .env.example
-set NODE_ENV to "development"
+Create a `.env` from `.env.example` and fill in every value. Notes that matter:
 
-Ensure your PostgreSQL database and Redis is running. If you're using a local PostgreSQL instance, set up your database as specified in the DATABASE_URL.
+- **`DIRECT_URL` is required** in addition to `DATABASE_URL`: Prisma 7's CLI reads only `DIRECT_URL` (via `prisma.config.ts`) for migrations. On Supabase, `DATABASE_URL` is the pooled 6543 URL and `DIRECT_URL` the direct 5432 URL.
+- **Redis is required**, not optional — OAuth login, session caching, sync locks, and rate limiting all use it.
+- **Use `127.0.0.1` everywhere in dev**, not `localhost`: Spotify only accepts loopback-IP redirect URIs, and session cookies are host-scoped, so the Google/YouTube/Spotify redirect URIs, `FRONTEND_URL`, and the URL you open in the browser must all agree. Open the client at `http://127.0.0.1:3000`.
+- `TOKEN_ENC_KEY` (32 random bytes, base64) encrypts OAuth tokens at rest: `openssl rand -base64 32`.
 
-
-Run database migrations
+Ensure PostgreSQL and Redis are running, then apply migrations:
 
 ```
-npx prisma migrate dev
+npx prisma migrate deploy   # or `npx prisma migrate dev` when changing the schema
 ```
+
 Start Development Server
 ```
 npm run dev
 ```
+Run tests / typecheck
+```
+npm test
+npx tsc --noEmit
+```
 Build for Deployment
 ```
 npm run build
+```
+
+### Production cookie strategy (client ↔ backend)
+
+The session cookie is `sameSite: 'lax'`, which browsers do not send on
+cross-site XHR. The supported deployment shape is the **same-origin proxy**:
+the Next.js client rewrites `/api/backend/:path*` to this backend, the
+browser only ever talks to the client origin, and OAuth provider redirect
+URIs point at `https://<client-domain>/api/backend/{google,spotify,youtube}/callback`.
+
+Alternative (documented, not wired): host client and backend on subdomains of
+one registrable domain (e.g. `app.example.com` + `api.example.com`), set the
+cookie with `domain: '.example.com'`, `sameSite: 'none'`, `secure: true`, and
+add CSRF hardening — only worth it if the proxy hop is unacceptable.
+
+### Docker
+
+```
+docker compose up --build   # backend + Postgres + Redis, healthcheck on /health
 ```
     
 ## 🤝 Contributing

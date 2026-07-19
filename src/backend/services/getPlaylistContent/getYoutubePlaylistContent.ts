@@ -6,28 +6,32 @@ import {
 import iso8601Duration from 'iso8601-duration';
 
 const MAX_RETRIES = 2;
+const PAGE_SIZE = 50;
 
 export const getYouTubePlaylistContentService = async (userId: string, playlistId: string) => {
+  let accessToken = await get_YoutubeAccessToken(userId);
   let retryCount = 0;
-  let accessToken: string | null = await get_YoutubeAccessToken(userId);
 
   while (retryCount <= MAX_RETRIES) {
     try {
-      // 1. Fetch playlist items (basic info + videoIds)
-      const response = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        params: {
-          part: 'snippet,contentDetails',
-          maxResults: 50,
-          playlistId,
-        },
-      });
+      // Paginate through all playlist items
+      const rawItems: any[] = [];
+      let pageToken: string | undefined;
 
-      const rawItems = response.data.items;
+      do {
+        const response = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          params: {
+            part: 'snippet,contentDetails',
+            maxResults: PAGE_SIZE,
+            playlistId,
+            ...(pageToken ? { pageToken } : {}),
+          },
+        });
+        rawItems.push(...response.data.items);
+        pageToken = response.data.nextPageToken;
+      } while (pageToken);
 
-      // 2. Extract videoIds
       const videoIdsArray = rawItems.map((item) => item.contentDetails.videoId).filter(Boolean);
 
       const itemsWithoutDuration = rawItems.map((item: any) => ({
@@ -38,37 +42,30 @@ export const getYouTubePlaylistContentService = async (userId: string, playlistI
         thumbnail: item.snippet.thumbnails?.default?.url,
       }));
 
-      // 3. Try fetching durations (non-critical)
+      // Fetch durations in batches of 50 (API limit per request)
       try {
-        const videoDetailsRes = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          params: {
-            part: 'contentDetails',
-            id: videoIdsArray.join(','),
-          },
-        });
-
         const durationMap: Record<string, string> = {};
-        videoDetailsRes.data.items.forEach((video: any) => {
-          const isoDuration = video.contentDetails.duration;
-          const parsed = iso8601Duration.parse(isoDuration);
-          const minutes = parsed.minutes || 0;
-          const seconds = parsed.seconds || 0;
-          const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-          durationMap[video.id] = formattedDuration;
-        });
+        for (let i = 0; i < videoIdsArray.length; i += PAGE_SIZE) {
+          const batch = videoIdsArray.slice(i, i + PAGE_SIZE);
+          const videoDetailsRes = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            params: { part: 'contentDetails', id: batch.join(',') },
+          });
+          for (const video of videoDetailsRes.data.items) {
+            const parsed = iso8601Duration.parse(video.contentDetails.duration);
+            const minutes = parsed.minutes || 0;
+            const seconds = parsed.seconds || 0;
+            durationMap[video.id] = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          }
+        }
 
-        // 4. Attach durations to playlist items
         const itemsWithDuration = itemsWithoutDuration.map((item) => ({
           ...item,
           duration: durationMap[item.videoId] || '0:00',
         }));
 
         return { success: true, data: itemsWithDuration };
-      } catch (durationError) {
-        console.warn('Video durations fetch failed. Sending fallback response.');
+      } catch {
         return { success: true, data: itemsWithoutDuration };
       }
     } catch (error: any) {
@@ -80,14 +77,13 @@ export const getYouTubePlaylistContentService = async (userId: string, playlistI
           accessToken = newToken.newAccessToken;
           retryCount++;
           continue;
-        } else {
-          throw {
-            success: false,
-            error: 'AUTH_REFRESH_FAILED',
-            message: 'Failed to refresh token.',
-            statusCode: 401,
-          };
         }
+        throw {
+          success: false,
+          error: 'AUTH_REFRESH_FAILED',
+          message: 'Failed to refresh token.',
+          statusCode: 401,
+        };
       }
 
       console.error('YouTube content fetch error:', error?.response?.data || error.message);

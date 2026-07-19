@@ -3,6 +3,7 @@
 import prisma from '../../../db';
 import { migrateSpotifyPlaylistToYoutube } from '../migration/spotifyToYoutube';
 import { migrateYoutubePlaylistToSpotify } from '../migration/youtubeToSpotify';
+import { acquireUserSyncLock, releaseUserSyncLock } from '../../utility/syncMutex';
 
 export class ScheduledSyncService {
   // Enable auto sync for a playlist migration
@@ -17,9 +18,9 @@ export class ScheduledSyncService {
 
     return await prisma.playlistMigration.upsert({
       where: {
-        userId_playlistId_sourcePlatform_destinationPlatform: {
+        userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {
           userId,
-          playlistId,
+          sourcePlaylistId: playlistId,
           sourcePlatform,
           destinationPlatform,
         },
@@ -33,7 +34,7 @@ export class ScheduledSyncService {
       },
       create: {
         userId,
-        playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform,
         destinationPlatform,
         sourceTrackIds: [],
@@ -55,7 +56,7 @@ export class ScheduledSyncService {
     return await prisma.playlistMigration.updateMany({
       where: {
         userId,
-        playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform,
         destinationPlatform,
       },
@@ -86,31 +87,73 @@ export class ScheduledSyncService {
     });
   }
 
+  /**
+   * Atomically claim a due migration by advancing nextSyncAt BEFORE executing.
+   * The row-match on `nextSyncAt <= now` means exactly one concurrent claimer
+   * wins the UPDATE — the guard against double execution (P0-10). A crashed
+   * run self-heals: the row simply becomes due again after its interval.
+   */
+  static async claimMigration(migration: any): Promise<boolean> {
+    const provisionalNextSyncAt = new Date(
+      Date.now() + (migration.syncIntervalMinutes || 60) * 60 * 1000,
+    );
+    const claimed = await prisma.playlistMigration.updateMany({
+      where: {
+        id: migration.id,
+        autoSyncEnabled: true,
+        nextSyncAt: { lte: new Date() },
+      },
+      data: {
+        nextSyncAt: provisionalNextSyncAt,
+        lastSyncStatus: 'RUNNING',
+      },
+    });
+    return claimed.count === 1;
+  }
+
   // Execute a scheduled migration - FINAL PRODUCTION VERSION
   static async executeMigration(migration: any) {
+    const locked = await acquireUserSyncLock(migration.userId);
+    if (!locked) {
+      console.warn(
+        `[ScheduledSync] Skipping migration ${migration.id}: another sync is running for user ${migration.userId}`,
+      );
+      await prisma.playlistMigration
+        .update({
+          where: { id: migration.id },
+          data: {
+            lastSyncStatus: 'SKIPPED',
+            lastSyncError: 'Another sync was already running for this user',
+          },
+        })
+        .catch(() => {});
+      return { success: false, skipped: true };
+    }
+
     try {
-      console.log(`[ScheduledSync] Starting migration for playlist ${migration.playlistId}`);
+      console.log(`[ScheduledSync] Starting migration for playlist ${migration.sourcePlaylistId}`);
 
       let result;
 
       if (migration.sourcePlatform === 'SPOTIFY' && migration.destinationPlatform === 'YOUTUBE') {
-        // Spotify → YouTube migration
-        // Use your existing service with "auto-create" - it handles everything
+        if (!migration.destinationPlaylistId) {
+          throw new Error(
+            'No destination YouTube playlist set. Run a manual migration first to create the destination playlist.',
+          );
+        }
         result = await migrateSpotifyPlaylistToYoutube(
           migration.userId,
-          migration.playlistId, // Source Spotify playlist ID
-          'auto-create', // Your service handles YouTube playlist creation
+          migration.sourcePlaylistId,
+          migration.destinationPlaylistId,
         );
       } else if (
         migration.sourcePlatform === 'YOUTUBE' &&
         migration.destinationPlatform === 'SPOTIFY'
       ) {
-        // YouTube → Spotify migration
-        // Use playlist ID as name - your service handles this gracefully
         result = await migrateYoutubePlaylistToSpotify(
           migration.userId,
-          migration.playlistId, // Source YouTube playlist ID
-          migration.playlistId, // Use as name - your service will handle properly
+          migration.sourcePlaylistId,
+          migration.destinationPlaylistId ?? undefined,
         );
       } else {
         throw new Error(
@@ -121,7 +164,11 @@ export class ScheduledSyncService {
       // Calculate next run time
       const nextSyncAt = new Date(Date.now() + (migration.syncIntervalMinutes || 60) * 60 * 1000);
 
-      // Update migration record with success
+      // Update migration record with success.
+      // The inner migration services own the sourceTrackIds ledger and the
+      // migrationCounter — writing result.videoIds here replaced the ledger
+      // of SOURCE-platform IDs with DESTINATION-platform IDs after every
+      // scheduled run, so each tick reprocessed everything (P0-8).
       await prisma.playlistMigration.update({
         where: { id: migration.id },
         data: {
@@ -129,16 +176,14 @@ export class ScheduledSyncService {
           nextSyncAt,
           lastSyncStatus: result?.success ? 'SUCCESS' : 'PARTIAL',
           lastSyncError: null,
-          migrationCounter: migration.migrationCounter + 1,
-          sourceTrackIds: result?.videoIds || result?.trackUris || migration.sourceTrackIds,
         },
       });
 
-      console.log(`[ScheduledSync] Migration completed for playlist ${migration.playlistId}`);
+      console.log(`[ScheduledSync] Migration completed for playlist ${migration.sourcePlaylistId}`);
       return result;
     } catch (error: any) {
       console.error(
-        `[ScheduledSync] Migration failed for playlist ${migration.playlistId}:`,
+        `[ScheduledSync] Migration failed for playlist ${migration.sourcePlaylistId}:`,
         error,
       );
 
@@ -157,6 +202,8 @@ export class ScheduledSyncService {
       });
 
       throw error;
+    } finally {
+      await releaseUserSyncLock(migration.userId);
     }
   }
 
@@ -170,13 +217,18 @@ export class ScheduledSyncService {
 
       for (const migration of migrationsToRun) {
         try {
+          const claimed = await this.claimMigration(migration);
+          if (!claimed) {
+            console.log(`[ScheduledSync] Migration ${migration.id} already claimed, skipping`);
+            continue;
+          }
           await this.executeMigration(migration);
-        } catch (error) {
+        } catch (error: any) {
           console.error(`[ScheduledSync] Failed to execute migration ${migration.id}:`, error);
           // Continue with other migrations even if one fails
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[ScheduledSync] Cron job failed:', error);
     }
   }
@@ -207,7 +259,7 @@ export class ScheduledSyncService {
     return await prisma.playlistMigration.updateMany({
       where: {
         userId,
-        playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform,
         destinationPlatform,
       },
@@ -228,7 +280,7 @@ export class ScheduledSyncService {
     return await prisma.playlistMigration.findFirst({
       where: {
         userId,
-        playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform,
         destinationPlatform,
       },
@@ -245,7 +297,7 @@ export class ScheduledSyncService {
     return await prisma.playlistMigration.updateMany({
       where: {
         userId,
-        playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform,
         destinationPlatform,
       },
@@ -266,7 +318,7 @@ export class ScheduledSyncService {
     const migration = await prisma.playlistMigration.findFirst({
       where: {
         userId,
-        playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform,
         destinationPlatform,
       },
@@ -281,7 +333,7 @@ export class ScheduledSyncService {
     return await prisma.playlistMigration.updateMany({
       where: {
         userId,
-        playlistId,
+        sourcePlaylistId: playlistId,
         sourcePlatform,
         destinationPlatform,
       },

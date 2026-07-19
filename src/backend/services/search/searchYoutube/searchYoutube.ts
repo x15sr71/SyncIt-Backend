@@ -4,7 +4,10 @@ import {
   refreshYoutubeAccessToken,
 } from '../../../../auth/youtube/youtubeTokensUtil';
 
+import { mapWithConcurrency, withRetryAfter } from '../../../utility/upstream';
+
 const MAX_RETRIES = 3;
+const SEARCH_CONCURRENCY = 4;
 const YOUTUBE_API_URL = 'https://www.googleapis.com/youtube/v3/search';
 const VIDEO_DETAILS_API_URL = 'https://www.googleapis.com/youtube/v3/videos';
 
@@ -51,7 +54,7 @@ const handleSearchError = async (
       try {
         await refreshYoutubeAccessToken(userId);
         return await get_YoutubeAccessToken(userId);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         console.error('Failed to refresh access token:', refreshError.message);
         return null;
       }
@@ -93,7 +96,7 @@ async function filterValidVideos(videoIds: string[], apiKey: string): Promise<Se
     }
 
     return validIds;
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to validate video statuses via videos.list:', err.message);
     return new Set(); // fallback to empty set = skip all
   }
@@ -113,19 +116,21 @@ const performSearch = async (
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const resp = await axios.get(YOUTUBE_API_URL, {
-        params: {
-          part: 'snippet',
-          q: query,
-          type: 'video',
-          videoCategoryId: '10',
-          videoEmbeddable: 'true',
-          order: 'relevance',
-          maxResults: 3,
-          key: apiKey,
-        },
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const resp = await withRetryAfter(() =>
+        axios.get(YOUTUBE_API_URL, {
+          params: {
+            part: 'snippet',
+            q: query,
+            type: 'video',
+            videoCategoryId: '10',
+            videoEmbeddable: 'true',
+            order: 'relevance',
+            maxResults: 3,
+            key: apiKey,
+          },
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+      );
 
       const rawResults = resp.data.items;
       const videoIds = rawResults.map((item: any) => item.id.videoId);
@@ -159,17 +164,16 @@ export async function searchTracksOnYoutubeService(
   const apiKey = getApiKey();
   let accessToken = await get_YoutubeAccessToken(userId);
 
-  const settled = await Promise.allSettled(
-    tracks.map((track) => performSearch(track, apiKey, accessToken, userId)),
-  );
-
-  return settled.map((r, idx) => {
-    const query = createSearchQuery(tracks[idx]);
-    if (r.status === 'fulfilled') {
-      return { trackName: r.value.trackName, query, results: r.value.results };
-    } else {
-      console.error(`Search failed for ${tracks[idx].trackName}:`, r.reason);
-      return { trackName: tracks[idx].trackName, query, results: [] };
+  // Bounded fan-out: searching every track in parallel guaranteed 429s and
+  // burned quota on doomed requests (P2-3).
+  return mapWithConcurrency(tracks, SEARCH_CONCURRENCY, async (track) => {
+    const query = createSearchQuery(track);
+    try {
+      const result = await performSearch(track, apiKey, accessToken, userId);
+      return { trackName: result.trackName, query, results: result.results };
+    } catch (reason: any) {
+      console.error(`Search failed for ${track.trackName}:`, reason);
+      return { trackName: track.trackName, query, results: [] };
     }
   });
 }

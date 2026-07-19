@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import {
   get_YoutubeAccessToken,
@@ -8,7 +9,7 @@ const YOUTUBE_PLAYLISTS_API = 'https://www.googleapis.com/youtube/v3/playlists';
 const MAX_RETRIES = 3; // Reduced from 10 to be more reasonable
 const REQUEST_TIMEOUT = 10000; // 10 seconds
 
-export const getYouTubePlaylistsHandler = async (req, res) => {
+export const getYouTubePlaylistsHandler = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {
@@ -31,7 +32,7 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
         message: 'YouTube access token not found. Please reconnect your account.',
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get YouTube access token:', error);
     return res.status(401).json({
       success: false,
@@ -42,22 +43,33 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
 
   while (retryCount <= MAX_RETRIES) {
     try {
-      const response = await axios.get(YOUTUBE_PLAYLISTS_API, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        params: {
-          part: 'snippet,contentDetails',
-          mine: true,
-          maxResults: 50,
-        },
-        timeout: REQUEST_TIMEOUT,
-      });
+      // Paginate fully — one page meant users with >50 playlists saw a
+      // truncated dashboard (P2-2).
+      const playlists: any[] = [];
+      let totalResults = 0;
+      let pageToken: string | undefined;
+      do {
+        const response: any = await axios.get(YOUTUBE_PLAYLISTS_API, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          params: {
+            part: 'snippet,contentDetails',
+            mine: true,
+            maxResults: 50,
+            ...(pageToken ? { pageToken } : {}),
+          },
+          timeout: REQUEST_TIMEOUT,
+        });
+        playlists.push(...(response.data.items || []));
+        totalResults = response.data.pageInfo?.totalResults || playlists.length;
+        pageToken = response.data.nextPageToken;
+      } while (pageToken);
 
       return res.json({
         success: true,
-        data: response.data.items || [],
-        totalResults: response.data.pageInfo?.totalResults || 0,
+        data: playlists,
+        totalResults,
       });
     } catch (error: any) {
       const status = error?.response?.status;
@@ -91,7 +103,7 @@ export const getYouTubePlaylistsHandler = async (req, res) => {
               message: errorMessage,
             });
           }
-        } catch (refreshError) {
+        } catch (refreshError: any) {
           console.error('Error during token refresh:', refreshError);
           return res.status(401).json({
             success: false,

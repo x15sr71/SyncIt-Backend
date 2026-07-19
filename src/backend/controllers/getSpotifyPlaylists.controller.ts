@@ -1,10 +1,11 @@
+import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { get_SpotifyAccessToken, refreshSpotifyToken } from '../../auth/spotify/spotifyTokenUtil';
 
 const SPOTIFY_PLAYLISTS_API = 'https://api.spotify.com/v1/me/playlists';
 const MAX_RETRIES = 2;
 
-export const getPlaylistsHandler = async (req, res) => {
+export const getPlaylistsHandler = async (req: Request, res: Response) => {
   const userId = req.session?.id;
 
   if (!userId) {
@@ -29,16 +30,27 @@ export const getPlaylistsHandler = async (req, res) => {
 
   while (retryCount <= MAX_RETRIES) {
     try {
-      const response = await axios.get(SPOTIFY_PLAYLISTS_API, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        params: {
-          limit: 50,
-        },
-      });
+      // Paginate fully — one page meant users with >50 playlists saw a
+      // truncated dashboard (P2-2).
+      const playlists: any[] = [];
+      let offset = 0;
+      let total = 1;
+      while (offset < total) {
+        const response = await axios.get(SPOTIFY_PLAYLISTS_API, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          params: {
+            limit: 50,
+            offset,
+          },
+        });
+        total = response.data.total ?? 0;
+        playlists.push(...(response.data.items ?? []));
+        offset += 50;
+      }
 
-      return res.json({ success: true, data: response.data.items });
+      return res.json({ success: true, data: playlists });
     } catch (error: any) {
       const status = error?.response?.status;
 

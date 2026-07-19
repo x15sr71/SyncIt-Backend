@@ -1,7 +1,13 @@
+import 'dotenv/config';
+import crypto from 'crypto';
 import express from 'express';
-import bodyParser from 'body-parser';
 import cors from 'cors';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import pinoHttp from 'pino-http';
+import { logger } from '../config/logger';
+import { globalRateLimit } from '../middlewares/rateLimit';
+import { healthHandler } from './controllers/health.controller';
 import { SyncCronJob } from '../jobs/syncCronJobs';
 import redis from '../config/redis';
 import prisma from '../db/prisma';
@@ -12,6 +18,7 @@ import { handleYouTubeLogin, handleYouTubeCallback } from '../auth/youtube/youtu
 import { handleGoogleLogin, handleGoogleCallback } from '../auth/google/google';
 
 import sessionMiddleware from '../middlewares/sessionMiddleware';
+import { meHandler } from './controllers/me.controller';
 
 import youtubeRoutes from './routes/youtube.routes';
 import spotifyRoutes from './routes/spotify.routes';
@@ -24,21 +31,52 @@ import getYoutubePlaylistContentHandler from './routes/youtubeContent.route';
 import migrateSpotifyToYoutubeHandler from './routes/migrateSpotifyToYoutube.router';
 import migrateYoutubeToSpotifyHandler from './routes/migrateYoutubeToSpotify.route';
 import getNotFoundTracksRouter from './routes/getNotFoundTracks.route';
-import spotifyActionsRouter from './routes/routes/spotifyActions.routes';
-import youtubeactionrouter from './routes/routes/youtubeActions.routes';
+import spotifyActionsRouter from './routes/spotifyActions.routes';
+import youtubeactionrouter from './routes/youtubeActions.routes';
 import autoSyncRoutes from './routes/autoSync.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Production traffic arrives through the Next.js rewrite proxy (and any
+// platform load balancer); trust the first hop so req.ip and secure-cookie
+// detection see the real client.
+app.set('trust proxy', 1);
+
+const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://127.0.0.1:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+// CSP disabled: this is a JSON API, not an HTML origin; the Next.js app
+// owns browser-facing security headers.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// Health check before logging/rate limiting: orchestrator probes must not
+// consume rate-limit points or spam the request log.
+app.get('/health', healthHandler);
+
+// Structured request logging with request IDs (P2-12).
+app.use(
+  pinoHttp({
+    logger,
+    genReqId: (req) => (req.headers['x-request-id'] as string) ?? crypto.randomUUID(),
+    autoLogging: {
+      ignore: (req) => req.url === '/health',
+    },
+  }),
+);
+
 app.use(cookieParser());
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'https://syncit-app-1.vercel.app/'],
+    origin: corsOrigins,
     credentials: true,
   }),
 );
-app.use(bodyParser.json());
+// After cors so preflights don't consume points; before all routes.
+app.use(globalRateLimit);
+app.use(express.json());
 
 /* ================= ROUTES ================= */
 
@@ -66,18 +104,29 @@ app.use('/', getNotFoundTracksRouter);
 app.use('/spotify', spotifyActionsRouter);
 app.use('/youtube', youtubeactionrouter);
 
-app.get('/sessionmid', sessionMiddleware);
+app.get('/me', sessionMiddleware, meHandler);
 app.use('/api/auto-sync', autoSyncRoutes);
 
-SyncCronJob.start();
-
-app.get('/sessionmid', sessionMiddleware);
-
-app.post('/sync-playlists', async (req, res) => {
-  res.json({ message: 'Playlists synced successfully!' });
+app.post('/auth/logout', sessionMiddleware, async (req, res) => {
+  const sessionId = req.cookies?.sessionId;
+  if (sessionId) {
+    try {
+      await redis.del(`session:${sessionId}`);
+      await prisma.session.deleteMany({ where: { session_id: sessionId } });
+    } catch {
+      // best-effort cleanup
+    }
+    res.clearCookie('sessionId');
+  }
+  return res.json({ success: true, message: 'Logged out' });
 });
 
 /* ================= SERVER START ================= */
+
+// Exported for supertest: importing this module must not listen, start
+// cron jobs, or register exit handlers — that only happens when run as
+// the entrypoint (see require.main check at the bottom).
+export { app };
 
 let server: any;
 let isShuttingDown = false;
@@ -86,17 +135,18 @@ async function startServer() {
   try {
     await bootstrap();
 
+    // Start cron jobs only after infrastructure is validated
+    SyncCronJob.start();
+
     server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('⛔ Server startup aborted');
     console.error('Reason:', err instanceof Error ? err.message : err);
     process.exit(1);
   }
 }
-
-startServer();
 
 /* ================= CLEANUP ================= */
 
@@ -124,27 +174,33 @@ const cleanup = async (signal?: string) => {
     try {
       await redis.quit();
       console.log('Redis disconnected');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error disconnecting Redis:', err);
     }
 
     process.exit(0);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Cleanup error:', err);
     process.exit(1);
   }
 };
 
-['SIGINT', 'SIGTERM'].forEach((sig) => {
-  process.on(sig, () => cleanup(sig));
-});
+if (require.main === module) {
+  startServer();
 
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  cleanup('uncaughtException');
-});
+  ['SIGINT', 'SIGTERM'].forEach((sig) => {
+    process.on(sig, () => cleanup(sig));
+  });
 
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason);
-  cleanup('unhandledRejection');
-});
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    cleanup('uncaughtException');
+  });
+
+  // Exits on purpose — run under a supervisor with restart (docker-compose
+  // sets restart: unless-stopped).
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled Rejection:', reason);
+    cleanup('unhandledRejection');
+  });
+}

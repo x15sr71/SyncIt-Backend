@@ -5,6 +5,9 @@ import {
 } from '../../../auth/spotify/spotifyTokenUtil';
 
 const MAX_RETRIES = 2;
+// Spotify Get Playlist Items caps `limit` at 50 (Feb-2026 API); the page
+// stride must match or every other page is silently skipped.
+const PAGE_SIZE = 50;
 
 export interface SpotifyTrackInfo {
   id: string;
@@ -22,7 +25,6 @@ export interface SpotifyTrackInfo {
 export async function getSpotifyPlaylistContent(
   userId: string,
   playlistId: string,
-  limit = 100,
 ): Promise<SpotifyTrackInfo[]> {
   const tokenData = await get_SpotifyAccessToken(userId);
   let token = tokenData;
@@ -31,13 +33,13 @@ export async function getSpotifyPlaylistContent(
   let allTracks: SpotifyTrackInfo[] = [];
   let total = 1; // dummy to start
 
-  while (allTracks.length < limit && offset < total) {
+  while (offset < total) {
     let retries = 0;
     while (retries <= MAX_RETRIES) {
       try {
-        const resp = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        const resp = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
           headers: { Authorization: `Bearer ${token}` },
-          params: { offset, limit: Math.min(100, limit - allTracks.length) },
+          params: { offset, limit: PAGE_SIZE },
         });
         total = resp.data.total;
         const chunk = resp.data.items
@@ -63,26 +65,8 @@ export async function getSpotifyPlaylistContent(
         throw err;
       }
     }
-    offset += 100;
+    offset += PAGE_SIZE;
   }
 
   return allTracks;
-}
-
-/**
- * Legacy function that handles multiple playlists - kept for backward compatibility
- * @deprecated Use the single playlist version above for new code
- */
-export async function getSpotifyPlaylistContentMultiple(
-  userId: string,
-  playlistIds: string[],
-  limit = 100,
-): Promise<Record<string, SpotifyTrackInfo[]>> {
-  const result: Record<string, SpotifyTrackInfo[]> = {};
-
-  for (const playlistId of playlistIds) {
-    result[playlistId] = await getSpotifyPlaylistContent(userId, playlistId, limit);
-  }
-
-  return result;
 }

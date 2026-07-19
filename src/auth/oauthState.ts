@@ -6,10 +6,12 @@ const STATE_PREFIX = 'oauth_state:';
 
 // Allowed redirect paths must be relative (start with /)
 // and must not contain protocol or domain to prevent open redirect
-const FRONTEND_BASE = process.env.FRONTEND_URL || 'http://localhost:3000';
+// Dev default uses 127.0.0.1 (not localhost): Spotify only accepts loopback-IP
+// redirect URIs, and cookies are host-scoped, so every dev URL must agree (P0-6).
+const FRONTEND_BASE = process.env.FRONTEND_URL || 'http://127.0.0.1:3000';
 
 export interface OAuthStateData {
-  flow: 'login' | 'youtube_connect';
+  flow: 'login' | 'youtube_connect' | 'spotify_connect';
   userId?: string;
   sessionId?: string;
   redirectAfter?: string;
@@ -24,7 +26,7 @@ export interface OAuthStateData {
  * making it resistant to replay and CSRF.
  */
 export async function generateOAuthState(
-  flow: 'login' | 'youtube_connect',
+  flow: 'login' | 'youtube_connect' | 'spotify_connect',
   opts?: { userId?: string; sessionId?: string; redirectAfter?: string },
 ): Promise<string> {
   const nonce = crypto.randomBytes(32).toString('hex');
@@ -49,7 +51,7 @@ export async function generateOAuthState(
 
   try {
     await redis.setex(`${STATE_PREFIX}${nonce}`, STATE_TTL_SECONDS, JSON.stringify(data));
-  } catch (err) {
+  } catch (err: any) {
     console.error(
       '[OAuth State] Redis unavailable during state generation:',
       (err as Error).message,
@@ -84,7 +86,7 @@ export async function validateOAuthState(
       console.warn('[OAuth State] State not found in Redis (expired or replayed)');
       return null;
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error(
       '[OAuth State] Redis unavailable during state validation:',
       (err as Error).message,
@@ -103,7 +105,7 @@ export async function validateOAuthState(
     }
 
     return data;
-  } catch (err) {
+  } catch (err: any) {
     console.warn('[OAuth State] Failed to parse state data from Redis');
     return null;
   }

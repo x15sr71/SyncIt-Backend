@@ -2,10 +2,13 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import { migrateSpotifyPlaylistToYoutube } from '../services/migration/spotifyToYoutube';
 import { get_YoutubeAccessToken } from '../../auth/youtube/youtubeTokensUtil';
+import { acquireUserSyncLock, releaseUserSyncLock } from '../utility/syncMutex';
 
-export async function migrateSpotifyToYoutubeHandler(req, res) {
+export async function migrateSpotifyToYoutubeHandler(req: Request, res: Response) {
   const userId = req.session?.id as string;
-  const { spotifyPlaylistId, youtubePlaylistId, playlistName } = req.body;
+  const { spotifyPlaylistId, youtubePlaylistId } = req.body;
+  // The client sends the target name as youtubePlaylistName.
+  const playlistName = req.body.playlistName ?? req.body.youtubePlaylistName;
 
   if (!userId) {
     console.warn('[Controller] No session, rejecting request');
@@ -22,6 +25,17 @@ export async function migrateSpotifyToYoutubeHandler(req, res) {
       success: false,
       error: 'MISSING_PLAYLIST_INFO',
       message: 'Spotify playlist ID is required for migration.',
+    });
+  }
+
+  // One migration at a time per user: guards double-clicks and overlap
+  // with scheduled runs (P1-3 idempotency guard).
+  const locked = await acquireUserSyncLock(userId);
+  if (!locked) {
+    return res.status(409).json({
+      success: false,
+      error: 'SYNC_IN_PROGRESS',
+      message: 'Another sync is already running for your account. Please try again shortly.',
     });
   }
 
@@ -108,6 +122,8 @@ export async function migrateSpotifyToYoutubeHandler(req, res) {
       error: 'MIGRATION_FAILED',
       message: err.message || 'An unexpected error occurred during migration.',
     });
+  } finally {
+    await releaseUserSyncLock(userId);
   }
 }
 
@@ -232,30 +248,5 @@ async function findOrCreateYouTubePlaylist(
       message: error?.message || 'Failed to find or create YouTube playlist',
       statusCode: 502,
     };
-  }
-}
-
-// Optional: Helper function to get user's existing playlists
-export async function getUserYouTubePlaylists(userId: string) {
-  try {
-    const accessToken = await get_YoutubeAccessToken(userId);
-
-    const response = await axios.get(
-      'https://www.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&maxResults=50',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-    );
-
-    return response.data.items.map((item: any) => ({
-      id: item.id,
-      title: item.snippet.title,
-      description: item.snippet.description,
-    }));
-  } catch (error: any) {
-    console.error('[Controller] Failed to fetch user playlists:', error);
-    throw error;
   }
 }

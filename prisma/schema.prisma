@@ -47,7 +47,7 @@ model Session {
 
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  expires_at DateTime @default(dbgenerated("NOW() + INTERVAL '1 day'")) @map("expires_at")
+  expires_at DateTime @default(dbgenerated("(now() + '1 day'::interval)")) @map("expires_at")
 
   @@map("sessions")
   @@unique([user_id, session_id])
@@ -61,6 +61,8 @@ model SpotifyData {
   picture                    String
   access_token               String
   refresh_token              String
+  token_expires_at           DateTime?
+  needs_reconnect            Boolean   @default(false)
   last_SyncedAt              DateTime?
   last_playlistTrackIds_hash String?
   last_TrackIds              String?
@@ -71,16 +73,20 @@ model SpotifyData {
   // Relation to User
   user   User   @relation(name: "UserSpotifyTokens", fields: [userId], references: [id])
   userId String
+
+  @@index([userId])
 }
 
 // Model for storing YouTube access tokens
 model YouTubeData {
   id                         String    @id @default(uuid())
-  youtube_user_id            String    @unique 
+  youtube_user_id            String    @unique
   username                   String
   picture                    String
   access_token               String
   refresh_token              String
+  token_expires_at           DateTime?
+  needs_reconnect            Boolean   @default(false)
   last_SyncedAt              DateTime?
   last_playlistTrackIds_hash String?
   last_TracksIds             String?
@@ -91,6 +97,8 @@ model YouTubeData {
   // Relation to User
   user   User   @relation(name: "UserYouTubeTokens", fields: [userId], references: [id])
   userId String
+
+  @@index([userId])
 }
 
 model PlaylistMigration {
@@ -106,6 +114,9 @@ model PlaylistMigration {
   destinationPlatform   String
 
   sourceTrackIds        String[]
+  // Per-playlist, append-only record of tracks that failed to migrate
+  // (match failures and add failures) — powers /getNotFoundTracks (P2-6).
+  failedTracks          Json      @default("[]")
   migrationCounter      Int       @default(0)
 
   autoSyncEnabled       Boolean   @default(false)
@@ -119,4 +130,6 @@ model PlaylistMigration {
   updatedAt             DateTime  @updatedAt
 
   @@unique([userId, sourcePlaylistId, sourcePlatform, destinationPlatform])
+  @@index([userId])
+  @@index([userId, sourcePlatform, destinationPlatform])
 }

@@ -1,18 +1,17 @@
+import { Request, Response, NextFunction } from 'express';
 import prisma from '../../db/prisma';
 import axios from 'axios';
 import crypto from 'crypto';
 import querystring from 'querystring';
-import dotenv from 'dotenv';
 import redis from '../../config/redis';
 import { generateOAuthState, validateOAuthState, buildRedirectUrl } from '../oauthState';
-
-dotenv.config();
+import { encryptToken } from '../../backend/utility/tokenCrypto';
 
 const client_id = process.env.GOOGLE_CLIENT_ID;
 const client_secret = process.env.GOOGLE_CLIENT_SECRET;
 const redirect_uri = process.env.GOOGLE_REDIRECT_URI;
 
-export const handleGoogleLogin = async (req, res) => {
+export const handleGoogleLogin = async (req: Request, res: Response) => {
   const sessionId = req.cookies?.sessionId;
 
   if (sessionId) {
@@ -31,7 +30,7 @@ export const handleGoogleLogin = async (req, res) => {
   res.cookie('oauth_temp', tempNonce, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
+    sameSite: 'lax',
     maxAge: 1000 * 60 * 10, // 10 minutes, matches state TTL
   });
 
@@ -53,8 +52,8 @@ export const handleGoogleLogin = async (req, res) => {
   return res.redirect(authUrl);
 };
 
-export const handleGoogleCallback = async (req, res) => {
-  const code = req.query.code || null;
+export const handleGoogleCallback = async (req: Request, res: Response) => {
+  const code = (req.query.code as string) || null;
   const stateParam = req.query.state as string | undefined;
 
   // Validate state before doing anything else
@@ -78,7 +77,7 @@ export const handleGoogleCallback = async (req, res) => {
   res.clearCookie('oauth_temp', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
+    sameSite: 'lax',
   });
 
   console.log(`OAuth ${stateData.flow} callback initiated`);
@@ -128,22 +127,28 @@ export const handleGoogleCallback = async (req, res) => {
           email,
           username: name,
           profilePicture: picture,
-          access_token,
-          refresh_token: refresh_token || null,
+          access_token: encryptToken(access_token),
+          refresh_token: refresh_token ? encryptToken(refresh_token) : null,
           keepInSync: true,
-          primaryService: null,
           lastSyncTime: null,
-          lastSyncTracks: null,
         },
       });
     } else {
       await prisma.user.update({
         where: { email },
-        data: { access_token },
+        data: { access_token: encryptToken(access_token) },
       });
     }
 
     console.log('created:', user.id);
+
+    // Capture old session IDs first: their Redis copies are keyed by
+    // session_id, and the previous cleanup deleted `session:${user.id}` —
+    // a key that never existed — leaving stale sessions valid until TTL (P1-6).
+    const oldSessions = await prisma.session.findMany({
+      where: { user_id: user.id },
+      select: { session_id: true },
+    });
 
     // Delete previous session & create a new one
     const session = await prisma.$transaction(async (tx) => {
@@ -153,8 +158,9 @@ export const handleGoogleCallback = async (req, res) => {
 
     console.log('New session ID:', session.session_id);
 
-    // Remove old Redis session (Only user's session)
-    await redis.del(`session:${user.id}`);
+    for (const oldSession of oldSessions) {
+      await redis.del(`session:${oldSession.session_id}`).catch(() => {});
+    }
 
     // Store session in Redis
     await redis.setex(
@@ -163,17 +169,17 @@ export const handleGoogleCallback = async (req, res) => {
       JSON.stringify({ id: user.id, email: user.email }),
     );
 
-    // Set session cookie securely
+    const sessionTtlMs = parseInt(process.env.SESSION_TTL || '86400') * 1000;
     res.cookie('sessionId', session.session_id, {
       httpOnly: true,
-      secure: false, // Secure only in production
-      sameSite: 'Lax',
-      maxAge: 1000 * 60 * 60 * 24 * 60, // 60 days expiration
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: sessionTtlMs,
     });
 
     // Redirect to frontend using the redirectAfter from state
     return res.redirect(buildRedirectUrl(stateData.redirectAfter));
-  } catch (error) {
+  } catch (error: any) {
     return res.status(400).json({
       error: 'Google authentication failed.',
       details: error.response?.data || error.message,

@@ -2,16 +2,23 @@ import { Request, Response } from 'express';
 import { getNotFoundTracksFromSpotify } from '../services/getNotFoundTracks/spotifyNFT';
 import { getNotFoundTracksFromYoutube } from '../services/getNotFoundTracks/youtubeNFT';
 
-export const notFoundTracks = async (req, res) => {
+export const notFoundTracks = async (req: Request, res: Response) => {
   try {
-    const userId = req.session?.userId;
-    // const platform = (req.query.platform as string)?.toLowerCase(); // or use req.body.platform if POST
-    const platform: string = 'youtube';
+    const userId = req.session?.id;
+    const platform = (
+      (req.query.platform as string) ||
+      (req.body.platform as string) ||
+      ''
+    ).toLowerCase();
 
-    if (!userId || !platform) {
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    if (!platform) {
       return res.status(400).json({
         success: false,
-        message: 'Missing userId or platform',
+        message: 'Missing platform query param (spotify | youtube)',
       });
     }
 
@@ -38,7 +45,7 @@ export const notFoundTracks = async (req, res) => {
           message: 'Unsupported platform',
         });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in notFoundTracks controller:', error);
     return res.status(500).json({
       success: false,
