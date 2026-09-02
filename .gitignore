@@ -10,7 +10,9 @@ dump.rdb
 dump.rdb
 openapi-syncit.json
 tree.txt
-structure.txtsrc/generated
+structure.txt
+src/generated
+
 src/generated/
 dump.rdb
 tree.txt

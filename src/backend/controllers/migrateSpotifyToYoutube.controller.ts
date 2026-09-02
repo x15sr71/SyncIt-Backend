@@ -75,6 +75,20 @@ export async function migrateSpotifyToYoutubeHandler(req: Request, res: Response
   } catch (err: any) {
     console.error('[Controller] Error during Spotify to YouTube migration:', err);
 
+    // Provider-account problems are the user's to fix, not server faults —
+    // mapped once here so every service in the chain is covered.
+    const accountMsg = String(err?.message ?? '');
+    if (
+      accountMsg.includes('NEEDS_RECONNECT') ||
+      accountMsg.includes('not connected for this user')
+    ) {
+      return res.status(401).json({
+        success: false,
+        error: 'ACCOUNT_NOT_CONNECTED',
+        message: 'Please reconnect your Spotify and YouTube accounts, then try again.',
+      });
+    }
+
     // Handle specific error types
     if (err.error === 'YOUTUBE_QUOTA_EXCEEDED') {
       return res.status(503).json({

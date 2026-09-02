@@ -4,8 +4,6 @@ import {
   refreshYoutubeAccessToken,
 } from '../../../../auth/youtube/youtubeTokensUtil';
 
-const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
-
 const MAX_RETRIES = 5;
 // Deliberate migration cap (was a silent 40): one YouTube search costs 100
 // quota units, so N tracks ≈ N×150 units of the 10,000/day default budget.
@@ -94,7 +92,6 @@ const fetchYoutubeTracks = async (accessToken: string, playlistId: string) => {
       params: {
         part: 'contentDetails',
         id: videoIds.join(','),
-        key: youtube_Api_Key,
       },
     });
 

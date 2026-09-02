@@ -17,7 +17,26 @@ export const getPlaylistsHandler = async (req: Request, res: Response) => {
   }
 
   let retryCount = 0;
-  let accessToken: string | null = await get_SpotifyAccessToken(userId);
+  let accessToken: string | null = null;
+
+  // get_SpotifyAccessToken THROWS when the account is not connected or the
+  // refresh token was revoked — it never resolves to null. Without this catch
+  // the rejection escapes the async handler (Express 4 does not trap those)
+  // and the unhandledRejection hook shuts the whole process down, so one user
+  // opening the dashboard before connecting Spotify took the server offline.
+  try {
+    accessToken = await get_SpotifyAccessToken(userId);
+  } catch (error: any) {
+    const needsReconnect = String(error?.message ?? '').includes('SPOTIFY_NEEDS_RECONNECT');
+    console.error('Failed to get Spotify access token:', error);
+    return res.status(401).json({
+      success: false,
+      error: needsReconnect ? 'SPOTIFY_NEEDS_RECONNECT' : 'SPOTIFY_NOT_CONNECTED',
+      message: needsReconnect
+        ? 'Your Spotify connection expired. Please reconnect your account.'
+        : 'Spotify account not connected. Please connect Spotify to continue.',
+    });
+  }
 
   // If there's no access token in DB, we cannot even attempt an API call (nor a refresh)
   if (!accessToken) {

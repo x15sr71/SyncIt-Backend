@@ -101,6 +101,20 @@ export async function callLlmJsonWithRetry(
       const result = await callOpenAIModel(messages);
       return JSON.parse(result.content);
     } catch (err: any) {
+      const status = err?.response?.status;
+
+      // 400/401/403 from the LLM means bad or missing credentials, not a
+      // transient blip — retrying burns time and buries the real cause in a
+      // generic "attempt failed" line. Say it plainly and stop.
+      if (status === 400 || status === 401 || status === 403) {
+        console.error(
+          `[LLM] CONFIG ERROR (HTTP ${status}): ${
+            err?.response?.data?.error?.message || err?.message
+          } — check GOOGLE_API_KEY. Every track will be marked unmatched until this is fixed.`,
+        );
+        return null;
+      }
+
       console.warn(
         `[LLM] Attempt ${attempt}/${maxAttempts} failed: ${err?.message || 'unknown error'}`,
       );
