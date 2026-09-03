@@ -1,0 +1,74 @@
+# Production topology for the VM. Deployed by .github/workflows/deploy.yaml,
+# which scp's this file and runs it with IMAGE_NAME/IMAGE_TAG set.
+#
+# Differs from docker-compose.yml (the local dev stack) in three ways:
+#   - pulls a prebuilt image instead of building on the box
+#   - takes every credential from .env on the VM, never from this file
+#   - publishes on the loopback only (see BIND_ADDR below)
+
+services:
+  backend:
+    image: ${IMAGE_NAME:?set by the deploy workflow}:${IMAGE_TAG:?set by the deploy workflow}
+    # BIND_ADDR defaults to loopback: the VM has no firewall and no TLS
+    # terminator, so publishing on 0.0.0.0 would expose session cookies over
+    # plaintext HTTP. Put a TLS reverse proxy in front, then either proxy to
+    # 127.0.0.1:3002 or set BIND_ADDR=0.0.0.0 deliberately.
+    ports:
+      - '${BIND_ADDR:-127.0.0.1}:${PORT:-3002}:3002'
+    env_file: [.env]
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    # unhandledRejection is deliberately non-fatal, but uncaughtException
+    # still exits — restart it.
+    restart: unless-stopped
+
+  # One-shot, run by the workflow before `up -d`. Same image as the app:
+  # `prisma` is a runtime dependency so the CLI is present here.
+  migrate:
+    image: ${IMAGE_NAME:?set by the deploy workflow}:${IMAGE_TAG:?set by the deploy workflow}
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    env_file: [.env]
+    restart: 'no'
+
+  redis:
+    image: redis:7-alpine
+    # No published port: only the backend needs it, and the VM already runs
+    # another Redis on 6380.
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Optional on-VM Postgres, for running without a managed database.
+  # Enable with: docker compose --profile local-db up -d
+  # Then point DATABASE_URL and DIRECT_URL in .env at:
+  #   postgresql://syncit:<password>@postgres:5432/syncit
+  postgres:
+    profiles: ['local-db']
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: syncit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: syncit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U syncit -d syncit']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
