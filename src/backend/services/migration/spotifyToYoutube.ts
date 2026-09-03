@@ -7,6 +7,7 @@ import { callLlmJsonWithRetry } from '../../openAI/getBestMatch';
 import { getSpotifyPlaylistContent } from '../../services/getPlaylistContent/getSpotifyPlaylistContent';
 import { addToYoutubePlaylist, fetchExistingVideoIds } from '../../services/addTo/addToYoutube';
 import prisma from '../../../db/prisma';
+import { deriveSyncStatus } from '../../utility/syncStatus';
 
 const MAX_LLM_CHUNK_CHARS = 10000;
 // Bound chunks by track count too: output size scales with track count, and
@@ -339,7 +340,8 @@ ${chunkText}
   // Per-playlist and append-only: the old per-account retryToFindTracks
   // column was overwritten every run, losing other playlists' history (P2-6).
   const allFailedTracks = [...new Set([...existingFailedTracks, ...failedDetails])];
-  const lastSyncStatus = failedDetails.length > 0 ? 'PARTIAL' : 'SUCCESS';
+  // See the note in youtubeToSpotify.ts — zero added is a failure.
+  const lastSyncStatus = deriveSyncStatus(actuallyAddedVideoIds.length, failedDetails.length);
   await prisma.playlistMigration.upsert({
     where: {
       userId_sourcePlaylistId_sourcePlatform_destinationPlatform: {

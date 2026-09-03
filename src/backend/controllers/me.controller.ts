@@ -52,9 +52,13 @@ export async function meHandler(req: Request, res: Response) {
     const totalSyncs = migrations.reduce((sum, m) => sum + m.migrationCounter, 0);
     const tracksMigrated = migrations.reduce((sum, m) => sum + m.sourceTrackIds.length, 0);
     const finished = migrations.filter((m) => m.lastSyncStatus && m.lastSyncStatus !== 'RUNNING');
-    const succeeded = finished.filter(
-      (m) => m.lastSyncStatus === 'SUCCESS' || m.lastSyncStatus === 'PARTIAL',
-    );
+    // PARTIAL used to count as a success here, which inflated the rate: a run
+    // that added nothing was stored as PARTIAL and then counted as a win.
+    // PARTIAL now means "some tracks moved, some did not", so it is only
+    // half-credited rather than dropped entirely.
+    const succeededScore =
+      finished.filter((m) => m.lastSyncStatus === 'SUCCESS').length +
+      finished.filter((m) => m.lastSyncStatus === 'PARTIAL').length * 0.5;
 
     return res.json({
       success: true,
@@ -74,9 +78,7 @@ export async function meHandler(req: Request, res: Response) {
       stats: {
         totalSyncs,
         tracksMigrated,
-        successRate: finished.length
-          ? Math.round((succeeded.length / finished.length) * 100)
-          : null,
+        successRate: finished.length ? Math.round((succeededScore / finished.length) * 100) : null,
         activeAutoSyncs: migrations.filter((m) => m.autoSyncEnabled).length,
       },
       recentSyncs: migrations
