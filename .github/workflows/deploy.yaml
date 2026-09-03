@@ -114,7 +114,7 @@ jobs:
           # a bad migration fails the deploy instead of booting an app
           # against a schema it does not match.
           echo "--- prisma migrate deploy"
-          compose run --rm migrate
+          compose run --rm -T migrate < /dev/null
 
           echo "--- restarting"
           compose up -d --remove-orphans
@@ -134,7 +134,7 @@ jobs:
             sleep 1
           done
           echo "health check failed after 30s; recent logs:" >&2
-          docker compose -f "$HOME/syncit/docker-compose.prod.yml" logs --tail 60 backend >&2
+          docker logs --tail 60 syncit-backend-1 >&2 || echo "(no backend container)" >&2
           exit 1
           REMOTE
 
