@@ -1,0 +1,143 @@
+name: Deploy
+
+# Deploys main to the production VM. workflow_dispatch is kept so a failed
+# deploy can be retried without pushing an empty commit.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys interleave on the same box. cancel-in-progress is
+# false on purpose: cancelling mid-run could leave the VM stranded between
+# the migrate step and the container swap.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    name: Build and push image
+    # The VM is aarch64. This is a native arm64 runner (free on public
+    # repos); building here avoids QEMU emulation, which is roughly 5-10x
+    # slower for a Node + Prisma image.
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Built-in token: no secret needed to push to this repo's own
+          # package namespace.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag
+        id: meta
+        # Deploy an immutable commit-addressed tag rather than :latest, so
+        # the running container always traces to a commit and a rollback is
+        # just re-running the workflow at an older SHA.
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VM
+    needs: build
+    runs-on: ubuntu-latest
+    # Add required reviewers to this environment in repo settings to gate
+    # deploys behind an approval.
+    environment: production
+    env:
+      SSH_TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+      IMAGE_TAG: ${{ needs.build.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pinned host key. Never StrictHostKeyChecking=no, which would
+          # silently accept a substituted host.
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Copy compose file
+        # The compose file is versioned here, so the VM always runs the
+        # topology the deployed commit expects. Application secrets stay in
+        # the .env that lives only on the VM and is never written from CI.
+        run: |
+          ssh "$SSH_TARGET" 'mkdir -p ~/syncit'
+          scp docker-compose.prod.yml "$SSH_TARGET:syncit/docker-compose.prod.yml"
+
+      - name: Pull, migrate, restart
+        run: |
+          ssh "$SSH_TARGET" \
+            "IMAGE_NAME='${{ env.IMAGE }}' IMAGE_TAG='${IMAGE_TAG}' bash -euo pipefail -s" <<'REMOTE'
+          cd "$HOME/syncit"
+          export IMAGE_NAME IMAGE_TAG
+          compose() { docker compose -f docker-compose.prod.yml "$@"; }
+
+          echo "--- pulling $IMAGE_NAME:$IMAGE_TAG"
+          compose pull backend
+
+          # Migrations run as a one-shot before the new container starts, so
+          # a bad migration fails the deploy instead of booting an app
+          # against a schema it does not match.
+          echo "--- prisma migrate deploy"
+          compose run --rm migrate
+
+          echo "--- restarting"
+          compose up -d --remove-orphans
+          REMOTE
+
+      - name: Health check
+        # /health reports DB and Redis reachability, so this catches a
+        # missing env var or an unreachable database that a bare
+        # "container started" check would miss.
+        run: |
+          ssh "$SSH_TARGET" 'bash -euo pipefail -s' <<'REMOTE'
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 http://127.0.0.1:3002/health > /tmp/health.json; then
+              echo "healthy after ${attempt}s: $(cat /tmp/health.json)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "health check failed after 30s; recent logs:" >&2
+          docker compose -f "$HOME/syncit/docker-compose.prod.yml" logs --tail 60 backend >&2
+          exit 1
+          REMOTE
+
+      - name: Prune old images
+        # The VM disk runs hot. Without this every deploy leaves another
+        # image behind. Runs on failure too, so a failed deploy does not
+        # also leak disk.
+        if: always()
+        run: |
+          ssh "$SSH_TARGET" \
+            'docker image prune -af --filter "until=168h" && docker builder prune -af --filter "until=168h"'
