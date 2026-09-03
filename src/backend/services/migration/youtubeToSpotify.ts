@@ -8,6 +8,7 @@ import { searchTracksOnSpotify } from '../search/searchSpotify/searchSpotify';
 import { callLlmJsonWithRetry } from '../../openAI/getBestMatch';
 import { addToSptPlaylist, AddToSpotifyResult } from '../addTo/addToSptPlaylist';
 import prisma from '../../../db/prisma';
+import { deriveSyncStatus } from '../../utility/syncStatus';
 
 const MAX_LLM_CHUNK_CHARS = 10000;
 // Bound chunks by track count too: output size scales with track count, and
@@ -306,7 +307,13 @@ export const migrateYoutubeToSpotifyService = async (
   // Per-playlist and append-only: the old per-account retryToFindTracks
   // column was overwritten every run, losing other playlists' history (P2-6).
   const allFailedTracks = [...new Set([...existingFailedTracks, ...failedTrackDetails])];
-  const lastSyncStatus = failedTrackDetails.length > 0 ? 'PARTIAL' : 'SUCCESS';
+  // A run that added nothing is a failure, not a partial success. Deriving
+  // the status from the failure count alone reported "0 added, 7 failed" as
+  // PARTIAL, which the client then rendered as a green "Success" badge.
+  const lastSyncStatus = deriveSyncStatus(
+    addResult.addedTrackIds.length,
+    failedTrackDetails.length,
+  );
 
   await prisma.playlistMigration.upsert({
     where: {
