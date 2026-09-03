@@ -37,7 +37,21 @@ export const migrateYoutubeToSpotifyHandler = async (req: Request, res: Response
       `[Controller] Starting migration for user ${userId}, playlistId: ${playlistId}, playlistName: ${playlistName}`,
     );
     const result = await migrateYoutubeToSpotifyService(userId, playlistId, playlistName);
-    console.log(`[Controller] Migration successful: added ${result.numberOfTracksAdded} tracks`);
+    const added = result.numberOfTracksAdded ?? 0;
+    const failed = result.failedTrackDetails?.length ?? 0;
+
+    // Do not call a run that added nothing "successful" — that log line read
+    // as a success while zero tracks reached Spotify, which made a real
+    // failure look like a working migration.
+    if (added === 0) {
+      console.error(
+        `[Controller] Migration added NO tracks (playlistId: ${playlistId}, failed: ${failed}) — check upstream errors above`,
+      );
+    } else if (failed > 0) {
+      console.warn(`[Controller] Migration partial: added ${added}, failed ${failed}`);
+    } else {
+      console.log(`[Controller] Migration successful: added ${added} tracks`);
+    }
     return res.json(result);
   } catch (err: any) {
     if (err.message === 'SPOTIFY_QUOTA_EXCEEDED') {
@@ -56,6 +70,20 @@ export const migrateYoutubeToSpotifyHandler = async (req: Request, res: Response
         error: 'NO_TRACKS',
         code: 400,
         message: 'No valid tracks found to migrate.',
+      });
+    }
+
+    // Provider-account problems are the user's to fix, not server faults.
+    // These bubble up from get_SpotifyAccessToken / get_YoutubeAccessToken via
+    // any service in the chain (createSpotifyPlaylist, addToSptPlaylist, ...),
+    // so map them once here rather than guarding each call site.
+    const msg = String(err?.message ?? '');
+    if (msg.includes('NEEDS_RECONNECT') || msg.includes('not connected for this user')) {
+      console.warn('[Controller] Migration aborted — provider account not usable:', msg);
+      return res.status(401).json({
+        success: false,
+        error: 'ACCOUNT_NOT_CONNECTED',
+        message: 'Please reconnect your Spotify and YouTube accounts, then try again.',
       });
     }
 

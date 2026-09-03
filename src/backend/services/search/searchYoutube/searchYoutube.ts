@@ -29,14 +29,6 @@ const validateTracks = (tracks: TrackInput[]) => {
   }
 };
 
-const getApiKey = (): string => {
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) {
-    throw new Error('YouTube API key is missing. Please set it in your environment variables.');
-  }
-  return apiKey;
-};
-
 const createSearchQuery = ({ trackName, artists, albumName }: TrackInput) =>
   `${trackName || ''} ${artists || ''} ${albumName || ''}`.trim();
 
@@ -70,7 +62,10 @@ const handleSearchError = async (
 };
 
 // ✅ Fetch video status info for filtering (embeddable, public, processed)
-async function filterValidVideos(videoIds: string[], apiKey: string): Promise<Set<string>> {
+// Authorised by the caller's OAuth token. This previously passed only an API
+// key and no Authorization header, so it was the one call here with a single
+// point of failure when that key was revoked.
+async function filterValidVideos(videoIds: string[], accessToken: string): Promise<Set<string>> {
   if (videoIds.length === 0) return new Set();
 
   try {
@@ -78,8 +73,8 @@ async function filterValidVideos(videoIds: string[], apiKey: string): Promise<Se
       params: {
         part: 'status',
         id: videoIds.join(','),
-        key: apiKey,
       },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     const validIds = new Set<string>();
@@ -104,7 +99,6 @@ async function filterValidVideos(videoIds: string[], apiKey: string): Promise<Se
 
 const performSearch = async (
   track: TrackInput,
-  apiKey: string,
   accessToken: string,
   userId: string,
 ): Promise<{ trackName: string; results: any[] }> => {
@@ -126,7 +120,6 @@ const performSearch = async (
             videoEmbeddable: 'true',
             order: 'relevance',
             maxResults: 3,
-            key: apiKey,
           },
           headers: { Authorization: `Bearer ${accessToken}` },
         }),
@@ -134,7 +127,7 @@ const performSearch = async (
 
       const rawResults = resp.data.items;
       const videoIds = rawResults.map((item: any) => item.id.videoId);
-      const validVideoIds = await filterValidVideos(videoIds, apiKey);
+      const validVideoIds = await filterValidVideos(videoIds, accessToken);
 
       const filtered = rawResults.filter((item: any) => validVideoIds.has(item.id.videoId));
 
@@ -161,7 +154,6 @@ export async function searchTracksOnYoutubeService(
   }
 
   validateTracks(tracks);
-  const apiKey = getApiKey();
   let accessToken = await get_YoutubeAccessToken(userId);
 
   // Bounded fan-out: searching every track in parallel guaranteed 429s and
@@ -169,7 +161,7 @@ export async function searchTracksOnYoutubeService(
   return mapWithConcurrency(tracks, SEARCH_CONCURRENCY, async (track) => {
     const query = createSearchQuery(track);
     try {
-      const result = await performSearch(track, apiKey, accessToken, userId);
+      const result = await performSearch(track, accessToken, userId);
       return { trackName: result.trackName, query, results: result.results };
     } catch (reason: any) {
       console.error(`Search failed for ${track.trackName}:`, reason);

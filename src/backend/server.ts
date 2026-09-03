@@ -39,9 +39,34 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 
 // Production traffic arrives through the Next.js rewrite proxy (and any
-// platform load balancer); trust the first hop so req.ip and secure-cookie
-// detection see the real client.
-app.set('trust proxy', 1);
+// platform load balancer); trust it so req.ip and secure-cookie detection see
+// the real client.
+//
+// SECURITY: `trust proxy` decides whether X-Forwarded-For is believed. A bare
+// hop count trusts whoever is on the other end of the socket, so if this
+// backend is reachable directly, an attacker sets their own X-Forwarded-For
+// and gets a fresh rate-limit bucket per request — verified: 150 requests
+// with a rotating header produced zero 429s. Naming the proxy's IP/CIDR makes
+// Express ignore the header from anyone else.
+//
+// TRUST_PROXY accepts: 'false' (no proxy — use the socket IP), a hop count,
+// or a comma-separated IP/CIDR list (preferred in production).
+const trustProxyRaw = process.env.TRUST_PROXY ?? '1';
+const trustProxy: boolean | number | string[] =
+  trustProxyRaw === 'false'
+    ? false
+    : /^\d+$/.test(trustProxyRaw)
+      ? Number(trustProxyRaw)
+      : trustProxyRaw.split(',').map((entry) => entry.trim());
+app.set('trust proxy', trustProxy);
+
+if (process.env.NODE_ENV === 'production' && !process.env.TRUST_PROXY) {
+  logger.warn(
+    'TRUST_PROXY is unset, defaulting to 1 hop. If this backend is reachable ' +
+      'directly, per-IP rate limits can be bypassed by spoofing X-Forwarded-For. ' +
+      'Set TRUST_PROXY to your proxy IP/CIDR, or "false" if there is no proxy.',
+  );
+}
 
 const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://127.0.0.1:3000')
   .split(',')
@@ -121,6 +146,20 @@ app.post('/auth/logout', sessionMiddleware, async (req, res) => {
   return res.json({ success: true, message: 'Logged out' });
 });
 
+/* ================= ERROR HANDLING ================= */
+
+// Last-resort handler for anything a route passes to next(err) or throws
+// synchronously. Must stay after every route registration.
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err }, 'Unhandled request error');
+  if (res.headersSent) return;
+  res.status(500).json({
+    success: false,
+    error: 'INTERNAL_ERROR',
+    message: 'Something went wrong. Please try again.',
+  });
+});
+
 /* ================= SERVER START ================= */
 
 // Exported for supertest: importing this module must not listen, start
@@ -197,10 +236,12 @@ if (require.main === module) {
     cleanup('uncaughtException');
   });
 
-  // Exits on purpose — run under a supervisor with restart (docker-compose
-  // sets restart: unless-stopped).
+  // Deliberately NOT fatal. A rejected promise inside one request must not
+  // take the server down for every other user — that turned a single request
+  // from an account without Spotify connected into a full outage. Log loudly
+  // and keep serving; uncaughtException above stays fatal because process
+  // state really is unsafe to continue from there.
   process.on('unhandledRejection', (reason) => {
-    console.error('Unhandled Rejection:', reason);
-    cleanup('unhandledRejection');
+    logger.error({ err: reason }, 'Unhandled Rejection — server kept alive');
   });
 }

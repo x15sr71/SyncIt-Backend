@@ -5,7 +5,6 @@ import {
   refreshYoutubeAccessToken,
 } from '../../auth/youtube/youtubeTokensUtil';
 
-const youtube_Api_Key = process.env.YOUTUBE_API_KEY;
 const MAX_RETRIES = 5;
 const MAX_TRACKS = 40;
 
@@ -91,7 +90,6 @@ const fetchYoutubeTracks = async (accessToken: string) => {
       params: {
         part: 'contentDetails',
         id: videoIds.join(','),
-        key: youtube_Api_Key,
       },
     });
 
